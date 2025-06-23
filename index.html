@@ -3,715 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Ders değerlendirme kriterleri ve öğrenci notları yönetim sistemi">
-    <title>Ders Değerlendirme Sistemi</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <meta http-equiv="refresh" content="0; url=./app/v2/">
+    <meta name="description" content="MUDEK Ders Değerlendirme Formu - En son sürüme yönlendiriliyor">
+    <title>MUDEK Ders Değerlendirme Formu - Yönlendiriliyor...</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            max-width: 500px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        h1 {
+            margin: 0 0 10px;
+            font-size: 1.8rem;
+            font-weight: 300;
+        }
+        
+        p {
+            margin: 10px 0;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        
+        .version-info {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .manual-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .manual-link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .version-links {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .version-links a {
+            display: inline-block;
+            margin: 5px 10px;
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-decoration: none;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+        
+        .version-links a:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: scale(1.05);
+        }
+        
+        .current-version {
+            background: rgba(76, 175, 80, 0.3) !important;
+            border: 1px solid rgba(76, 175, 80, 0.5);
+        }
+    </style>
+    <script>
+        // JavaScript ile de yönlendirme yapıyoruz (meta refresh'e ek olarak)
+        window.onload = function() {
+            // 2 saniye sonra yönlendir
+            setTimeout(function() {
+                window.location.href = './app/v2/';
+            }, 2000);
+        };
+    </script>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>Ders Değerlendirme Sistemi</h1>
-            <p>Ders değerlendirme kriterleri ve ağırlıklarını düzenleyin, öğrencilerin notlarını girin</p>
+        <div class="spinner"></div>
+        <h1>📚 MUDEK Ders Değerlendirme Formu</h1>
+        <p>En son sürüme yönlendiriliyorsunuz...</p>
+        
+        <div class="version-info">
+            <strong>Aktif Sürüm:</strong> v2.0<br>
+            <small>Gelişmiş arayüz ve yeni özellikler</small>
         </div>
         
-        <div class="course-info" id="courseInfo">
-            <h2 id="courseTitle">Ders Bilgileri</h2>
-            <p id="courseDetails">JSON dosyası yükleyiniz</p>
-            <p id="courseTerm" class="course-term"></p>
+        <a href="./app/v2/" class="manual-link">
+            🚀 Hemen Başla (v2.0)
+        </a>
+        
+        <div class="version-links">
+            <strong>Tüm Sürümler:</strong><br>
+            <a href="./app/v1/" title="İlk sürüm - Temel özellikler">📌 v1.0</a>
+            <a href="./app/v2/" class="current-version" title="Güncel sürüm - Gelişmiş özellikler">✨ v2.0 (Güncel)</a>
         </div>
         
-        <!-- Ana Sekme Navigasyonu -->
-		<div class="nav-tabs">
-			<button class="nav-tab active" data-tab="definition">Ders Tanımlama</button>
-			<button class="nav-tab" data-tab="students">Öğrenci Listesi</button>
-			<button class="nav-tab" data-tab="assessment">Değerlendirme Girişi</button>
-			<button class="nav-tab" data-tab="student-grades">Öğrenci Bazlı Not Girişi</button>
-			<button class="nav-tab" data-tab="grades">Notlar</button>
-		</div>
-        
-        <!-- Ders Tanımlama Sekmesi -->
-        <div class="nav-content active" id="definition-content">
-            <div class="action-bar">
-                <div class="action-group">
-                    <h3 class="action-title">Ders İşlemleri</h3>
-                    <div class="buttons">
-                        <button class="btn btn-primary" id="btnImport">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                            Ders JSON Yükle
-                        </button>
-                        <button class="btn btn-primary" id="btnExport">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            Ders JSON Dışa Aktar
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="action-group">
-                    <h3 class="action-title">Değerlendirme İşlemleri</h3>
-                    <div class="buttons">
-                        <button class="btn btn-success" id="btnAddTerm">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            Yarıyıl İçi Ekle
-                        </button>
-                        <button class="btn btn-success" id="btnAddFinal">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-                            Yarıyıl Sonu Ekle
-                        </button>
-                        <button class="btn btn-secondary" id="btnAddQuestion">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"></path><path d="M12 8v4l4 2"></path></svg>
-                            Soru Ekle
-                        </button>
-                        <button class="btn btn-secondary" id="btnAddRubric">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="9"></line><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
-                            Rubrik Ekle
-                        </button>
-                        <button class="btn btn-danger" id="btnRemove">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                            Sil
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="action-group">
-                    <h3 class="action-title">Görünüm İşlemleri</h3>
-                    <div class="buttons">
-                        <button class="btn btn-warning" id="btnExpandAll">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 13 12 18 17 13"></polyline><polyline points="7 6 12 11 17 6"></polyline></svg>
-                            Tümünü Genişlet
-                        </button>
-                        <button class="btn btn-warning" id="btnCollapseAll">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>
-                            Tümünü Daralt
-                        </button>
-						<button class="btn btn-warning" id="btnDistributePoints">
-							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"></path></svg>
-							Puanları Dağıt
-						</button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Kategori bilgileri -->
-			<div class="categories-info">
-				<div class="category-item">
-					<h3>Yarıyıl İçi Değerlendirme</h3>
-					<div class="category-weight">
-						<span class="category-weight-label">Genel Katkı Ağırlığı:</span>
-						<span id="termGeneralWeight" class="category-weight-value">40</span><span>%</span>
-					</div>
-					<div class="category-weight">
-						<span class="category-weight-label">İç Ağırlık Toplamı:</span>
-						<span id="termInternalTotal" class="category-weight-value">0</span><span>%</span>
-					</div>
-					<div class="progress-bar">
-						<div class="progress-fill" id="termProgress" style="width: 0%"></div>
-					</div>
-				</div>
-				<div class="category-item">
-					<h3>Yarıyıl Sonu Değerlendirme</h3>
-					<div class="category-weight">
-						<span class="category-weight-label">Genel Katkı Ağırlığı:</span>
-						<span id="finalGeneralWeight" class="category-weight-value">60</span><span>%</span>
-					</div>
-					<div class="category-weight">
-						<span class="category-weight-label">İç Ağırlık Toplamı:</span>
-						<span id="finalInternalTotal" class="category-weight-value">0</span><span>%</span>
-					</div>
-					<div class="progress-bar">
-						<div class="progress-fill" id="finalProgress" style="width: 0%"></div>
-					</div>
-				</div>
-			</div>
-            
-            <div class="card">
-                <h3 class="card-title">Değerlendirme Bileşenleri</h3>
-                <div class="treeview">
-                    <div class="tree-header">
-                        <div class="tree-header-cell"></div>
-                        <div class="tree-header-cell">ID</div>
-                        <div class="tree-header-cell">Etkinlik Adı</div>
-                        <div class="tree-header-cell">Etkinlik Türü</div>
-                        <div class="tree-header-cell">Ağırlık (%)</div>
-                        <div class="tree-header-cell">Puan</div>
-                        <div class="tree-header-cell">İlgili ÖÇ'ler</div>
-                        <div class="tree-header-cell">Açıklama</div>
-                    </div>
-                    <div class="tree-container" id="treeContainer">
-                        <!-- Tree nodes will be inserted here by JavaScript -->
-                        <div class="tree-empty-message">Henüz değerlendirme bileşeni eklenmedi. Ders JSON yükleyin veya yeni bileşenler ekleyin.</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3 class="card-title">Ders Öğrenme Çıktıları</h3>
-                <div class="outcomes-container">
-                    <div class="outcomes-list" id="outcomesList">
-                        <!-- Outcome items will be inserted here by JavaScript -->
-                        <div class="outcomes-empty-message">Henüz öğrenme çıktısı tanımlanmadı. Ders JSON yükleyin.</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3 class="card-title">Rubrik ve Soru Kütüphanesi</h3>
-                
-                <div class="tabs">
-                    <button class="tab active" data-tab="rubrics">Rubrikler</button>
-                    <button class="tab" data-tab="questions">Soru Türleri</button>
-                </div>
-                
-                <div class="tab-content active" id="rubricsTab">
-                    <div class="rubric-category">
-                        <h4>Proje Rubrikleri</h4>
-                        <div class="rubric-items">
-                            <div class="rubric-item" data-type="Proje Planlama" data-description="Proje planlama ve süreç yönetimi değerlendirmesi">Proje Planlama</div>
-                            <div class="rubric-item" data-type="Proje Raporu" data-description="Proje raporu yazımı ve içerik kalitesi">Proje Raporu</div>
-                            <div class="rubric-item" data-type="Proje Sunumu" data-description="Proje sunumu ve anlatım kalitesi">Proje Sunumu</div>
-                        </div>
-                    </div>
-                    
-                    <div class="rubric-category">
-                        <h4>Kod Değerlendirme Rubrikleri</h4>
-                        <div class="rubric-items">
-                            <div class="rubric-item" data-type="Kod Yapısı" data-description="Kod organizasyonu ve mimari yapı">Kod Yapısı</div>
-                            <div class="rubric-item" data-type="Kod Kalitesi" data-description="Kod kalitesi, okunabilirlik ve bakım yapılabilirlik">Kod Kalitesi</div>
-                            <div class="rubric-item" data-type="Performans" data-description="Kodun performans ve kaynak kullanımı">Performans</div>
-                            <div class="rubric-item" data-type="Dokümantasyon" data-description="Kod dokümantasyonu ve yorum kalitesi">Dokümantasyon</div>
-                        </div>
-                    </div>
-                    
-                    <div class="rubric-category">
-                        <h4>Yazılı Sınav Rubrikleri</h4>
-                        <div class="rubric-items">
-                            <div class="rubric-item" data-type="Teorik Bilgi" data-description="Teorik bilgi ve kavramları anlama">Teorik Bilgi</div>
-                            <div class="rubric-item" data-type="Problem Çözme" data-description="Problem analizi ve çözüm yaklaşımı">Problem Çözme</div>
-                            <div class="rubric-item" data-type="Uygulama" data-description="Teorik bilginin uygulamaya aktarılması">Uygulama</div>
-                        </div>
-                    </div>
-                    
-                    <div class="rubric-category">
-                        <h4>Sunum Rubrikleri</h4>
-                        <div class="rubric-items">
-                            <div class="rubric-item" data-type="İçerik" data-description="Sunum içeriği ve bilgi doğruluğu">İçerik</div>
-                            <div class="rubric-item" data-type="Görsel Tasarım" data-description="Sunum görsel tasarımı ve materyal kalitesi">Görsel Tasarım</div>
-                            <div class="rubric-item" data-type="Sunum Becerisi" data-description="Anlatım becerisi ve iletişim">Sunum Becerisi</div>
-                            <div class="rubric-item" data-type="Zaman Yönetimi" data-description="Sunum zamanının etkin kullanımı">Zaman Yönetimi</div>
-                        </div>
-                    </div>
-                    
-                    <div class="rubric-category">
-                        <h4>Laboratuvar Rubrikleri</h4>
-                        <div class="rubric-items">
-                            <div class="rubric-item" data-type="Deney Hazırlığı" data-description="Deney öncesi hazırlık ve planlama">Deney Hazırlığı</div>
-                            <div class="rubric-item" data-type="Deney Uygulaması" data-description="Deney prosedürlerinin uygulanması">Deney Uygulaması</div>
-                            <div class="rubric-item" data-type="Veri Analizi" data-description="Verilerin analizi ve değerlendirilmesi">Veri Analizi</div>
-                            <div class="rubric-item" data-type="Laboratuvar Raporu" data-description="Laboratuvar raporu yazımı ve kalitesi">Laboratuvar Raporu</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="tab-content" id="questionsTab">
-                    <div class="question-types">
-                        <div class="question-type-item" data-type="Çoktan Seçmeli" data-description="Birden fazla şık arasından doğru cevabın seçilmesi">Çoktan Seçmeli Soru</div>
-                        <div class="question-type-item" data-type="Doğru/Yanlış" data-description="İfadenin doğru veya yanlış olduğunu belirtme">Doğru/Yanlış Sorusu</div>
-                        <div class="question-type-item" data-type="Kısa Cevaplı" data-description="Kısa ve öz cevap gerektiren soru">Kısa Cevaplı Soru</div>
-                        <div class="question-type-item" data-type="Boşluk Doldurma" data-description="Metindeki boşlukların doldurulması">Boşluk Doldurma</div>
-                        <div class="question-type-item" data-type="Eşleştirme" data-description="Birbirine uygun olan kavramların eşleştirilmesi">Eşleştirme Sorusu</div>
-                        <div class="question-type-item" data-type="Açık Uçlu" data-description="Kapsamlı ve detaylı cevap gerektiren soru">Açık Uçlu Soru</div>
-                        <div class="question-type-item" data-type="Problem Çözme" data-description="Matematiksel veya mantıksal problem çözümü">Problem Çözme Sorusu</div>
-                        <div class="question-type-item" data-type="Kod Yazma" data-description="Belirli bir programlama dilinde kod yazma">Kod Yazma Sorusu</div>
-                        <div class="question-type-item" data-type="Kod Analiz" data-description="Verilen kodu analiz etme ve hata bulma">Kod Analiz Sorusu</div>
-                        <div class="question-type-item" data-type="Vaka Analizi" data-description="Verilen durumu analiz etme ve değerlendirme">Vaka Analiz Sorusu</div>
-                        <div class="question-type-item" data-type="Tasarım" data-description="Ürün, sistem veya süreç tasarımı yapma">Tasarım Sorusu</div>
-                        <div class="question-type-item" data-type="Görsel İnceleme" data-description="Grafik, diyagram veya görsel analizi">Görsel İnceleme Sorusu</div>
-                        <div class="question-type-item" data-type="Test" data-description="Çoktan seçmeli test soruları">Test Soruları (Toplu)</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Öğrenci Listesi Sekmesi -->
-        <div class="nav-content" id="students-content">
-            <div class="action-bar">
-                <div class="action-group">
-                    <h3 class="action-title">Öğrenci İşlemleri</h3>
-                    <div class="buttons">
-                        <button class="btn btn-primary" id="btnImportStudents">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                            Öğrenci Listesi Yükle
-                        </button>
-                        <button class="btn btn-secondary" id="btnClearStudents">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
-                            Listeyi Temizle
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3 class="card-title">Öğrenci Listesi</h3>
-                <p class="card-description">Excel-to-MUDEK uygulamasından alınan öğrenci JSON dosyasını yükleyiniz veya listeyi manuel ekleyebilirsiniz.</p>
-                <input type="file" id="studentFileInput" class="file-input" accept=".json">
-                
-                <div class="table-responsive">
-                    <table class="data-table" id="studentTable">
-                        <thead>
-                            <tr>
-                                <th>No</th>
-                                <th>Öğrenci No</th>
-                                <th>Adı</th>
-                                <th>Soyadı</th>
-                                <th>Durum</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="5" class="empty-message">Öğrenci listesi yüklenmedi</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Değerlendirme Girişi Sekmesi -->
-        <div class="nav-content" id="assessment-content">
-            <div class="action-bar">
-                <div class="action-group">
-                    <h3 class="action-title">Not İşlemleri</h3>
-                    <div class="buttons">
-                        <button class="btn btn-primary" id="btnImportGrades">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-                            Notları Yükle
-                        </button>
-                        <button class="btn btn-primary" id="btnSaveGrades">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-                            Notları Kaydet
-                        </button>
-                        <button class="btn btn-secondary" id="btnExportGradesJSON">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            JSON Olarak Dışa Aktar
-                        </button>
-                        <button class="btn btn-secondary" id="btnExportGradesExcel">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                            Excel Olarak Dışa Aktar
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3 class="card-title">Değerlendirme Girişi</h3>
-                <div id="assessmentContainer" class="assessment-container">
-                    <p class="empty-message">Öğrenci listesi ve değerlendirme kriterleri yüklendikten sonra buradan not girişi yapabilirsiniz.</p>
-                </div>
-            </div>
-			</div>
-				
-			<!-- Öğrenci Bazlı Not Girişi Sekmesi -->
-			<div class="nav-content" id="student-grades-content">
-				<div class="action-bar">
-					<div class="action-group">
-						<h3 class="action-title">Not İşlemleri</h3>
-						<div class="buttons">
-							<button class="btn btn-primary" id="btnImportGradesStudent">
-								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-								Notları Yükle
-							</button>
-							<button class="btn btn-primary" id="btnSaveGradesStudent">
-								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-								Notları Kaydet
-							</button>
-							<button class="btn btn-secondary" id="btnExportGradesJSONStudent">
-								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-								JSON Olarak Dışa Aktar
-							</button>
-							<button class="btn btn-secondary" id="btnExportGradesExcelStudent">
-								<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-								Excel Olarak Dışa Aktar
-							</button>
-						</div>
-					</div>
-				</div>
-				
-				<div class="card">
-					<h3 class="card-title">Öğrenci Seçin</h3>
-					<div class="student-selector">
-						<select id="studentSelector" class="form-control">
-							<option value="">Öğrenci seçiniz...</option>
-						</select>
-					</div>
-					
-					<div id="studentGradesContainer" class="student-grades-container">
-						<p class="empty-message">Öğrenci seçilmedi. Lütfen yukarıdan bir öğrenci seçin.</p>
-					</div>
-				</div>
-			</div>
-        
-        <!-- Notlar Sekmesi -->
-        <div class="nav-content" id="grades-content">
-            <div class="action-bar">
-                <div class="action-group">
-                    <h3 class="action-title">Not İşlemleri</h3>
-                    <div class="buttons">
-                        <button class="btn btn-primary" id="btnCalculateGrades">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5zm14 4h-6m-2 4h-2m-4 4h12"></path></svg>
-                            Notları Hesapla
-                        </button>
-                        <button class="btn btn-secondary" id="btnExportFinalGrades">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-                            Final Notlarını Dışa Aktar
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3 class="card-title">Değerlendirme Sonuçları</h3>
-                <p class="card-description">Tüm öğrencilerin not ortalamaları ve harf notları burada görüntülenir.</p>
-                
-                <div class="table-responsive">
-                    <table class="data-table" id="gradesTable">
-                        <thead>
-                            <tr>
-                                <th>No</th>
-                                <th>Öğrenci No</th>
-                                <th>Adı</th>
-                                <th>Soyadı</th>
-                                <th>Yarıyıl İçi</th>
-                                <th>Yarıyıl Sonu</th>
-                                <th>Toplam Puan</th>
-                                <th>Harf Notu</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td colspan="8" class="empty-message">Not girişi yapılmadı</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <div class="card" id="gradeStats">
-                <h3 class="card-title">İstatistikler</h3>
-                <div id="statsContent" class="stats-content">
-                    <p class="empty-message">Not girişi henüz yapılmadı.</p>
-                </div>
-                
-                <div id="chartContainer" class="chart-container"></div>
-            </div>
-        </div>
-        
-        <footer>
-            <p>&copy; 2025 Ders Değerlendirme Sistemi | Bu araç çevrimdışı olarak çalışır. Değişikliklerinizi kaydetmek için "JSON Dışa Aktar" seçeneğini kullanın.</p>
-        </footer>
+        <p style="font-size: 0.8rem; margin-top: 20px; opacity: 0.7;">
+            Otomatik yönlendirme çalışmıyorsa yukarıdaki bağlantıları kullanabilirsiniz.
+        </p>
     </div>
-    
-    <!-- Modal: JSON Yükleme -->
-    <div id="importModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>JSON Yükle</h2>
-                <span class="close" id="closeImportModal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p>Aşağıdaki alana JSON verisini yapıştırın veya dosyadan yükleyin:</p>
-                <div class="file-select">
-                    <button id="btnSelectFile" class="btn btn-primary">Dosya Seç</button>
-                    <span class="file-name" id="selectedFileName">Dosya seçilmedi</span>
-                    <input type="file" id="fileInput" class="file-input" accept=".json">
-                </div>
-                <textarea id="jsonContent" class="modal-textarea" placeholder="JSON verisini buraya yapıştırın..."></textarea>
-            </div>
-            <div class="modal-footer">
-                <button id="btnApplyJson" class="btn btn-primary">Uygula</button>
-                <button class="btn btn-secondary close-modal">İptal</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Modal: JSON Dışa Aktarma -->
-    <div id="exportModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>JSON Dışa Aktar</h2>
-                <span class="close" id="closeExportModal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p>Aşağıdaki JSON verisini kopyalayın veya dosyaya kaydedin:</p>
-                <textarea id="exportJsonContent" class="modal-textarea" readonly></textarea>
-            </div>
-            <div class="modal-footer">
-                <button id="btnCopyJson" class="btn btn-primary">Kopyala</button>
-                <button id="btnSaveJson" class="btn btn-primary">Dosyaya Kaydet</button>
-                <button class="btn btn-secondary close-modal">Kapat</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Modal: Öğrenci JSON Yükleme -->
-    <div id="importStudentsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Öğrenci Listesi Yükle</h2>
-                <span class="close" id="closeImportStudentsModal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p>Aşağıdaki alana JSON verisini yapıştırın veya dosyadan yükleyin:</p>
-                <div class="file-select">
-                    <button id="btnSelectStudentFile" class="btn btn-primary">Dosya Seç</button>
-                    <span class="file-name" id="selectedStudentFileName">Dosya seçilmedi</span>
-                    <input type="file" id="studentJsonInput" class="file-input" accept=".json">
-                </div>
-                <textarea id="studentJsonContent" class="modal-textarea" placeholder="Öğrenci JSON verisini buraya yapıştırın..."></textarea>
-            </div>
-            <div class="modal-footer">
-                <button id="btnApplyStudentJson" class="btn btn-primary">Uygula</button>
-                <button class="btn btn-secondary close-modal">İptal</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Modal: Notları Dışa Aktarma -->
-    <div id="exportGradesModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Notları Dışa Aktar</h2>
-                <span class="close" id="closeExportGradesModal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <p>Aşağıdaki veriyi kopyalayın veya dosyaya kaydedin:</p>
-                <textarea id="exportGradesContent" class="modal-textarea" readonly></textarea>
-            </div>
-            <div class="modal-footer">
-                <button id="btnCopyGrades" class="btn btn-primary">Kopyala</button>
-                <button id="btnSaveGradesToFile" class="btn btn-primary">Dosyaya Kaydet</button>
-                <button class="btn btn-secondary close-modal">Kapat</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Modal: Test Detayları -->
-    <div id="testDetailsModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Test Detayları</h2>
-                <span class="close" id="closeTestDetailsModal">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="totalQuestions">Toplam Soru Sayısı:</label>
-                    <input type="number" id="totalQuestions" min="1" value="20">
-                </div>
-                <div class="form-group">
-                    <label for="correctWeight">Her Doğru Cevap Puanı:</label>
-                    <input type="number" id="correctWeight" min="0" step="0.5" value="5">
-                </div>
-                <div class="form-group">
-                    <label for="wrongPenalty">Yanlış Cevap Ceza Puanı (0 veya negatif değer):</label>
-                    <input type="number" id="wrongPenalty" max="0" step="0.5" value="0">
-                </div>
-            </div>
-			<div class="modal-footer">
-				<button id="btnSaveTestDetails" class="btn btn-primary">Kaydet</button>
-				<button id="btnDistributeTestScores" class="btn btn-warning">Rastgele Doğru/Yanlış Dağıt</button>
-				<button class="btn btn-secondary close-modal">İptal</button>
-			</div>
-        </div>
-    </div>
-	
-	<!-- Modal: Çoklu Öğe Ekleme -->
-	<div id="multipleItemsModal" class="modal">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h2 id="multipleItemsTitle">Çoklu Öğe Ekle</h2>
-				<span class="close" id="closeMultipleItemsModal">&times;</span>
-			</div>
-			<div class="modal-body">
-				<div class="form-group">
-					<label for="itemCount">Eklenecek Öğe Sayısı:</label>
-					<input type="number" id="itemCount" min="1" max="20" value="5">
-				</div>
-				
-				<div class="form-group" id="questionTypeContainer">
-					<label for="questionType">Soru Tipi:</label>
-					<select id="questionType">
-						<!-- Soru tipleri dinamik olarak doldurulacak -->
-					</select>
-				</div>
-				
-				<div class="form-group" id="rubricTypeContainer" style="display: none;">
-					<label for="rubricType">Rubrik Tipi:</label>
-					<select id="rubricType">
-						<!-- Rubrik tipleri dinamik olarak doldurulacak -->
-					</select>
-				</div>
-				
-				<!-- ÖÇ Seçimi alanı -->
-				<div class="form-group">
-					<label for="outcomeSelection">Öğrenme Çıktıları (İsteğe Bağlı):</label>
-					<div class="outcomes-selection">
-						<select id="outcomeSelection" multiple size="5">
-							<!-- ÖÇ'ler dinamik olarak doldurulacak -->
-						</select>
-						<p class="help-text">Birden fazla ÖÇ seçmek için Ctrl tuşuna basılı tutarak seçim yapın</p>
-					</div>
-				</div>
-			</div>
-			<div class="modal-footer">
-				<button id="btnAddMultipleItems" class="btn btn-primary">Ekle</button>
-				<button class="btn btn-secondary close-modal">İptal</button>
-			</div>
-		</div>
-	</div>
-	
-	<!-- Modern Modal Yapıları -->
-	<!-- Silme Onay Modalı -->
-	<div id="deleteConfirmModal" class="modern-modal">
-		<div class="modern-modal-content">
-			<div class="modern-modal-header">
-				<h2>Etkinlik Silme Onayı</h2>
-				<span class="modern-close">&times;</span>
-			</div>
-			<div class="modern-modal-body">
-				<div class="modal-icon warning">
-					<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-						<line x1="12" y1="9" x2="12" y2="13"></line>
-						<line x1="12" y1="17" x2="12.01" y2="17"></line>
-					</svg>
-				</div>
-				<p id="deleteConfirmMessage">Bu etkinliği ve tüm alt öğelerini silmek istediğinizden emin misiniz?</p>
-			</div>
-			<div class="modern-modal-footer">
-				<button id="confirmDeleteBtn" class="btn-modern btn-modern-danger">Evet, Sil</button>
-				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
-			</div>
-		</div>
-	</div>
-
-	<!-- Puan Dağıtım Modalı -->
-	<div id="distributePointsModal" class="modern-modal">
-		<div class="modern-modal-content">
-			<div class="modern-modal-header">
-				<h2>Puanları Dağıt</h2>
-				<span class="modern-close">&times;</span>
-			</div>
-			<div class="modern-modal-body">
-				<div class="info-message">
-					<p id="distributionMessage">Alt öğelerin toplam ağırlığı %<span id="currentTotalWeight">0</span>. Puanları yeniden dağıtmak ister misiniz?</p>
-				</div>
-				<div class="form-group">
-					<label for="totalPointsInput">Dağıtılacak Toplam Puan:</label>
-					<input type="number" id="totalPointsInput" class="form-control" value="100" min="1">
-				</div>
-				<div class="distribution-options">
-					<div class="distribution-option" id="equalOption">
-						<div class="option-icon">
-							<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<line x1="5" y1="12" x2="19" y2="12"></line>
-								<polyline points="5 19 5 5 19 5 19 19"></polyline>
-							</svg>
-						</div>
-						<h3>Eşit Dağıtım</h3>
-						<p>Tüm öğelere eşit puan verilir</p>
-					</div>
-					<div class="distribution-option" id="randomOption">
-						<div class="option-icon">
-							<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-								<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
-							</svg>
-						</div>
-						<h3>Rastgele Dağıtım</h3>
-						<p>Puanlar öğelere rastgele dağıtılır</p>
-					</div>
-				</div>
-			</div>
-			<div class="modern-modal-footer">
-				<button id="confirmDistributeBtn" class="btn-modern btn-modern-primary" disabled>Dağıtımı Uygula</button>
-				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
-			</div>
-		</div>
-	</div>
-
-	<!-- Test Skoru Dağıtım Modalı -->
-	<div id="testScoreDistributionModal" class="modern-modal">
-		<div class="modern-modal-content">
-			<div class="modern-modal-header">
-				<h2>Test Skoru Dağıtımı</h2>
-				<span class="modern-close">&times;</span>
-			</div>
-			<div class="modern-modal-body">
-				<div class="test-info">
-					<p>Öğrenci: <strong id="testStudentName">-</strong></p>
-					<p>Test: <strong id="testName">-</strong></p>
-					<p>Toplam Soru Sayısı: <strong id="testTotalQuestions">0</strong></p>
-				</div>
-				
-				<div class="score-controls">
-					<div class="score-control">
-						<label for="testCorrectSlider">Doğru Sayısı: <span id="testCorrectValue">0</span></label>
-						<input type="range" id="testCorrectSlider" min="0" max="20" value="0" class="slider">
-					</div>
-					<div class="score-control">
-						<label for="testWrongSlider">Yanlış Sayısı: <span id="testWrongValue">0</span></label>
-						<input type="range" id="testWrongSlider" min="0" max="20" value="0" class="slider">
-					</div>
-					<div class="score-result">
-						<p>Boş Soru: <span id="testEmptyValue">20</span></p>
-						<p>Toplam Puan: <span id="testTotalScore">0</span></p>
-					</div>
-				</div>
-				
-				<div class="test-distribution">
-					<h4>Soru Dağılımı</h4>
-					<div class="distribution-preview" id="distributionPreview"></div>
-				</div>
-			</div>
-			<div class="modern-modal-footer">
-				<button id="applyTestDistribution" class="btn-modern btn-modern-primary">Uygula</button>
-				<button id="randomizeTestDistribution" class="btn-modern btn-modern-secondary">Rastgele Dağıt</button>
-				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
-			</div>
-		</div>
-	</div>
-
-	<!-- İlerletme/Modern Toast Bildirim -->
-	<div id="modernToast" class="modern-toast">
-		<div class="modern-toast-content">
-			<div class="modern-toast-icon success">
-				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-					<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-					<polyline points="22 4 12 14.01 9 11.01"></polyline>
-				</svg>
-			</div>
-			<div class="modern-toast-message" id="modernToastMessage"></div>
-			<div class="modern-toast-close">&times;</div>
-		</div>
-		<div class="modern-toast-progress">
-			<div class="modern-toast-progress-bar"></div>
-		</div>
-	</div>
-	
-	
-    <!-- Bildirim Toast -->
-    <div id="toast" class="toast">
-        <div class="toast-content">
-            <div class="toast-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-            </div>
-            <div class="toast-message" id="toastMessage"></div>
-        </div>
-        <div class="toast-progress">
-            <div class="toast-progress-bar"></div>
-        </div>
-    </div>
-    
-    <script src="script.js"></script>
 </body>
-</html>
+</html> 

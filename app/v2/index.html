@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Ders değerlendirme kriterleri ve öğrenci notları yönetim sistemi">
+    <title>MUDEK Ders Değerlendirme Formu - v2.0</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    <link rel="stylesheet" href="styles.css">
+    <script src="script.js" defer></script>
+    <style>
+        /* Taşıma Butonları Stili */
+        .btn-move-up, .btn-move-down {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border: none; color: white; padding: 4px 6px; border-radius: 3px;
+            cursor: pointer; transition: all 0.2s ease; font-size: 10px;
+            min-width: 24px; height: 20px; display: inline-flex;
+            align-items: center; justify-content: center; margin: 1px;
+        }
+        .btn-move-up:hover, .btn-move-down:hover {
+            background: linear-gradient(135deg, #2980b9, #21618c);
+            transform: translateY(-1px); box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+        }
+        .btn-move-up svg, .btn-move-down svg { width: 10px; height: 10px; margin-right: 2px; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Ders Değerlendirme Sistemi</h1>
+            <p>Ders değerlendirme kriterleri ve ağırlıklarını düzenleyin, öğrencilerin notlarını girin</p>
+        </div>
+        
+        <div class="course-info" id="courseInfo">
+            <h2 id="courseTitle">Ders Bilgileri</h2>
+            <p id="courseDetails">JSON dosyası yükleyiniz</p>
+            <p id="courseTerm" class="course-term"></p>
+        </div>
+        
+        <!-- Ana Sekme Navigasyonu -->
+		<div class="nav-tabs">
+			<button class="nav-tab active" data-tab="definition">Ders Tanımlama</button>
+			<button class="nav-tab" data-tab="students">Öğrenci Listesi</button>
+			<button class="nav-tab" data-tab="assessment">Değerlendirme Girişi</button>
+			<button class="nav-tab" data-tab="grades">Notlar</button>
+		</div>
+        
+        <!-- Ders Tanımlama Sekmesi -->
+        <div class="nav-content active" id="definition-content">
+            <div class="card collapsible-section system-test-only">
+                <div class="collapsible-header" onclick="toggleCollapse('systemTest')">
+                    <h3>🧪 Sistem Test İşlemleri</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="collapsible-content" id="systemTestCollapse">
+                    <p class="card-description" style="margin-bottom: 15px; color: var(--text-light); font-size: 14px;">Sistemi hızlıca test etmek için rastgele veriler oluşturun.</p>
+                    
+                    <!-- Ultra Compact Test Operations Grid -->
+                    <div class="test-operations-grid">
+                        <!-- Yarıyıl İçi -->
+                        <div class="test-operation-section">
+                            <h4><i class="fas fa-dice"></i> Yarıyıl İçi</h4>
+                            <div class="compact-control">
+                                <label>Etkinlik Sayısı:</label>
+                                <span class="compact-value" id="termActivityCountValue">2</span>
+                                <input type="range" id="termActivityCountSlider" class="rainbow-slider term-activity-slider" min="1" max="100" value="2">
+                            </div>
+                            <div class="compact-control">
+                                <label>Soru/Rubrik Sayısı:</label>
+                                <span class="compact-value" id="termComponentsValue">3</span>
+                                <input type="range" id="termComponentsSlider" class="rainbow-slider term-slider" min="1" max="100" value="3">
+                            </div>
+                            <div class="compact-control">
+                                <label>Etkinlik Türü:</label>
+                                <select id="termActivityTypeSelect" class="compact-select">
+                                    <option value="random">🎲 Rastgele</option>
+                                    <option value="Ara Sınav">📝 Ara Sınav (Soru)</option>
+                                    <option value="Laboratuvar Sınavı">🧪 Laboratuvar Sınavı (Soru)</option>
+                                    <option value="Deney">⚗️ Deney (Rubrik)</option>
+                                    <option value="Deney Sonrası Quiz">❓ Deney Sonrası Quiz (Soru)</option>
+                                    <option value="Performans">🎭 Performans (Rubrik)</option>
+                                    <option value="Quiz">❓ Quiz (Soru)</option>
+                                    <option value="Rapor">📊 Rapor (Rubrik)</option>
+                                    <option value="Rapor Sunma">🎤 Rapor Sunma (Rubrik)</option>
+                                    <option value="Makale Kritik Etme">📝 Makale Kritik Etme (Rubrik)</option>
+                                    <option value="Makale Yazma">✍️ Makale Yazma (Rubrik)</option>
+                                    <option value="Proje Hazırlama">🚀 Proje Hazırlama (Rubrik)</option>
+                                    <option value="Proje Sunma">🎯 Proje Sunma (Rubrik)</option>
+                                    <option value="Rehberli Problem Çözümü">🧩 Rehberli Problem Çözümü (Soru)</option>
+                                    <option value="Seminer">🎓 Seminer (Rubrik)</option>
+                                    <option value="Sözlü Sınav">🎙️ Sözlü Sınav (Soru)</option>
+                                    <option value="Ödev Problemleri İçin Çalışma">📚 Ödev Problemleri İçin Çalışma (Rubrik)</option>
+                                    <option value="Proje Tasarımı/Yönetimi">⚙️ Proje Tasarımı/Yönetimi (Rubrik)</option>
+                                </select>
+                            </div>
+                            <div class="tooltip">
+                                <button id="btnGenerateRandomTermAssessment" class="btn-compact btn-primary">
+                                    ⭐ Yarıyıl İçi Etkinlik Oluştur
+                                </button>
+                                <span class="tooltiptext">Seçilen parametrelere göre yarıyıl içi değerlendirme etkinlikleri oluşturur. Vize, ödev, quiz gibi etkinlikler için soru veya rubrik bileşenleri otomatik olarak eklenir.</span>
+                            </div>
+                        </div>
+
+                        <!-- Yarıyıl Sonu -->
+                        <div class="test-operation-section">
+                            <h4><i class="fas fa-graduation-cap"></i> Yarıyıl Sonu</h4>
+                            <div class="compact-control">
+                                <label>Etkinlik Sayısı:</label>
+                                <span class="compact-value" id="finalActivityCountValue">1</span>
+                                <input type="range" id="finalActivityCountSlider" class="rainbow-slider final-activity-slider" min="1" max="100" value="1">
+                            </div>
+                            <div class="compact-control">
+                                <label>Soru/Rubrik Sayısı:</label>
+                                <span class="compact-value" id="finalComponentsValue">5</span>
+                                <input type="range" id="finalComponentsSlider" class="rainbow-slider final-slider" min="1" max="100" value="5">
+                            </div>
+                            <div class="compact-control">
+                                <label>Etkinlik Türü:</label>
+                                <select id="finalActivityTypeSelect" class="compact-select">
+                                    <option value="random">🎲 Rastgele</option>
+                                    <option value="Final Sınavı">📋 Final Sınavı (Soru)</option>
+                                    <option value="Laboratuvar Ara Sınavı">🧪 Laboratuvar Ara Sınavı (Soru)</option>
+                                    <option value="Makale Yazma">✍️ Makale Yazma (Rubrik)</option>
+                                    <option value="Proje Hazırlama">🚀 Proje Hazırlama (Rubrik)</option>
+                                    <option value="Proje Sunma">🎯 Proje Sunma (Rubrik)</option>
+                                    <option value="Proje Tasarımı/Yönetimi">⚙️ Proje Tasarımı/Yönetimi (Rubrik)</option>
+                                    <option value="Quiz">❓ Quiz (Soru)</option>
+                                    <option value="Rapor">📊 Rapor (Rubrik)</option>
+                                    <option value="Rapor Hazırlama">📝 Rapor Hazırlama (Rubrik)</option>
+                                    <option value="Rapor Sunma">🎤 Rapor Sunma (Rubrik)</option>
+                                    <option value="Seminer">🎓 Seminer (Rubrik)</option>
+                                    <option value="Sözlü Sınav">🎙️ Sözlü Sınav (Soru)</option>
+                                    <option value="Gözlem">👁️ Gözlem (Rubrik)</option>
+                                </select>
+                            </div>
+                            <div class="tooltip">
+                                <button id="btnGenerateRandomFinalAssessment" class="btn-compact btn-success">
+                                    🎯 Yarıyıl Sonu Etkinlik Oluştur
+                                </button>
+                                <span class="tooltiptext">Seçilen parametrelere göre yarıyıl sonu değerlendirme etkinlikleri oluşturur. Final sınavı, proje sunumu gibi etkinlikler için soru veya rubrik bileşenleri otomatik olarak eklenir.</span>
+                            </div>
+                        </div>
+
+                        <!-- Test Verileri -->
+                        <div class="test-operation-section">
+                            <h4><i class="fas fa-vial"></i> Test Verileri</h4>
+                            <div class="tooltip">
+                                <button id="btnGenerateTestStudents" class="btn-compact btn-info">
+                                    👥 Rastgele Test Öğrencileri Oluştur
+                                </button>
+                                <span class="tooltiptext">Sistemi test etmek için rastgele öğrenci listesi oluşturur. Her öğrenci için ad, soyad, numara ve e-posta adresi otomatik olarak atanır.</span>
+                            </div>
+                            <div class="tooltip">
+                                <button id="btnGenerateTestCourseData" class="btn-compact btn-info">
+                                    📚 Test Ders Verisi Oluştur
+                                </button>
+                                <span class="tooltiptext">Ders bilgilerini (başlık, kod, öğretim görevlisi, program çıktıları vb.) örnek verilerle doldurur. Hızlı test için kullanılır.</span>
+                            </div>
+                        </div>
+
+                        <!-- Grup & Puanlama -->
+                        <div class="test-operation-section">
+                            <h4><i class="fas fa-users-cog"></i> Grup & Puan</h4>
+                            
+                            <!-- Min/Max Grup -->
+                            <div class="compact-control">
+                                <label>Min:</label>
+                                <span class="compact-value" id="groupMinValue">1</span>
+                                <input type="range" id="groupMinSlider" class="rainbow-slider group-min-slider" min="1" max="20" value="1">
+                            </div>
+                            
+                            <div class="compact-control">
+                                <label>Max:</label>
+                                <span class="compact-value" id="groupMaxValue">2</span>
+                                <input type="range" id="groupMaxSlider" class="rainbow-slider group-max-slider" min="1" max="20" value="2">
+                            </div>
+                            
+                            <div class="tooltip">
+                                <button onclick="generateRandomGroups()" id="btnGenerateRandomGroups" class="btn-compact btn-warning">
+                                    🎲 Rastgele Öğrenci Grupları Oluştur
+                                </button>
+                                <span class="tooltiptext">Öğrencileri belirlenen min-max aralığında rastgele gruplara böler. Grup çalışmaları ve proje değerlendirmeleri için kullanılır.</span>
+                            </div>
+                            
+                            <!-- Akıllı Puanlama -->
+                            <div class="compact-control">
+                                <label>Geçme:</label>
+                                <span class="compact-value" id="passRateValue">70%</span>
+                                <input type="range" id="passRateSlider" class="rainbow-slider score-slider" min="0" max="100" value="70">
+                            </div>
+                            
+                            <!-- Status Row - Slider Altında -->
+                            <div class="status-row status-row-compact">
+                                <div class="status-badge pass">
+                                    <span class="thermal-indicator" style="background: #4caf50;"></span>
+                                    <div class="badge-content">
+                                        <div class="badge-main">Geçecek: <span id="passRateDisplay">70%</span></div>
+                                        <div class="badge-sub">(<span id="passStudentCount">0</span> öğrenci)</div>
+                                    </div>
+                                </div>
+                                <div class="status-badge fail">
+                                    <span class="thermal-indicator" style="background: #f44336;"></span>
+                                    <div class="badge-content">
+                                        <div class="badge-main">Kalacak: <span id="failRateDisplay">30%</span></div>
+                                        <div class="badge-sub">(<span id="failStudentCount">0</span> öğrenci)</div>
+                                    </div>
+                                </div>
+                                <div class="status-badge info">
+                                    <span class="thermal-indicator" style="background: #2196f3;"></span>
+                                    <div class="badge-content">
+                                        <div class="badge-main">Toplam: <span id="studentCountDisplay">0</span> öğrenci</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="tooltip">
+                                <button onclick="generateIntelligentScores()" id="btnGenerateRandomScores" class="btn-compact btn-success">
+                                    🧠 Akıllı Puanlama Sistemi Uygula
+                                </button>
+                                <span class="tooltiptext">Belirlenen geçme oranına göre öğrencilere akıllı puanlar verir. Gerçekçi not dağılımı oluşturur ve istatistiksel olarak dengeli sonuçlar üretir.</span>
+                            </div>
+                            
+
+                            
+
+                        </div>
+
+
+
+                        <!-- Sistem Temizleme -->
+                        <div class="test-operation-section cleanup-section">
+                            <h4><i class="fas fa-broom"></i> Temizleme</h4>
+                            <div class="tooltip">
+                                <button onclick="clearAllAssessments()" id="btnClearAssessments" class="btn-compact btn-danger">
+                                    🗑️ Tüm Değerlendirmeleri Sil
+                                </button>
+                                <span class="tooltiptext">Yarıyıl içi ve yarıyıl sonu tüm değerlendirme etkinliklerini, sorularını ve rubriklerini kalıcı olarak siler. Bu işlem geri alınamaz!</span>
+                            </div>
+                            <div class="tooltip">
+                                <button onclick="clearAllGroups()" id="btnClearGroups" class="btn-compact btn-danger">
+                                    👥 Tüm Grupları Sil
+                                </button>
+                                <span class="tooltiptext">Oluşturulan tüm öğrenci gruplarını ve grup eşleştirmelerini siler. Grup bazlı değerlendirmeler etkilenir.</span>
+                            </div>
+                            <div class="tooltip">
+                                <button onclick="clearAllScores()" id="btnClearScores" class="btn-compact btn-danger">
+                                    📊 Tüm Puanları Sil
+                                </button>
+                                <span class="tooltiptext">Tüm öğrencilerin tüm değerlendirmelerden aldığı puanları sıfırlar. Not hesaplamaları baştan yapılacaktır.</span>
+                            </div>
+                            <div class="tooltip">
+                                <button onclick="clearAllStudents()" id="btnClearStudents" class="btn-compact btn-danger">
+                                    🎓 Tüm Öğrencileri Sil
+                                </button>
+                                <span class="tooltiptext">Sistemdeki tüm öğrenci kayıtlarını ve onlara ait tüm puanları kalıcı olarak siler. Dikkatli kullanın!</span>
+                            </div>
+                            <div class="tooltip">
+                                <button onclick="clearAllTestData()" id="btnClearAllTestData" class="btn-compact btn-danger">
+                                    🧪 Tüm Test Verilerini Sil
+                                </button>
+                                <span class="tooltiptext">Test amaçlı oluşturulan tüm verileri (öğrenciler, gruplar, puanlar) toplu olarak siler. Gerçek verileri etkilemez.</span>
+                            </div>
+                            <div class="tooltip">
+                                <button onclick="resetCompleteSystem()" id="btnResetSystem" class="btn-compact btn-danger">
+                                    🔄 Sistemi Tamamen Resetle
+                                </button>
+                                <span class="tooltiptext">Sistemi fabrika ayarlarına döndürür. Tüm veriler, ayarlar ve konfigürasyonlar silinir. Bu işlem geri alınamaz!</span>
+                            </div>
+                            <div class="tooltip">
+                                <button onclick="testToastSystem()" id="btnTestToast" class="btn-compact btn-info">
+                                    🧪 Toast Sistemini Test Et
+                                </button>
+                                <span class="tooltiptext">Bildirim sisteminin çalışıp çalışmadığını test eder. Farklı türlerde örnek bildirimler gösterir.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Kategori bilgileri -->
+			<div class="categories-info definition-only">
+				<div class="category-item">
+					<h3>Yarıyıl İçi Değerlendirme</h3>
+					<div class="category-weight">
+						<span class="category-weight-label">Genel Katkı Ağırlığı:</span>
+						<span id="termGeneralWeight" class="category-weight-value">40</span><span>%</span>
+					</div>
+					<div class="category-weight">
+						<span class="category-weight-label">İç Ağırlık Toplamı:</span>
+						<span id="termInternalTotal" class="category-weight-value">0</span><span>%</span>
+						<div class="category-details" id="termDetails">
+							<!-- Detaylı bilgilendirme etiketleri burada görünecek -->
+						</div>
+					</div>
+					<div class="progress-bar">
+						<div class="progress-fill" id="termProgress" style="width: 0%"></div>
+					</div>
+				</div>
+				<div class="category-item">
+					<h3>Yarıyıl Sonu Değerlendirme</h3>
+					<div class="category-weight">
+						<span class="category-weight-label">Genel Katkı Ağırlığı:</span>
+						<span id="finalGeneralWeight" class="category-weight-value">60</span><span>%</span>
+					</div>
+					<div class="category-weight">
+						<span class="category-weight-label">İç Ağırlık Toplamı:</span>
+						<span id="finalInternalTotal" class="category-weight-value">0</span><span>%</span>
+						<div class="category-details" id="finalDetails">
+							<!-- Detaylı bilgilendirme etiketleri burada görünecek -->
+						</div>
+					</div>
+					<div class="progress-bar">
+						<div class="progress-fill" id="finalProgress" style="width: 0%"></div>
+					</div>
+				</div>
+			</div>
+            
+            <div class="action-bar">
+                <div class="action-group">
+                    <h3 class="action-title">📚 Ders İşlemleri</h3>
+                    <div class="buttons">
+                        <div class="tooltip">
+                            <button class="btn btn-primary" id="btnImport">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                                Ders Tanımı JSON Yükle
+                            </button>
+                            <span class="tooltiptext">Daha önce kaydedilmiş bir ders tanımı JSON dosyasını yükleyin. Tüm değerlendirme bileşenleri ve ayarlar geri yüklenir.</span>
+                        </div>
+                        <div class="tooltip">
+                            <button class="btn btn-primary" id="btnExport">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                Ders Tanımı JSON Kaydet
+                            </button>
+                            <span class="tooltiptext">Mevcut ders tanımını ve tüm değerlendirme bileşenlerini JSON formatında kaydedin. Yedekleme ve paylaşım için kullanın.</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Yapısal İşlemler Grubu -->
+                <div class="action-group">
+                    <h3 class="action-title">🏗️ Yapısal İşlemler</h3>
+                    <div class="buttons">
+                        <div class="tooltip">
+                            <button class="btn btn-success" id="btnAddTerm">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                Yarıyıl İçi Etkinlik Ekle
+                            </button>
+                            <span class="tooltiptext">Vize, ödev, quiz gibi yarıyıl içi değerlendirme etkinlikleri oluşturun. Bu etkinlikler genel notun belirli bir yüzdesini oluşturur.</span>
+                        </div>
+                        <div class="tooltip">
+                            <button class="btn btn-success" id="btnAddFinal">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                Yarıyıl Sonu Etkinlik Ekle
+                            </button>
+                            <span class="tooltiptext">Final sınavı, proje sunumu gibi yarıyıl sonu değerlendirme etkinlikleri oluşturun. Genellikle genel notun büyük bir kısmını oluşturur.</span>
+                        </div>
+                        <div class="tooltip">
+                            <button class="btn btn-info" id="btnAddQuestion">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"></path><path d="M12 8v4l4 2"></path></svg>
+                                Alt Soru Bileşeni Ekle
+                            </button>
+                            <span class="tooltiptext">Mevcut etkinliklere alt soru bileşenleri ekleyin. Örneğin bir sınavı birden fazla soruya bölebilir, her soruya ayrı puan verebilirsiniz.</span>
+                        </div>
+                        <div class="tooltip">
+                            <button class="btn btn-info" id="btnAddRubric">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="9"></line><line x1="9" y1="12" x2="15" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                                Rubrik Bileşeni Ekle
+                            </button>
+                            <span class="tooltiptext">Mevcut etkinliklere rubrik değerlendirme bileşenleri ekleyin. Rubrikler, performans kriterlerini detaylı olarak değerlendirmenizi sağlar.</span>
+                        </div>
+                        
+                        <!-- Etkinlik Adı Düzenleme Butonları -->
+                        <div class="tooltip">
+                            <button class="btn btn-purple" id="btnAddActivitySuffixes">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10,9 9,9 8,9"></polyline></svg>
+                                Vize/Final Etiketleri Ekle
+                            </button>
+                            <span class="tooltiptext">Yarıyıl içi etkinliklere "Vize", yarıyıl sonu etkinliklere "Final" etiketlerini ekler. Etkinlikleri ayırt etmeyi kolaylaştırır.</span>
+                        </div>
+                        
+                        <div class="tooltip">
+                            <button class="btn btn-purple" id="btnRemoveActivitySuffixes">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14,2 14,8 20,8"></polyline><line x1="9" y1="15" x2="15" y2="9"></line><line x1="15" y1="15" x2="9" y2="9"></line></svg>
+                                Vize/Final Etiketlerini Temizle
+                            </button>
+                            <span class="tooltiptext">Etkinlik adlarından "Vize" ve "Final" etiketlerini kaldırır. Etkinlik adlarını orijinal haline döndürür.</span>
+                        </div>
+
+                    </div>
+                </div>
+                
+                <!-- Ağırlık ve Puan Yönetimi Grubu -->
+                <div class="action-group">
+                    <h3 class="action-title">⚖️ Ağırlık ve Puan Yönetimi</h3>
+                    <div class="buttons">
+                        <div class="tooltip">
+                            <button class="btn btn-primary" onclick="quickFixWeights()" id="btnQuickFixWeights">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"></path></svg>
+                                Ağırlıkları Otomatik Düzelt
+                            </button>
+                            <span class="tooltiptext">Tüm değerlendirme bileşenlerinin ağırlık yüzdelerini otomatik olarak %100'e tamamlayacak şekilde orantılı olarak ayarlar.</span>
+                        </div>
+                        <div class="tooltip">
+                            <button class="btn btn-info" onclick="equalizeAllPoints()" id="btnEqualizePoints">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2" ry="2"></rect><line x1="9" y1="12" x2="15" y2="12"></line></svg>
+                                Tüm Puanları Eşitle
+                            </button>
+                            <span class="tooltiptext">Aynı kategorideki tüm değerlendirme bileşenlerinin puanlarını eşit değerlere ayarlar. Adil bir puan dağılımı sağlar.</span>
+                        </div>
+                        <div class="tooltip">
+                            <button class="btn btn-warning" onclick="shuffleAllPoints()" id="btnShufflePoints">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"></path></svg>
+                                Puanları Rastgele Dağıt
+                            </button>
+                            <span class="tooltiptext">Değerlendirme bileşenlerinin puanlarını belirtilen aralıkta rastgele değerlere ayarlar. Test amaçlı kullanım için uygundur.</span>
+                        </div>
+                        <div class="tooltip">
+                            <button class="btn btn-warning" id="btnDistributePoints">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"></path></svg>
+                                Akıllı Puan Dağılımı
+                            </button>
+                            <span class="tooltiptext">Değerlendirme bileşenlerinin türüne ve önemine göre akıllı puan dağılımı yapar. Dengeli bir değerlendirme sistemi oluşturur.</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="action-group">
+                    <h3 class="action-title">👁️ Görünüm Kontrolleri</h3>
+                    <div class="buttons">
+                        <div class="tooltip">
+                            <button class="btn btn-warning" id="btnExpandAll">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 13 12 18 17 13"></polyline><polyline points="7 6 12 11 17 6"></polyline></svg>
+                                Tüm Bileşenleri Genişlet
+                            </button>
+                            <span class="tooltiptext">Tüm değerlendirme bileşenlerini ve alt bileşenlerini genişletir. Detaylı görünüm için kullanın.</span>
+                        </div>
+                        <div class="tooltip">
+                            <button class="btn btn-warning" id="btnCollapseAll">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 11 12 6 7 11"></polyline><polyline points="17 18 12 13 7 18"></polyline></svg>
+                                Tüm Bileşenleri Daralt
+                            </button>
+                            <span class="tooltiptext">Tüm değerlendirme bileşenlerini daraltır. Genel görünüm için kullanın, sayfa daha düzenli görünür.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card definition-only">
+                <h3 class="card-title">Değerlendirme Bileşenleri</h3>
+                <div class="treeview">
+                    <div class="tree-header">
+                        <div class="tree-header-cell"></div>
+                        <div class="tree-header-cell">☑️ ID</div>
+                        <div class="tree-header-cell">Etkinlik Adı</div>
+                        <div class="tree-header-cell">Etkinlik Türü</div>
+                        <div class="tree-header-cell">Ağırlık (%)</div>
+                        <div class="tree-header-cell">Puan</div>
+                        <div class="tree-header-cell">İlgili ÖÇ'ler</div>
+                        <div class="tree-header-cell">Grup</div>
+                        <div class="tree-header-cell">Açıklama</div>
+                        <div class="tree-header-cell">İşlemler</div>
+                    </div>
+                    <div class="tree-container" id="treeContainer">
+                        <!-- Tree nodes will be inserted here by JavaScript -->
+                        <div class="tree-empty-message">Henüz değerlendirme bileşeni eklenmedi. Ders JSON yükleyin veya yeni bileşenler ekleyin.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card collapsible-section definition-only">
+                <div class="collapsible-header" onclick="toggleCollapse('rubricLibrary')">
+                    <h3>Rubrik ve Soru Kütüphanesi</h3>
+                    <span class="collapse-icon">▼</span>
+                    </div>
+                <div class="collapsible-content" id="rubricLibraryCollapse">
+                <div class="tabs">
+                    <button class="tab active" data-tab="rubrics">Rubrikler</button>
+                    <button class="tab" data-tab="questions">Soru Türleri</button>
+                </div>
+                
+                <div class="tab-content active" id="rubricsTab">
+                    <div class="rubric-category">
+                        <h4>Proje Rubrikleri</h4>
+                        <div class="rubric-items">
+                            <div class="rubric-item" data-type="Proje Planlama" data-description="Proje planlama ve süreç yönetimi değerlendirmesi">Proje Planlama</div>
+                            <div class="rubric-item" data-type="Proje Raporu" data-description="Proje raporu yazımı ve içerik kalitesi">Proje Raporu</div>
+                            <div class="rubric-item" data-type="Proje Sunumu" data-description="Proje sunumu ve anlatım kalitesi">Proje Sunumu</div>
+                        </div>
+                    </div>
+                    
+                    <div class="rubric-category">
+                        <h4>Kod Değerlendirme Rubrikleri</h4>
+                        <div class="rubric-items">
+                            <div class="rubric-item" data-type="Kod Yapısı" data-description="Kod organizasyonu ve mimari yapı">Kod Yapısı</div>
+                            <div class="rubric-item" data-type="Kod Kalitesi" data-description="Kod kalitesi, okunabilirlik ve bakım yapılabilirlik">Kod Kalitesi</div>
+                            <div class="rubric-item" data-type="Performans" data-description="Kodun performans ve kaynak kullanımı">Performans</div>
+                            <div class="rubric-item" data-type="Dokümantasyon" data-description="Kod dokümantasyonu ve yorum kalitesi">Dokümantasyon</div>
+                        </div>
+                    </div>
+                    
+                    <div class="rubric-category">
+                        <h4>Yazılı Sınav Rubrikleri</h4>
+                        <div class="rubric-items">
+                            <div class="rubric-item" data-type="Teorik Bilgi" data-description="Teorik bilgi ve kavramları anlama">Teorik Bilgi</div>
+                            <div class="rubric-item" data-type="Problem Çözme" data-description="Problem analizi ve çözüm yaklaşımı">Problem Çözme</div>
+                            <div class="rubric-item" data-type="Uygulama" data-description="Teorik bilginin uygulamaya aktarılması">Uygulama</div>
+                        </div>
+                    </div>
+                    
+                    <div class="rubric-category">
+                        <h4>Sunum Rubrikleri</h4>
+                        <div class="rubric-items">
+                            <div class="rubric-item" data-type="İçerik" data-description="Sunum içeriği ve bilgi doğruluğu">İçerik</div>
+                            <div class="rubric-item" data-type="Görsel Tasarım" data-description="Sunum görsel tasarımı ve materyal kalitesi">Görsel Tasarım</div>
+                            <div class="rubric-item" data-type="Sunum Becerisi" data-description="Anlatım becerisi ve iletişim">Sunum Becerisi</div>
+                            <div class="rubric-item" data-type="Zaman Yönetimi" data-description="Sunum zamanının etkin kullanımı">Zaman Yönetimi</div>
+                        </div>
+                    </div>
+                    
+                    <div class="rubric-category">
+                        <h4>Laboratuvar Rubrikleri</h4>
+                        <div class="rubric-items">
+                            <div class="rubric-item" data-type="Deney Hazırlığı" data-description="Deney öncesi hazırlık ve planlama">Deney Hazırlığı</div>
+                            <div class="rubric-item" data-type="Deney Uygulaması" data-description="Deney prosedürlerinin uygulanması">Deney Uygulaması</div>
+                            <div class="rubric-item" data-type="Veri Analizi" data-description="Verilerin analizi ve değerlendirilmesi">Veri Analizi</div>
+                            <div class="rubric-item" data-type="Laboratuvar Raporu" data-description="Laboratuvar raporu yazımı ve kalitesi">Laboratuvar Raporu</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="questionsTab">
+                    <div class="question-types">
+                        <div class="question-type-item" data-type="Çoktan Seçmeli" data-description="Birden fazla şık arasından doğru cevabın seçilmesi">Çoktan Seçmeli Soru</div>
+                        <div class="question-type-item" data-type="Doğru/Yanlış" data-description="İfadenin doğru veya yanlış olduğunu belirtme">Doğru/Yanlış Sorusu</div>
+                        <div class="question-type-item" data-type="Kısa Cevaplı" data-description="Kısa ve öz cevap gerektiren soru">Kısa Cevaplı Soru</div>
+                        <div class="question-type-item" data-type="Boşluk Doldurma" data-description="Metindeki boşlukların doldurulması">Boşluk Doldurma</div>
+                        <div class="question-type-item" data-type="Eşleştirme" data-description="Birbirine uygun olan kavramların eşleştirilmesi">Eşleştirme Sorusu</div>
+                        <div class="question-type-item" data-type="Açık Uçlu" data-description="Kapsamlı ve detaylı cevap gerektiren soru">Açık Uçlu Soru</div>
+                        <div class="question-type-item" data-type="Problem Çözme" data-description="Matematiksel veya mantıksal problem çözümü">Problem Çözme Sorusu</div>
+                        <div class="question-type-item" data-type="Kod Yazma" data-description="Belirli bir programlama dilinde kod yazma">Kod Yazma Sorusu</div>
+                        <div class="question-type-item" data-type="Kod Analiz" data-description="Verilen kodu analiz etme ve hata bulma">Kod Analiz Sorusu</div>
+                        <div class="question-type-item" data-type="Vaka Analizi" data-description="Verilen durumu analiz etme ve değerlendirme">Vaka Analiz Sorusu</div>
+                        <div class="question-type-item" data-type="Tasarım" data-description="Ürün, sistem veya süreç tasarımı yapma">Tasarım Sorusu</div>
+                        <div class="question-type-item" data-type="Görsel İnceleme" data-description="Grafik, diyagram veya görsel analizi">Görsel İnceleme Sorusu</div>
+                        <div class="question-type-item" data-type="Test" data-description="Çoktan seçmeli test soruları">Test Soruları (Toplu)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card collapsible-section definition-only">
+                <div class="collapsible-header" onclick="toggleCollapse('courseDetails')">
+                    <h3>Ders Detayları</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="collapsible-content" id="courseDetailsCollapse">
+                    <div id="courseDetailsContainer">
+                        <div class="details-empty-message">Ders detayları için JSON yükleyin.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card collapsible-section definition-only">
+                <div class="collapsible-header" onclick="toggleCollapse('learningOutcomes')">
+                    <h3>Ders Öğrenme Çıktıları</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="collapsible-content" id="learningOutcomesCollapse">
+                    <div class="outcomes-container">
+                        <div class="outcomes-list" id="outcomesList">
+                            <!-- Outcome items will be inserted here by JavaScript -->
+                            <div class="outcomes-empty-message">Henüz öğrenme çıktısı tanımlanmadı. Ders JSON yükleyin.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card collapsible-section definition-only">
+                <div class="collapsible-header" onclick="toggleCollapse('programOutcomes')">
+                    <h3>Program Çıktıları</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="collapsible-content" id="programOutcomesCollapse">
+                    <div class="program-outcomes-container">
+                        <div class="program-outcomes-list" id="programOutcomesList">
+                            <!-- Program outcome items will be inserted here by JavaScript -->
+                            <div class="outcomes-empty-message">Henüz program çıktısı tanımlanmadı. Ders JSON yükleyin.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card collapsible-section definition-only">
+                <div class="collapsible-header" onclick="toggleCollapse('outcomeMatrix')">
+                    <h3>ÖÇ - PÇ İlişki Matrisi</h3>
+                    <span class="collapse-icon">▼</span>
+                </div>
+                <div class="collapsible-content" id="outcomeMatrixCollapse">
+                    <div id="matrixContainer">
+                        <div class="matrix-empty-message">ÖÇ-PÇ ilişki matrisi için ders JSON yükleyin.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Öğrenci Listesi Sekmesi -->
+        <div class="nav-content" id="students-content">
+            <div class="action-bar">
+                <div class="action-group">
+                    <h3 class="action-title">👥 Öğrenci İşlemleri</h3>
+                    <div class="buttons">
+                        <button class="btn btn-primary" id="btnImportStudents">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            Öğrenci Listesi Yükle
+                        </button>
+                        <button class="btn btn-secondary" id="btnClearStudentList">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                            Listeyi Temizle
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">Öğrenci Listesi</h3>
+                <p class="card-description">Excel-to-MUDEK uygulamasından alınan öğrenci JSON dosyasını yükleyiniz veya listeyi manuel ekleyebilirsiniz.</p>
+                <input type="file" id="studentFileInput" class="file-input" accept=".json">
+                
+                <div class="table-responsive">
+                    <table class="data-table" id="studentTable">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Öğrenci No</th>
+                                <th>Adı</th>
+                                <th>Soyadı</th>
+                                <th>Durum</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" class="empty-message">Öğrenci listesi yüklenmedi</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card" id="studentGroupInfoCard" style="display: none;">
+                <h3 class="card-title">📊 Öğrenci Grup Bilgileri</h3>
+                <p class="card-description">Öğrencilerin değerlendirme bileşenlerine göre grup atamaları. Grup düzenlemeleri "Değerlendirme Girişi" ve "Öğrenci Bazlı Not Girişi" sekmelerinden yapılabilir.</p>
+                
+                <div id="studentGroupInfoContainer" class="student-group-info-container">
+                    <p class="empty-message">Grup bilgisi bulunmuyor.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Değerlendirme Girişi Sekmesi -->
+        <div class="nav-content" id="assessment-content">
+            <div class="action-bar">
+                <div class="action-group">
+                    <h3 class="action-title">📝 Not Girişi İşlemleri</h3>
+                    <div class="buttons">
+                        <button class="btn btn-primary" id="btnImportGrades">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                            Notları Yükle
+                        </button>
+                        <button class="btn btn-primary" id="btnSaveGrades">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+                            Notları Kaydet
+                        </button>
+                        <button class="btn btn-secondary" id="btnExportGradesJSON">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            JSON Olarak Dışa Aktar
+                        </button>
+                        <button class="btn btn-secondary" id="btnExportGradesExcel">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            Excel Olarak Dışa Aktar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">Öğrenci Filtresi</h3>
+                <p class="card-description">Not girişini kolaylaştırmak için öğrenci filtreleyin. Tüm öğrencileri görmek için "Tüm Öğrenciler" seçeneğini seçin.</p>
+                <div class="student-filter-container">
+                    <div class="filter-controls">
+                        <div class="filter-group">
+                            <label for="assessmentStudentFilter">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <path d="m21 21-4.35-4.35"></path>
+                                </svg>
+                                Öğrenci Seçin:
+                            </label>
+                            <select id="assessmentStudentFilter" class="student-filter-select">
+                                <option value="">Tüm Öğrenciler</option>
+                            </select>
+                        </div>
+                        <div class="filter-stats">
+                            <span class="filter-info" id="assessmentFilterInfo">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="8.5" cy="7" r="4"></circle>
+                                    <line x1="20" y1="8" x2="20" y2="14"></line>
+                                    <line x1="23" y1="11" x2="17" y2="11"></line>
+                                </svg>
+                                Toplam öğrenci sayısı yükleniyor...
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="assessment-header">
+                    <h3 class="card-title">Değerlendirme Girişi</h3>
+                    <div class="assessment-controls">
+                        <button id="btnSyncAssessment" class="btn btn-info btn-sync" title="Değerlendirme tablosunu manuel olarak günceller">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                                <path d="M21 3v5h-5"></path>
+                                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                                <path d="M3 21v-5h5"></path>
+                            </svg>
+                            Tabloyu Güncelle
+                        </button>
+                    </div>
+                </div>
+                <div id="assessmentContainer" class="assessment-container">
+                    <p class="empty-message">Öğrenci listesi ve değerlendirme kriterleri yüklendikten sonra buradan not girişi yapabilirsiniz.</p>
+                </div>
+            </div>
+			</div>
+
+        
+        <!-- Notlar Sekmesi -->
+        <div class="nav-content" id="grades-content">
+            <div class="action-bar">
+                <div class="action-group">
+                    <h3 class="action-title">🎯 Not Hesaplama İşlemleri</h3>
+                    <div class="buttons">
+                        <button class="btn btn-primary" id="btnCalculateGrades">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2H5zm14 4h-6m-2 4h-2m-4 4h12"></path></svg>
+                            Notları Hesapla
+                        </button>
+                        <button class="btn btn-secondary" id="btnExportFinalGrades">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            Final Notlarını Dışa Aktar
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">Değerlendirme Sonuçları</h3>
+                <p class="card-description">Tüm öğrencilerin not ortalamaları ve harf notları burada görüntülenir.</p>
+                
+                <div class="table-responsive">
+                    <table class="data-table" id="gradesTable">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Öğrenci No</th>
+                                <th>Adı</th>
+                                <th>Soyadı</th>
+                                <th>Yarıyıl İçi</th>
+                                <th>Yarıyıl Sonu</th>
+                                <th>Toplam Puan</th>
+                                <th>Harf Notu</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="8" class="empty-message">Not girişi yapılmadı</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card" id="gradeStats">
+                <h3 class="card-title">İstatistikler</h3>
+                <div id="statsContent" class="stats-content">
+                    <p class="empty-message">Not girişi henüz yapılmadı.</p>
+                </div>
+                
+                <div id="chartContainer" class="chart-container"></div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>&copy; 2025 Ders Değerlendirme Sistemi | Bu araç çevrimdışı olarak çalışır. Değişikliklerinizi kaydetmek için "JSON Dışa Aktar" seçeneğini kullanın.</p>
+        </footer>
+    </div>
+    
+    <!-- Modal: JSON Yükleme -->
+    <div id="importModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>JSON Yükle</h2>
+                <span class="close" id="closeImportModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Aşağıdaki alana JSON verisini yapıştırın veya dosyadan yükleyin:</p>
+                <div class="file-select">
+                    <button id="btnSelectFile" class="btn btn-primary">Dosya Seç</button>
+                    <span class="file-name" id="selectedFileName">Dosya seçilmedi</span>
+                    <input type="file" id="fileInput" class="file-input" accept=".json">
+                </div>
+                <textarea id="jsonContent" class="modal-textarea" placeholder="JSON verisini buraya yapıştırın..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="btnApplyJson" class="btn btn-primary">Uygula</button>
+                <button class="btn btn-secondary close-modal">İptal</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: JSON Dışa Aktarma -->
+    <div id="exportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>JSON Dışa Aktar</h2>
+                <span class="close" id="closeExportModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Aşağıdaki JSON verisini kopyalayın veya dosyaya kaydedin:</p>
+                <textarea id="exportJsonContent" class="modal-textarea" readonly></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="btnCopyJson" class="btn btn-primary">Kopyala</button>
+                <button id="btnSaveJson" class="btn btn-primary">Dosyaya Kaydet</button>
+                <button class="btn btn-secondary close-modal">Kapat</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Öğrenci JSON Yükleme -->
+    <div id="importStudentsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Öğrenci Listesi Yükle</h2>
+                <span class="close" id="closeImportStudentsModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Aşağıdaki alana JSON verisini yapıştırın veya dosyadan yükleyin:</p>
+                <div class="file-select">
+                    <button id="btnSelectStudentFile" class="btn btn-primary">Dosya Seç</button>
+                    <span class="file-name" id="selectedStudentFileName">Dosya seçilmedi</span>
+                    <input type="file" id="studentJsonInput" class="file-input" accept=".json">
+                </div>
+                <textarea id="studentJsonContent" class="modal-textarea" placeholder="Öğrenci JSON verisini buraya yapıştırın..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="btnApplyStudentJson" class="btn btn-primary">Uygula</button>
+                <button class="btn btn-secondary close-modal">İptal</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Notları Dışa Aktarma -->
+    <div id="exportGradesModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Notları Dışa Aktar</h2>
+                <span class="close" id="closeExportGradesModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p>Aşağıdaki veriyi kopyalayın veya dosyaya kaydedin:</p>
+                <textarea id="exportGradesContent" class="modal-textarea" readonly></textarea>
+            </div>
+            <div class="modal-footer">
+                <button id="btnCopyGrades" class="btn btn-primary">Kopyala</button>
+                <button id="btnSaveGradesToFile" class="btn btn-primary">Dosyaya Kaydet</button>
+                <button class="btn btn-secondary close-modal">Kapat</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal: Test Detayları -->
+    <div id="testDetailsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Test Detayları</h2>
+                <span class="close" id="closeTestDetailsModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="totalQuestions">Toplam Soru Sayısı:</label>
+                    <input type="number" id="totalQuestions" min="1" value="20">
+                </div>
+                <div class="form-group">
+                    <label for="correctWeight">Her Doğru Cevap Puanı:</label>
+                    <input type="number" id="correctWeight" min="0" step="0.5" value="5">
+                </div>
+                <div class="form-group">
+                    <label for="wrongPenalty">Yanlış Cevap Ceza Puanı (0 veya negatif değer):</label>
+                    <input type="number" id="wrongPenalty" max="0" step="0.5" value="0">
+                </div>
+            </div>
+			<div class="modal-footer">
+				<button id="btnSaveTestDetails" class="btn btn-primary">Kaydet</button>
+				<button id="btnDistributeTestScores" class="btn btn-warning">Rastgele Doğru/Yanlış Dağıt</button>
+				<button class="btn btn-secondary close-modal">İptal</button>
+			</div>
+        </div>
+    </div>
+	
+	<!-- Modal: Çoklu Öğe Ekleme -->
+	<div id="multipleItemsModal" class="modal">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h2 id="multipleItemsTitle">Çoklu Öğe Ekle</h2>
+				<span class="close" id="closeMultipleItemsModal">&times;</span>
+			</div>
+			<div class="modal-body">
+				<!-- Etkinlik Seçimi -->
+				<div class="form-group">
+					<label for="targetActivitySelect">🎯 Hedef Etkinlik:</label>
+					<select id="targetActivitySelect" class="form-control">
+						<!-- Etkinlikler dinamik olarak doldurulacak -->
+					</select>
+					<p class="help-text">Soru/rubrik eklenecek etkinliği seçin</p>
+				</div>
+				
+				<div class="form-group">
+					<label for="itemCount">Eklenecek Öğe Sayısı:</label>
+					<input type="number" id="itemCount" min="1" max="20" value="5">
+				</div>
+				
+				<div class="form-group" id="questionTypeContainer">
+					<label for="questionType">Soru Tipi:</label>
+					<select id="questionType">
+						<!-- Soru tipleri dinamik olarak doldurulacak -->
+					</select>
+				</div>
+				
+				<div class="form-group" id="rubricTypeContainer" style="display: none;">
+					<label for="rubricType">Rubrik Tipi:</label>
+					<select id="rubricType">
+						<!-- Rubrik tipleri dinamik olarak doldurulacak -->
+					</select>
+				</div>
+				
+				<!-- ÖÇ Seçimi alanı -->
+				<div class="form-group">
+					<label for="outcomeSelection">Öğrenme Çıktıları (İsteğe Bağlı):</label>
+					<div class="outcomes-selection">
+						<select id="outcomeSelection" multiple size="5">
+							<!-- ÖÇ'ler dinamik olarak doldurulacak -->
+						</select>
+						<p class="help-text">Birden fazla ÖÇ seçmek için Ctrl tuşuna basılı tutarak seçim yapın</p>
+					</div>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button id="btnAddMultipleItems" class="btn btn-primary">Ekle</button>
+				<button class="btn btn-secondary close-modal">İptal</button>
+			</div>
+		</div>
+	</div>
+	
+	<!-- Modern Modal Yapıları -->
+	<!-- Silme Onay Modalı -->
+	<div id="deleteConfirmModal" class="modern-modal">
+		<div class="modern-modal-content">
+			<div class="modern-modal-header">
+				<h2>Etkinlik Silme Onayı</h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body">
+				<div class="modal-icon warning">
+					<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+						<line x1="12" y1="9" x2="12" y2="13"></line>
+						<line x1="12" y1="17" x2="12.01" y2="17"></line>
+					</svg>
+				</div>
+				<p id="deleteConfirmMessage">Bu etkinliği ve tüm alt öğelerini silmek istediğinizden emin misiniz?</p>
+			</div>
+			<div class="modern-modal-footer">
+				<button id="confirmDeleteBtn" class="btn-modern btn-modern-danger">Evet, Sil</button>
+				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Puan Dağıtım Modalı -->
+	<div id="distributePointsModal" class="modern-modal">
+		<div class="modern-modal-content">
+			<div class="modern-modal-header">
+				<h2>Puanları Dağıt</h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body">
+				<div class="info-message">
+					<p id="distributionMessage">Alt öğelerin toplam ağırlığı %<span id="currentTotalWeight">0</span>. Puanları yeniden dağıtmak ister misiniz?</p>
+				</div>
+				<div class="form-group">
+					<label for="totalPointsInput">Dağıtılacak Toplam Puan:</label>
+					<input type="number" id="totalPointsInput" class="form-control" value="100" min="1">
+				</div>
+				<div class="distribution-options">
+					<div class="distribution-option" id="equalOption">
+						<div class="option-icon">
+							<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<line x1="5" y1="12" x2="19" y2="12"></line>
+								<polyline points="5 19 5 5 19 5 19 19"></polyline>
+							</svg>
+						</div>
+						<h3>Eşit Dağıtım</h3>
+						<p>Tüm öğelere eşit puan verilir</p>
+					</div>
+					<div class="distribution-option" id="randomOption">
+						<div class="option-icon">
+							<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+							</svg>
+						</div>
+						<h3>Rastgele Dağıtım</h3>
+						<p>Puanlar öğelere rastgele dağıtılır</p>
+					</div>
+				</div>
+			</div>
+			<div class="modern-modal-footer">
+				<button id="confirmDistributeBtn" class="btn-modern btn-modern-primary" disabled>Dağıtımı Uygula</button>
+				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Test Skoru Dağıtım Modalı -->
+	<div id="testScoreDistributionModal" class="modern-modal">
+		<div class="modern-modal-content">
+			<div class="modern-modal-header">
+				<h2>Test Skoru Dağıtımı</h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body">
+				<div class="test-info">
+					<p>Öğrenci: <strong id="testStudentName">-</strong></p>
+					<p>Test: <strong id="testName">-</strong></p>
+					<p>Toplam Soru Sayısı: <strong id="testTotalQuestions">0</strong></p>
+				</div>
+				
+				<div class="score-controls">
+					<div class="score-control">
+						<label for="testCorrectSlider">Doğru Sayısı: <span id="testCorrectValue">0</span></label>
+						<input type="range" id="testCorrectSlider" min="0" max="20" value="0" class="slider">
+					</div>
+					<div class="score-control">
+						<label for="testWrongSlider">Yanlış Sayısı: <span id="testWrongValue">0</span></label>
+						<input type="range" id="testWrongSlider" min="0" max="20" value="0" class="slider">
+					</div>
+					<div class="score-result">
+						<p>Boş Soru: <span id="testEmptyValue">20</span></p>
+						<p>Toplam Puan: <span id="testTotalScore">0</span></p>
+					</div>
+				</div>
+				
+				<div class="test-distribution">
+					<h4>Soru Dağılımı</h4>
+					<div class="distribution-preview" id="distributionPreview"></div>
+				</div>
+			</div>
+			<div class="modern-modal-footer">
+				<button id="applyTestDistribution" class="btn-modern btn-modern-primary">Uygula</button>
+				<button id="randomizeTestDistribution" class="btn-modern btn-modern-secondary">Rastgele Dağıt</button>
+				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Grup Haritalama Modal -->
+	<div id="groupMappingModal" class="modern-modal">
+		<div class="modern-modal-content">
+			<div class="modern-modal-header">
+				<h2>Grup Soru Haritalama - <span id="mappingActivityName"></span></h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body">
+				<div class="info-message">
+					<p>Bu sorunun hangi gruplarda hangi sırada yer alacağını belirleyin:</p>
+					<p style="color: #ff9800; font-size: 0.9em; margin-top: 8px;">
+						⚠️ Değişiklikler sadece "Kaydet" butonuna bastığınızda uygulanır. İptal ederseniz tüm değişiklikler kaybolur.
+					</p>
+				</div>
+				
+				<!-- Toplu Giriş Alanı - Ana ekranda mevcut olduğu için gizlendi -->
+				<!-- 
+				<div class="bulk-input-section" style="display: none;">
+					<div class="bulk-input-header">
+						<h4>Hızlı Giriş</h4>
+						<p class="help-text">Format: A:1,B:2,C:3 (Grup:Pozisyon şeklinde virgülle ayırın)</p>
+					</div>
+					<div class="bulk-input-controls">
+						<input type="text" id="bulkMappingInput" class="bulk-input" placeholder="A:1,B:2,C:3">
+						<button class="btn-modern btn-modern-primary" id="applyBulkMapping">Uygula</button>
+					</div>
+					<div class="bulk-error-messages" id="bulkErrorMessages"></div>
+				</div>
+				
+				<div class="section-divider">veya</div>
+				-->
+				
+				<div class="mapping-container" id="mappingContainer">
+					<!-- Haritalama satırları buraya eklenecek -->
+				</div>
+				<div class="mapping-actions">
+					<button class="btn-modern btn-modern-secondary tooltip" id="addMappingRow" data-tooltip="Bu etkinlik için yeni grup haritalama satırı ekle">
+						<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+						</svg>
+						Etkinliğe Grup Ekle
+					</button>
+				</div>
+			</div>
+			<div class="modern-modal-footer">
+				<button id="saveMappingBtn" class="btn-modern btn-modern-primary">Kaydet</button>
+				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- ÖÇ Düzenleme Modalı -->
+	<div id="outcomesEditModal" class="modern-modal">
+		<div class="modern-modal-content">
+			<div class="modern-modal-header">
+				<h2>Öğrenme Çıktılarını Düzenle - <span id="outcomesActivityName"></span></h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body">
+				<div class="info-message">
+					<p>Bu değerlendirme bileşeni için öğrenme çıktılarını seçin:</p>
+				</div>
+				
+				<div class="outcomes-edit-section">
+					<div class="outcomes-current">
+						<h4>Mevcut Öğrenme Çıktıları:</h4>
+						<textarea id="outcomesTextarea" class="outcomes-textarea" placeholder="ÖÇ.1, ÖÇ.2, ÖÇ.3 şeklinde virgülle ayırarak yazın..."></textarea>
+					</div>
+					
+					<div class="outcomes-available">
+						<h4>Mevcut ÖÇ Listesi:</h4>
+						<div class="outcomes-list" id="availableOutcomesList">
+							<!-- Mevcut öğrenme çıktıları burada listelenecek -->
+						</div>
+					</div>
+					
+					<div class="outcomes-quick-actions">
+						<button class="btn btn-success btn-small" id="selectAllOutcomes">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<polyline points="20 6 9 17 4 12"></polyline>
+							</svg>
+							Tümünü Seç
+						</button>
+						<button class="btn btn-secondary btn-small" id="clearAllOutcomes">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M18 6L6 18M6 6l12 12"></path>
+							</svg>
+							Temizle
+						</button>
+						<button class="btn btn-info btn-small" id="randomSelectOutcomes">
+							<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+								<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+							</svg>
+							Rastgele Seç
+						</button>
+					</div>
+				</div>
+			</div>
+			<div class="modern-modal-footer">
+				<button id="saveOutcomesBtn" class="btn-modern btn-modern-primary">Kaydet</button>
+				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Bileşen Grup Yönetimi Modalı -->
+	<div id="componentGroupManagementModal" class="modern-modal">
+		<div class="modern-modal-content">
+			<div class="modern-modal-header">
+				<h2>Bileşen Grup Yönetimi</h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body" id="componentGroupModalBody">
+				<!-- İçerik JavaScript tarafından dinamik olarak oluşturulacak -->
+			</div>
+			<div class="modern-modal-footer">
+				<button class="btn-modern btn-modern-secondary modern-close">Kapat</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- E-posta Türü Seçim Modalı -->
+	<div id="emailTypeModal" class="modern-modal email-modal">
+		<div class="modern-modal-content email-modal-content">
+			<div class="modern-modal-header email-modal-header">
+				<h2>📧 E-posta Gönderimi</h2>
+				<p class="email-modal-subtitle">Hangi türde e-posta göndermek istiyorsunuz?</p>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body email-modal-body">
+				<div class="email-type-grid">
+					<div class="email-type-card" data-type="survey">
+						<div class="email-type-icon">📋</div>
+						<h3>Anket Maili</h3>
+						<p>Öğrenciye değerlendirme anketi ve ÖÇ tabanlı bilgilendirme</p>
+						<div class="email-type-features">
+							<span class="feature-badge">• ÖÇ Detayları</span>
+							<span class="feature-badge">• Değerlendirme Kriterleri</span>
+							<span class="feature-badge">• Genel Bilgilendirme</span>
+						</div>
+					</div>
+					
+					<div class="email-type-card" data-type="detailed">
+						<div class="email-type-icon">📊</div>
+						<h3>Detaylı Not Bilgisi</h3>
+						<p>Hangi sorudan kaç puan aldığı detayında bilgilendirme</p>
+						<div class="email-type-features">
+							<span class="feature-badge">• Soru Bazlı Puanlar</span>
+							<span class="feature-badge">• Toplam Skorlar</span>
+							<span class="feature-badge">• Başarı Analizi</span>
+						</div>
+					</div>
+					
+					<div class="email-type-card" data-type="analysis">
+						<div class="email-type-icon">🎯</div>
+						<h3>ÖÇ-PÇ Analizi</h3>
+						<p>Öğrenme çıktıları ve program çıktıları performans analizi</p>
+						<div class="email-type-features">
+							<span class="feature-badge">• ÖÇ Performansı</span>
+							<span class="feature-badge">• PÇ İlişkileri</span>
+							<span class="feature-badge">• Gelişim Önerileri</span>
+						</div>
+					</div>
+					
+					<div class="email-type-card" data-type="info">
+						<div class="email-type-icon">💬</div>
+						<h3>Bilgi Talebi</h3>
+						<p>Öğrenciden bilgi talebi veya görüşme davet maili</p>
+						<div class="email-type-features">
+							<span class="feature-badge">• Randevu Talebi</span>
+							<span class="feature-badge">• Bilgi İsteği</span>
+							<span class="feature-badge">• Görüşme Daveti</span>
+						</div>
+					</div>
+				</div>
+				
+				<div class="email-preview-section" id="emailPreviewSection" style="display: none;">
+					<h3>📄 E-posta Önizleme</h3>
+					<div class="email-preview-content" id="emailPreviewContent">
+						<!-- Önizleme içeriği buraya gelecek -->
+					</div>
+				</div>
+			</div>
+			<div class="modern-modal-footer email-modal-footer">
+				<button id="generateEmailBtn" class="btn-modern btn-modern-primary" disabled>
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+						<path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+					</svg>
+					E-posta Oluştur
+				</button>
+				<button id="previewEmailBtn" class="btn-modern btn-modern-secondary" disabled>
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+						<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+					</svg>
+					Önizle
+				</button>
+				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- ÖÇ Detay Görüntüleme Modalı -->
+	<div id="outcomeDetailModal" class="modern-modal">
+		<div class="modern-modal-content">
+			<div class="modern-modal-header">
+				<h2>📋 Öğrenme Çıktıları Detayları</h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body">
+				<div class="outcome-detail-container" id="outcomeDetailContainer">
+					<!-- ÖÇ detayları burada gösterilecek -->
+				</div>
+			</div>
+			<div class="modern-modal-footer">
+				<button class="btn-modern btn-modern-secondary modern-close">Kapat</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Oran Dengeleme ve Puan Dağılımı Modalı -->
+	<div id="balanceDistributionModal" class="modern-modal">
+		<div class="modern-modal-content">
+			<div class="modern-modal-header">
+				<h2>⚖️ Oran Dengeleme ve Puan Dağılımı</h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body">
+				<div class="balance-info-section">
+					<div class="info-message">
+						<p><strong>Yeni etkinlik eklendi!</strong> Sistem oranların dengesiz olduğunu tespit etti.</p>
+					</div>
+					
+					<div class="current-status" id="currentBalanceStatus">
+						<!-- Mevcut durum burada gösterilecek -->
+					</div>
+					
+					<div class="balance-options">
+						<h4>🎯 Dengeleme Seçenekleri</h4>
+						
+						<div class="balance-option-card" data-option="auto-balance">
+							<div class="option-icon">🤖</div>
+							<div class="option-content">
+								<h5>Otomatik Dengeleme</h5>
+								<p>Sistem tüm oranları otomatik olarak %100'e tamamlayacak ve puanları eşit dağıtacak.</p>
+								<ul class="option-features">
+									<li>Yarıyıl içi etkinlikleri toplamda %100</li>
+									<li>Yarıyıl sonu etkinlikleri toplamda %100</li>
+									<li>Her sınav tam 100 puan</li>
+									<li>Eşit dağılım algoritması</li>
+								</ul>
+							</div>
+						</div>
+						
+						<div class="balance-option-card" data-option="smart-balance">
+							<div class="option-icon">🧠</div>
+							<div class="option-content">
+								<h5>Akıllı Dengeleme</h5>
+								<p>Mevcut oranları koruyarak eksik/fazla puanları akıllıca dağıtacak.</p>
+								<ul class="option-features">
+									<li>Mevcut oranları korur</li>
+									<li>Sadece eksik/fazla puanları düzenler</li>
+									<li>100 puan kuralını korur</li>
+									<li>Minimum değişiklik</li>
+								</ul>
+							</div>
+						</div>
+						
+						<div class="balance-option-card" data-option="manual-balance">
+							<div class="option-icon">✋</div>
+							<div class="option-content">
+								<h5>Manuel Düzenleme</h5>
+								<p>Oranları ve puanları kendiniz düzenlemek istiyorsunuz.</p>
+								<ul class="option-features">
+									<li>Tam kontrol sizde</li>
+									<li>Özel oran dağılımları</li>
+									<li>Esnek puan sistemi</li>
+									<li>Deneyimli kullanıcılar için</li>
+								</ul>
+							</div>
+						</div>
+						
+						<div class="balance-option-card" data-option="keep-current">
+							<div class="option-icon">📌</div>
+							<div class="option-content">
+								<h5>Mevcut Durumu Koru</h5>
+								<p>Hiçbir değişiklik yapmadan devam et.</p>
+								<ul class="option-features">
+									<li>Değişiklik yok</li>
+									<li>Mevcut oranlar korunur</li>
+									<li>Dengesizlik kalabilir</li>
+									<li>Sonradan düzenlenebilir</li>
+								</ul>
+							</div>
+						</div>
+					</div>
+					
+					<div class="preview-section" id="balancePreview" style="display: none;">
+						<h4>📊 Önizleme</h4>
+						<div class="preview-content" id="previewContent">
+							<!-- Önizleme içeriği burada gösterilecek -->
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modern-modal-footer">
+				<button id="applyBalanceBtn" class="btn-modern btn-modern-primary" disabled>Uygula</button>
+				<button id="previewBalanceBtn" class="btn-modern btn-modern-secondary" disabled>Önizle</button>
+				<button class="btn-modern btn-modern-secondary modern-close">İptal</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modern Onay Modalı -->
+	<div id="modernConfirmModal" class="modern-modal">
+		<div class="modern-modal-content">
+			<div class="modern-modal-header">
+				<h2 id="confirmModalTitle">Onay Gerekli</h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body">
+				<div class="modal-icon warning">
+					<svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+						<line x1="12" y1="9" x2="12" y2="13"></line>
+						<line x1="12" y1="17" x2="12.01" y2="17"></line>
+					</svg>
+				</div>
+				<p id="confirmModalMessage">Bu işlemi gerçekleştirmek istediğinizden emin misiniz?</p>
+			</div>
+			<div class="modern-modal-footer">
+				<button id="confirmModalYes" class="btn-modern btn-modern-danger">Evet, Sil</button>
+				<button id="confirmModalNo" class="btn-modern btn-modern-secondary modern-close">İptal</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- Etkinlik Sonrası Seçenek Modalı -->
+	<div id="activityOptionsModal" class="modern-modal">
+		<div class="modern-modal-content activity-options-modal">
+			<div class="modern-modal-header">
+				<h2 id="activityOptionsTitle">🎯 Etkinlik Başarıyla Eklendi!</h2>
+				<span class="modern-close">&times;</span>
+			</div>
+			<div class="modern-modal-body">
+				<div class="activity-success-message">
+					<div class="success-icon">✅</div>
+					<p id="activitySuccessText">Yarıyıl içi etkinlik başarıyla oluşturuldu. Şimdi bu etkinliğe soru veya rubrik eklemek ister misiniz?</p>
+				</div>
+				
+				<!-- ÖÇ Seçim Alanı -->
+				<div class="activity-outcomes-section">
+					<h4>🎯 Öğrenme Çıktısı Seçimi</h4>
+					<p class="outcomes-description">Bu etkinlik için hangi öğrenme çıktılarının değerlendirileceğini seçin:</p>
+					
+					<div class="outcomes-selection-container">
+						<div class="outcomes-selection-left">
+							<label for="activityOutcomesSelect">Mevcut ÖÇ'ler:</label>
+							<select id="activityOutcomesSelect" class="outcomes-multiselect" multiple size="4">
+								<!-- ÖÇ'ler dinamik olarak doldurulacak -->
+							</select>
+							<div class="outcomes-help">
+								<small>💡 Ctrl tuşuna basılı tutarak birden fazla ÖÇ seçebilirsiniz</small>
+							</div>
+						</div>
+						
+						<div class="outcomes-selection-right">
+							<div class="outcomes-quick-actions">
+								<button type="button" class="btn-outcomes btn-success" id="selectAllActivityOutcomes">
+									<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<polyline points="20 6 9 17 4 12"></polyline>
+									</svg>
+									Tümünü Seç
+								</button>
+								<button type="button" class="btn-outcomes btn-warning" id="randomSelectActivityOutcomes">
+									<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+									</svg>
+									Rastgele Seç
+								</button>
+								<button type="button" class="btn-outcomes btn-secondary" id="clearAllActivityOutcomes">
+									<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+										<path d="M18 6L6 18M6 6l12 12"></path>
+									</svg>
+									Temizle
+								</button>
+							</div>
+							
+							<div class="selected-outcomes-preview">
+								<label>Seçili ÖÇ'ler:</label>
+								<div id="selectedOutcomesPreview" class="outcomes-preview-list">
+									<span class="no-selection">Henüz seçim yapılmadı</span>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+				
+				<div class="activity-options-grid">
+					<!-- Soru Ekleme Seçeneği -->
+					<div class="activity-option-card" data-option="questions">
+						<div class="option-header">
+							<div class="option-icon questions">❓</div>
+							<h3>Soru Ekle</h3>
+						</div>
+						<div class="option-content">
+							<div class="option-controls">
+								<div class="control-group">
+									<label>Soru Adedi:</label>
+									<div class="count-selector">
+										<button type="button" class="count-btn minus" data-target="questionCount">-</button>
+										<input type="number" id="questionCount" class="count-input" min="1" max="50" value="3">
+										<button type="button" class="count-btn plus" data-target="questionCount">+</button>
+									</div>
+								</div>
+								<div class="control-group">
+									<label>Soru Türü:</label>
+									<select id="questionTypeSelect" class="option-select">
+										<option value="Soru">📝 Soru (Genel)</option>
+										<option value="Çoktan Seçmeli">❓ Çoktan Seçmeli</option>
+										<option value="Doğru/Yanlış">✅ Doğru/Yanlış</option>
+										<option value="Kısa Cevaplı">📝 Kısa Cevaplı</option>
+										<option value="Boşluk Doldurma">📋 Boşluk Doldurma</option>
+										<option value="Eşleştirme">🔗 Eşleştirme</option>
+										<option value="Açık Uçlu">📄 Açık Uçlu</option>
+										<option value="Problem Çözme">🧮 Problem Çözme</option>
+										<option value="Kod Yazma">💻 Kod Yazma</option>
+										<option value="Kod Analiz">🔍 Kod Analiz</option>
+										<option value="Vaka Analizi">📊 Vaka Analizi</option>
+										<option value="Tasarım">🎨 Tasarım</option>
+										<option value="Görsel İnceleme">👁️ Görsel İnceleme</option>
+									</select>
+								</div>
+								<div class="control-group" id="questionPointsGroup">
+									<label>Varsayılan Puan:</label>
+									<input type="number" id="questionDefaultPoints" class="option-input" min="1" max="100" value="10">
+									<div class="points-info" id="questionPointsInfo" style="display: none;">
+										<div class="info-message">
+											<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+												<circle cx="12" cy="12" r="10"></circle>
+												<path d="M12 16v-4"></path>
+												<path d="M12 8h.01"></path>
+											</svg>
+											<span><strong>Çoklu Soru Modu:</strong> Puanlar ağırlık dağılımına göre otomatik hesaplanır. Toplam 100 puan garantili dağıtım yapılır. Mevcut sorular da dikkate alınır.</span>
+										</div>
+									</div>
+								</div>
+								<div class="control-group">
+									<label>Ağırlık Dağıtımı:</label>
+									<select id="questionWeightDistribution" class="option-select">
+										<option value="equal">⚖️ Eşit Dağıtım</option>
+										<option value="manual">✋ Manuel Ayarlama</option>
+										<option value="random">🎲 Rastgele Dağıtım</option>
+									</select>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Rubrik Ekleme Seçeneği -->
+					<div class="activity-option-card" data-option="rubrics">
+						<div class="option-header">
+							<div class="option-icon rubrics">📊</div>
+							<h3>Rubrik Ekle</h3>
+						</div>
+						<div class="option-content">
+							<div class="option-controls">
+								<div class="control-group">
+									<label>Rubrik Adedi:</label>
+									<div class="count-selector">
+										<button type="button" class="count-btn minus" data-target="rubricCount">-</button>
+										<input type="number" id="rubricCount" class="count-input" min="1" max="20" value="2">
+										<button type="button" class="count-btn plus" data-target="rubricCount">+</button>
+									</div>
+								</div>
+								<div class="control-group">
+									<label>Rubrik Türü:</label>
+									<select id="rubricTypeSelect" class="option-select">
+										<option value="Rubrik">📊 Rubrik (Genel)</option>
+										<option value="Proje Planlama">🚀 Proje Planlama</option>
+										<option value="Proje Raporu">📄 Proje Raporu</option>
+										<option value="Proje Sunumu">🎤 Proje Sunumu</option>
+										<option value="Kod Yapısı">🏗️ Kod Yapısı</option>
+										<option value="Kod Kalitesi">⭐ Kod Kalitesi</option>
+										<option value="Performans">⚡ Performans</option>
+										<option value="Dokümantasyon">📚 Dokümantasyon</option>
+										<option value="Teorik Bilgi">🎓 Teorik Bilgi</option>
+										<option value="Problem Çözme">🧩 Problem Çözme</option>
+										<option value="Uygulama">🔧 Uygulama</option>
+										<option value="İçerik">📋 İçerik</option>
+										<option value="Görsel Tasarım">🎨 Görsel Tasarım</option>
+										<option value="Sunum Becerisi">🎭 Sunum Becerisi</option>
+										<option value="Zaman Yönetimi">⏰ Zaman Yönetimi</option>
+										<option value="Deney Hazırlığı">🧪 Deney Hazırlığı</option>
+										<option value="Deney Uygulaması">⚗️ Deney Uygulaması</option>
+										<option value="Veri Analizi">📊 Veri Analizi</option>
+										<option value="Laboratuvar Raporu">🧪 Laboratuvar Raporu</option>
+									</select>
+								</div>
+								<div class="control-group" id="rubricPointsGroup">
+									<label>Varsayılan Puan:</label>
+									<input type="number" id="rubricDefaultPoints" class="option-input" min="1" max="100" value="20">
+									<div class="points-info" id="rubricPointsInfo" style="display: none;">
+										<div class="info-message">
+											<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+												<circle cx="12" cy="12" r="10"></circle>
+												<path d="M12 16v-4"></path>
+												<path d="M12 8h.01"></path>
+											</svg>
+											<span><strong>Çoklu Rubrik Modu:</strong> Puanlar ağırlık dağılımına göre otomatik hesaplanır. Toplam 100 puan garantili dağıtım yapılır. Mevcut rubrikler de dikkate alınır.</span>
+										</div>
+									</div>
+								</div>
+								<div class="control-group">
+									<label>Ağırlık Dağıtımı:</label>
+									<select id="rubricWeightDistribution" class="option-select">
+										<option value="equal">⚖️ Eşit Dağıtım</option>
+										<option value="manual">✋ Manuel Ayarlama</option>
+										<option value="random">🎲 Rastgele Dağıtım</option>
+									</select>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Boş Bırak Seçeneği -->
+					<div class="activity-option-card" data-option="empty">
+						<div class="option-header">
+							<div class="option-icon empty">📝</div>
+							<h3>Boş Bırak</h3>
+						</div>
+						<div class="option-content">
+							<p>Etkinliği şimdilik boş bırak, daha sonra manuel olarak soru veya rubrik ekle.</p>
+							<div class="empty-benefits">
+								<span class="benefit">• Esnek planlama</span>
+								<span class="benefit">• Manuel kontrol</span>
+								<span class="benefit">• Özel yapılandırma</span>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="modern-modal-footer">
+				<button id="applyActivityOptions" class="btn-modern btn-modern-primary" disabled>
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+						<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+					</svg>
+					Seçimi Uygula
+				</button>
+				<button id="emptyActivityOption" class="btn-modern btn-modern-secondary">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+						<path d="M19 13H5v-2h14v2z"/>
+					</svg>
+					Şimdilik Boş Bırak
+				</button>
+				<button id="cancelActivityOptions" class="btn-modern btn-modern-secondary modern-close">
+					<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+						<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+					</svg>
+					İptal
+				</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- İlerletme/Modern Toast Bildirim -->
+	<div id="modernToast" class="modern-toast">
+		<div class="modern-toast-content">
+			<div class="modern-toast-icon success">
+				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+					<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+					<polyline points="22 4 12 14.01 9 11.01"></polyline>
+				</svg>
+			</div>
+			<div class="modern-toast-message" id="modernToastMessage"></div>
+			<div class="modern-toast-close">&times;</div>
+		</div>
+		<div class="modern-toast-progress">
+			<div class="modern-toast-progress-bar"></div>
+		</div>
+	</div>
+	
+	
+    <!-- Bildirim Toast -->
+    <div id="toast" class="toast">
+        <div class="toast-content">
+            <div class="toast-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            </div>
+            <div class="toast-message" id="toastMessage"></div>
+        </div>
+        <div class="toast-progress">
+            <div class="toast-progress-bar"></div>
+        </div>
+    </div>
+        
+    <!-- GUID Otomatik Aktivasyon script.js dosyasına taşındı -->
+
+    <!-- Etkinlik Adı Düzenleme Modal -->
+    <div class="modern-modal" id="activityNamingModal">
+        <div class="modern-modal-content">
+            <div class="modern-modal-header info-action">
+                <h2>🏷️ Etkinlik Adı Düzenleme</h2>
+                <button class="modern-close" onclick="closeActivityNamingModal()">×</button>
+            </div>
+            <div class="modern-modal-body">
+                <div class="modal-icon info">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14,2 14,8 20,8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                        <polyline points="10,9 9,9 8,9"></polyline>
+                    </svg>
+                </div>
+                <p>Etkinlik ve alt bileşen adlarına "Vize" ve "Final" etiketlerini eklemek için aşağıdaki seçenekleri kullanın:</p>
+                
+                <div class="form-group">
+                    <label for="namingTarget">Etiket Hedefi:</label>
+                    <select id="namingTarget" class="form-control">
+                        <option value="activities">🏷️ Sadece Ana Etkinlikler (A1, F1, vb.)</option>
+                        <option value="components">🔧 Sadece Alt Bileşenler (A1.1, A1.2, vb.)</option>
+                        <option value="both">📋 Hem Ana Etkinlikler Hem Alt Bileşenler</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="namingPosition">Etiket Konumu:</label>
+                    <select id="namingPosition" class="form-control">
+                        <option value="suffix">Sonuna Ekle (örn: "Sınav - Vize")</option>
+                        <option value="prefix">Başına Ekle (örn: "Vize - Sınav")</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="namingSeparator">Ayırıcı:</label>
+                    <select id="namingSeparator" class="form-control">
+                        <option value=" - "> - (tire)</option>
+                        <option value=" | "> | (dikey çizgi)</option>
+                        <option value=" / "> / (bölü)</option>
+                        <option value=" "> (boşluk)</option>
+                        <option value="">Hiç ayırıcı yok</option>
+                    </select>
+                </div>
+                
+                <div class="info-message">
+                    <p><strong>Yarıyıl İçi (A prefixli):</strong> "Vize" etiketi eklenecek</p>
+                    <p><strong>Yarıyıl Sonu (F prefixli):</strong> "Final" etiketi eklenecek</p>
+                    <p><strong>Alt Bileşenler:</strong> Ana etkinliğin kategorisine göre etiketlenecek</p>
+                </div>
+            </div>
+            <div class="modern-modal-footer">
+                <button class="modern-confirm-btn btn-info" onclick="applyActivityNaming()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20,6 9,17 4,12"></polyline>
+                    </svg>
+                    Etiketleri Ekle
+                </button>
+                <button class="modern-confirm-btn btn-secondary" onclick="closeActivityNamingModal()">İptal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Etiket Temizleme Modal -->
+    <div class="modern-modal" id="activityCleanupModal">
+        <div class="modern-modal-content">
+            <div class="modern-modal-header warning-action">
+                <h2>🧹 Etiket Temizleme</h2>
+                <button class="modern-close" onclick="closeActivityCleanupModal()">×</button>
+            </div>
+            <div class="modern-modal-body">
+                <div class="modal-icon warning">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </div>
+                <p>Etkinlik ve alt bileşen adlarından "Vize" ve "Final" etiketlerini temizlemek için hedef seçin:</p>
+                
+                <div class="form-group">
+                    <label for="cleanupTarget">Temizleme Hedefi:</label>
+                    <select id="cleanupTarget" class="form-control">
+                        <option value="activities">🏷️ Sadece Ana Etkinlikler (A1, F1, vb.)</option>
+                        <option value="components">🔧 Sadece Alt Bileşenler (A1.1, A1.2, vb.)</option>
+                        <option value="both">📋 Hem Ana Etkinlikler Hem Alt Bileşenler</option>
+                    </select>
+                </div>
+                
+                <div class="info-message" style="background: linear-gradient(135deg, #fff3cd, #ffeaa7); border-color: #ffc107; color: #856404;">
+                    <p><strong>⚠️ Dikkat:</strong> Bu işlem geri alınamaz!</p>
+                    <p><strong>Temizlenecek Etiketler:</strong> "Vize", "Final" ve bunların tüm varyasyonları</p>
+                    <p><strong>Desteklenen Ayırıcılar:</strong> -, |, /, boşluk ve hiç ayırıcı yok</p>
+                </div>
+            </div>
+            <div class="modern-modal-footer">
+                <button class="modern-confirm-btn btn-warning" onclick="removeActivitySuffixes()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3,6 5,6 21,6"></polyline>
+                        <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
+                        <line x1="10" y1="11" x2="10" y2="17"></line>
+                        <line x1="14" y1="11" x2="14" y2="17"></line>
+                    </svg>
+                    Etiketleri Temizle
+                </button>
+                <button class="modern-confirm-btn btn-secondary" onclick="closeActivityCleanupModal()">İptal</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
