@@ -1539,8 +1539,8 @@ function updateCategoryDetails(activities, containerId) {
             const getGroupInfo = (activityId) => {
                 if (APP_STATE.courseData && APP_STATE.courseData.grupHaritalari && APP_STATE.courseData.grupHaritalari[activityId]) {
                     const component = APP_STATE.courseData.grupHaritalari[activityId];
-                    if (component.groups && Array.isArray(component.groups)) {
-                        const validGroups = component.groups.filter(group => 
+                    if (component.gruplar && Array.isArray(component.gruplar)) {
+                        const validGroups = component.gruplar.filter(group => 
                             group && group.length === 1 && /^[A-Z]$/.test(group)
                         );
                         if (validGroups.length > 0) {
@@ -2976,8 +2976,8 @@ function copyGroupMappingsForActivity(sourceActivityId, targetActivityId) {
     } else {
         // Kaynak haritalama yoksa varsayılan oluştur
         APP_STATE.courseData.grupHaritalari[targetActivityId] = {
-            groups: ["A"],
-            mappings: {
+            gruplar: ["A"],
+            haritalar: {
                 "A": {}
             }
         };
@@ -2995,8 +2995,8 @@ function addSubComponentToGroupMappings(parentId, subComponentId) {
     if (!APP_STATE.courseData?.grupHaritalari?.[parentId]) {
         // Parent için grup haritalama yoksa oluştur
         APP_STATE.courseData.grupHaritalari[parentId] = {
-            groups: ["A"],
-            mappings: {
+            gruplar: ["A"],
+            haritalar: {
                 "A": {}
             }
         };
@@ -3005,17 +3005,17 @@ function addSubComponentToGroupMappings(parentId, subComponentId) {
     const parentMapping = APP_STATE.courseData.grupHaritalari[parentId];
     
     // Her grup için yeni alt bileşeni ekle
-    parentMapping.groups.forEach(groupName => {
-        if (!parentMapping.mappings[groupName]) {
-            parentMapping.mappings[groupName] = {};
+    parentMapping.gruplar.forEach(groupName => {
+        if (!parentMapping.haritalar[groupName]) {
+            parentMapping.haritalar[groupName] = {};
         }
         
         // Bu grupta kaç alt bileşen var, ona göre sıra numarası ver
-        const existingMappings = parentMapping.mappings[groupName];
+        const existingMappings = parentMapping.haritalar[groupName];
         const nextPosition = Object.keys(existingMappings).length + 1;
         
         // Yeni alt bileşeni haritalamaya ekle
-        parentMapping.mappings[groupName][subComponentId] = nextPosition.toString();
+        parentMapping.haritalar[groupName][subComponentId] = nextPosition.toString();
         
                  console.log(`✅ Alt bileşen grup haritalamaya eklendi: ${subComponentId} → ${parentId} (Grup: ${groupName}, Sıra: ${nextPosition})`);
      });
@@ -3037,15 +3037,15 @@ function updateGroupMappingsAfterIdChange(oldToNewIdMap) {
         const newActivityId = oldToNewIdMap[activityId] || activityId;
         const activityMapping = APP_STATE.courseData.grupHaritalari[activityId];
         
-        if (activityMapping && activityMapping.mappings) {
+        if (activityMapping && activityMapping.haritalar) {
             const updatedActivityMapping = {
-                groups: [...activityMapping.groups],
-                mappings: {}
+                gruplar: [...activityMapping.gruplar],
+                haritalar: {}
             };
             
             // Her grup için haritalamayı güncelle
-            Object.keys(activityMapping.mappings).forEach(groupName => {
-                const groupMapping = activityMapping.mappings[groupName];
+            Object.keys(activityMapping.haritalar).forEach(groupName => {
+                const groupMapping = activityMapping.haritalar[groupName];
                 const updatedGroupMapping = {};
                 
                 // Her alt bileşen için ID'yi güncelle
@@ -3059,7 +3059,7 @@ function updateGroupMappingsAfterIdChange(oldToNewIdMap) {
                     }
                 });
                 
-                updatedActivityMapping.mappings[groupName] = updatedGroupMapping;
+                updatedActivityMapping.haritalar[groupName] = updatedGroupMapping;
             });
             
             updatedMappings[newActivityId] = updatedActivityMapping;
@@ -4408,7 +4408,7 @@ function createAssessmentActivitySection(activity, container, type) {
             // Basit bileşenler için grup bilgisi kutusu gösterilmez
             const componentId = getParentComponentId(activity.id) || activity.id;
             const component = APP_STATE.courseData?.grupHaritalari?.[componentId];
-            const groups = component?.groups || ['A'];
+            const groups = component?.gruplar || ['A'];
             
             // Tablo başlıklarını her zaman grup sütunu ile göster
             // Yarıyıl içi ve sonu oranlarını dinamik olarak al
@@ -4564,7 +4564,7 @@ function createTestInputSection(testItem, container) {
         // Bu test öğesinin bağlı olduğu bileşenin gruplarını al
         const componentId = getParentComponentId(testItem.id);
         const component = APP_STATE.courseData?.grupHaritalari?.[componentId];
-        const groups = component?.groups || ['A'];
+        const groups = component?.gruplar || ['A'];
         
         const detailedTableHTML = `
             <thead>
@@ -4636,7 +4636,7 @@ function createTestInputSection(testItem, container) {
                                 >
                             </td>
                             <td>${empty}</td>
-                            <td class="total-score">${totalScore.toFixed(1)}</td>
+                            <td class="total-score">${totalScore.toFixed(2)}</td>
                             <td class="grade-summary-cell term-grade">${studentGrades.termGrade}</td>
                             <td class="grade-summary-cell final-grade">${studentGrades.finalGrade}</td>
                             <td class="grade-summary-cell total-grade">${studentGrades.totalGrade}</td>
@@ -4713,7 +4713,7 @@ function createTestInputSection(testItem, container) {
                                 <input type="number" min="0" max="${testItem.points}" 
                                     data-student-id="${student.studentId}" 
                                     data-activity-id="${testItem.id}" 
-                                    value="${totalScore.toFixed(1)}"
+                                    value="${totalScore.toFixed(2)}"
                                     onchange="updateStudentGrade(this)"
                                 >
                             </td>
@@ -4750,7 +4750,7 @@ function createModernGroupInfoDisplay(componentId, questionId) {
         }
 
         const componentData = APP_STATE.courseData.grupHaritalari[componentId];
-        const groups = componentData.groups || [];
+        const groups = componentData.gruplar || [];
         
         // Grup yoksa gösterme, ama tek grup varsa göster
         if (groups.length === 0) {
@@ -4768,7 +4768,7 @@ function createModernGroupInfoDisplay(componentId, questionId) {
             let questionPoints = '-';
             
             // Bu grubun bu soru için haritalama bilgisi var mı?
-            const groupMappings_data = componentData.mappings?.[groupId]?.[questionId];
+            const groupMappings_data = componentData.haritalar?.[groupId]?.[questionId];
             
             if (groupMappings_data) {
                 // Haritalama varsa, kağıttaki sırayı göster
@@ -4861,7 +4861,7 @@ function createSubItemInputSection(subItem, container) {
         
         // Grup seçeneklerini güvenli şekilde oluştur
         const groups = (APP_STATE.courseData && APP_STATE.courseData.grupHaritalari && APP_STATE.courseData.grupHaritalari[parentComponentId]) 
-            ? APP_STATE.courseData.grupHaritalari[parentComponentId].groups || ['A']
+            ? APP_STATE.courseData.grupHaritalari[parentComponentId].gruplar || ['A']
             : ['A'];
         
         // Grup sistemi her zaman kullanılır (tek grup olsa bile)
@@ -5184,8 +5184,8 @@ function getComponentGroupInfo(componentId, questionId) {
         }
         
         const componentGroups = APP_STATE.courseData.grupHaritalari[componentId];
-        const groups = componentGroups.groups || ['A'];
-        const mappings = componentGroups.mappings || {};
+        const groups = componentGroups.gruplar || ['A'];
+        const mappings = componentGroups.haritalar || {};
         
         let infoText = `Gruplar: ${groups.join(', ')}\n`;
         
@@ -5235,7 +5235,7 @@ function getQuestionPointsForStudentGroup(studentId, activityId, componentId) {
         
         // Grup haritalama verilerini al
         const componentGroupData = APP_STATE.courseData?.grupHaritalari?.[componentId];
-        if (!componentGroupData || !componentGroupData.mappings || !componentGroupData.mappings[studentGroup]) {
+        if (!componentGroupData || !componentGroupData.haritalar || !componentGroupData.haritalar[studentGroup]) {
             // Grup haritalama yoksa, sorunun orijinal puanını döndür
             const activity = findNodeById(activityId);
             console.log(`  - Grup haritalama yok, orijinal puan: ${activity ? activity.points : 0}`);
@@ -5244,7 +5244,7 @@ function getQuestionPointsForStudentGroup(studentId, activityId, componentId) {
         
         // Bu öğrencinin grubundaki bu sorunun kağıt üzerindeki sırasını bul
         // Grup haritalama formatı kontrol et: {position: questionId} VEYA {questionId: position}
-        const groupMappings = componentGroupData.mappings[studentGroup];
+        const groupMappings = componentGroupData.haritalar[studentGroup];
         let paperQuestionOrder = null;
         
         console.log(`  - groupMappings:`, groupMappings);
@@ -5319,12 +5319,12 @@ function calculateGradeBasedOnGroup(studentId, activityId, rawScore) {
     
     // Bu değerlendirme bileşeninin grup haritasını al
     const componentGroupData = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-    if (!componentGroupData || !componentGroupData.mappings || !componentGroupData.mappings[studentGroup]) {
+    if (!componentGroupData || !componentGroupData.haritalar || !componentGroupData.haritalar[studentGroup]) {
         return rawScore;
     }
     
     // DÜZELTME: Veri yapısı {position: questionId} formatında
-    const groupMappings = componentGroupData.mappings[studentGroup];
+    const groupMappings = componentGroupData.haritalar[studentGroup];
     const position = Object.keys(groupMappings).find(pos => groupMappings[pos] === activityId);
     
     // Eğer bu aktivite için grup haritası yoksa, ham puanı döndür
@@ -5591,7 +5591,7 @@ function updateStudentGrade(input) {
             
             if (studentViewCorrectInput) studentViewCorrectInput.value = correctEstimate;
             if (studentViewWrongInput) studentViewWrongInput.value = 0;
-            if (studentViewTotalElement) studentViewTotalElement.textContent = value.toFixed(1);
+            if (studentViewTotalElement) studentViewTotalElement.textContent = value.toFixed(2);
             
         } else {
             // Normal not için
@@ -5681,7 +5681,7 @@ function calculateFinalGrades() {
                             activity.children.forEach(subItem => {
                                 // Alt öğe ağırlık normalleştirmesi
                                 const subItemWeight = subItem.weight / childrenTotalWeight; 
-                                const grade = getStudentGrade(studentId, subItem.id) || 0;
+                            const grade = getStudentGrade(studentId, subItem.id) || 0;
                                 const scaledGrade = (grade / (subItem.points || 1)) * 100; // 100 üzerinden
                                 activityGrade += scaledGrade * subItemWeight;
                             });
@@ -5717,7 +5717,7 @@ function calculateFinalGrades() {
                             activity.children.forEach(subItem => {
                                 // Alt öğe ağırlık normalleştirmesi
                                 const subItemWeight = subItem.weight / childrenTotalWeight;
-                                const grade = getStudentGrade(studentId, subItem.id) || 0;
+                            const grade = getStudentGrade(studentId, subItem.id) || 0;
                                 const scaledGrade = (grade / (subItem.points || 1)) * 100; // 100 üzerinden
                                 activityGrade += scaledGrade * subItemWeight;
                             });
@@ -5890,13 +5890,13 @@ function updateTestScoreViews(studentId, testId, field, value, sourceInput) {
     const assessmentRow = document.querySelector(`tr:has(input[data-student-id="${studentId}"][data-test-id="${testId}"])`);
     const assessmentTotalScore = assessmentRow?.querySelector('.total-score');
     if (assessmentTotalScore) {
-        assessmentTotalScore.textContent = totalScore.toFixed(1);
+        assessmentTotalScore.textContent = totalScore.toFixed(2);
     }
     
     // Basit giriş formundaki değeri de güncelle
     const simpleInput = document.querySelector(`input[data-student-id="${studentId}"][data-activity-id="${testId}"]`);
     if (simpleInput) {
-        simpleInput.value = totalScore.toFixed(1);
+        simpleInput.value = totalScore.toFixed(2);
     }
     
     // Öğrenci görünümündeki ilgili alanları güncelle
@@ -6076,8 +6076,8 @@ function updateGradeStatistics(finalGrades) {
                     <h5>Genel İstatistikler</h5>
                     <p>Sınıf Mevcudu: <strong>${grades.length}</strong> öğrenci</p>
                     <p>Sınıf Ortalaması: <strong>${average.toFixed(2)}</strong></p>
-                    <p>Geçen Öğrenci Sayısı: <strong>${passingCount}</strong> (${passRate.toFixed(1)}%)</p>
-                    <p>Kalan Öğrenci Sayısı: <strong>${failingCount}</strong> (${(100 - passRate).toFixed(1)}%)</p>
+                    <p>Geçen Öğrenci Sayısı: <strong>${passingCount}</strong> (${passRate.toFixed(2)}%)</p>
+                    <p>Kalan Öğrenci Sayısı: <strong>${failingCount}</strong> (${(100 - passRate).toFixed(2)}%)</p>
                 </div>
                 
                 <div class="stats-card">
@@ -6100,7 +6100,7 @@ function updateGradeStatistics(finalGrades) {
                                 <li class="${colorClass}">
                                     <span class="grade-letter">${letter}</span>
                                     <span class="grade-count">${count} öğrenci</span>
-                                    <span class="grade-percent">(${((count / grades.length) * 100).toFixed(1)}%)</span>
+                                    <span class="grade-percent">(${((count / grades.length) * 100).toFixed(2)}%)</span>
                                     <div class="grade-bar" style="width: ${(count / grades.length) * 100}%"></div>
                                 </li>
                             `;
@@ -6256,8 +6256,8 @@ function updateStudentGroupInfoDisplay() {
             // Sadece ana etkinlikleri al (A1, A2, F1, F2 gibi - nokta içermeyenler)
             if (!componentId.includes('.')) {
             const component = APP_STATE.courseData.grupHaritalari[componentId];
-            if (component.groups && component.groups.length > 0) {
-                    mainComponentGroups[componentId] = component.groups;
+            if (component.gruplar && component.gruplar.length > 0) {
+                    mainComponentGroups[componentId] = component.gruplar;
                 }
             }
         });
@@ -6409,7 +6409,7 @@ function debugGroupAssignments() {
             console.log('\n🎯 Bileşen bazlı grup atamaları:');
             Object.keys(APP_STATE.courseData.grupHaritalari).forEach(componentId => {
                 const component = APP_STATE.courseData.grupHaritalari[componentId];
-                console.log(`\n  📊 ${getComponentDisplayName(componentId)} (Gruplar: ${component.groups?.join(', ') || 'YOK'}):`);
+                console.log(`\n  📊 ${getComponentDisplayName(componentId)} (Gruplar: ${component.gruplar?.join(', ') || 'YOK'}):`);
                 
                 APP_STATE.studentData.forEach((student, index) => {
                     const studentGroup = getStudentGroupForComponent(student.studentId, componentId);
@@ -6434,7 +6434,7 @@ function debugGroupAssignments() {
 function getStudentGroupForComponent(studentId, componentId) {
     // Bu bileşenin mevcut gruplarını kontrol et
     const component = APP_STATE.courseData?.grupHaritalari?.[componentId];
-    const availableGroups = component?.groups || ['A'];
+    const availableGroups = component?.gruplar || ['A'];
     
     console.log(`🔍 getStudentGroupForComponent(${studentId}, ${componentId}): availableGroups=${availableGroups.join(',')}`);
     
@@ -7011,6 +7011,23 @@ function createAssessmentTreeFromCourseData() {
  */
 function createExportData() {
     try {
+        // Grup haritalamalarını temizleme - sadece pozisyon->soru mapping'lerini koru
+        function cleanGroupMappings(haritalar) {
+            const result = {};
+            const sortedGroups = Object.keys(haritalar).sort();
+            
+            sortedGroups.forEach(group => {
+                result[group] = {};
+                // Sadece sayısal anahtar (pozisyon) olan mapping'leri koru - ters mapping'leri filtrele
+                Object.keys(haritalar[group]).forEach(key => {
+                    if (/^\d+$/.test(key)) { // Sadece sayısal anahtarlar (1,2,3,4,5...)
+                        result[group][key] = haritalar[group][key];
+                    }
+                });
+            });
+            return result;
+        }
+        
         // Tarih ve zaman bilgisi
         const now = new Date();
         const formattedDateTime = now.toISOString().slice(0, 19).replace('T', ' ');
@@ -7054,31 +7071,13 @@ function createExportData() {
                         aciklama: child.description || (child.type === 'Soru' ? 'Değerlendirme sorusu' : 'Değerlendirme bileşeni')
                         })) || [],
                         grupBilgileri: {
-                            groups: groupMapping?.groups || ["A", "B"],
-                            mappings: groupMapping?.mappings ? 
-                                // Mevcut mappings varsa, formatını kontrol et ve düzelt
-                                Object.keys(groupMapping.mappings).reduce((acc, group) => {
-                                    acc[group] = {};
-                                    const mapping = groupMapping.mappings[group];
-                                    Object.keys(mapping).forEach(key => {
-                                        const value = mapping[key];
-                                        // Eğer key soru ID formatındaysa (A1.1, F1.2), ters çevir
-                                        if (key.includes('.')) {
-                                            acc[group][value] = key;
-                                        } else {
-                                            // Zaten doğru formattaysa (pozisyon: soruId), koru
-                                            acc[group][key] = value;
-                                        }
-                                    });
-                                    return acc;
-                                }, {}) :
+                            gruplar: groupMapping?.gruplar || groupMapping?.groups || ["A"],
+                            haritalar: groupMapping?.haritalar ? 
+                                // Mevcut haritalar varsa, sadece pozisyon->soru mapping'lerini koru
+                                cleanGroupMappings(groupMapping.haritalar) :
                                 // Yoksa varsayılan oluştur (pozisyon: soruId formatında)
                                 {
                                     "A": node.children ? node.children.reduce((acc, child, index) => {
-                                        acc[(index + 1).toString()] = child.id;
-                                        return acc;
-                                    }, {}) : {},
-                                    "B": node.children ? node.children.reduce((acc, child, index) => {
                                         acc[(index + 1).toString()] = child.id;
                                         return acc;
                                     }, {}) : {}
@@ -7105,31 +7104,13 @@ function createExportData() {
                         aciklama: child.description || (child.type === 'Soru' ? 'Değerlendirme sorusu' : 'Değerlendirme bileşeni')
                         })) || [],
                         grupBilgileri: {
-                            groups: groupMapping?.groups || ["A", "B"],
-                            mappings: groupMapping?.mappings ? 
-                                // Mevcut mappings varsa, formatını kontrol et ve düzelt
-                                Object.keys(groupMapping.mappings).reduce((acc, group) => {
-                                    acc[group] = {};
-                                    const mapping = groupMapping.mappings[group];
-                                    Object.keys(mapping).forEach(key => {
-                                        const value = mapping[key];
-                                        // Eğer key soru ID formatındaysa (A1.1, F1.2), ters çevir
-                                        if (key.includes('.')) {
-                                            acc[group][value] = key;
-                                        } else {
-                                            // Zaten doğru formattaysa (pozisyon: soruId), koru
-                                            acc[group][key] = value;
-                                        }
-                                    });
-                                    return acc;
-                                }, {}) :
+                            gruplar: groupMapping?.gruplar || ["A"],
+                            haritalar: groupMapping?.haritalar ? 
+                                // Mevcut haritalar varsa, sadece pozisyon->soru mapping'lerini koru
+                                cleanGroupMappings(groupMapping.haritalar) :
                                 // Yoksa varsayılan oluştur (pozisyon: soruId formatında)
                                 {
                                     "A": node.children ? node.children.reduce((acc, child, index) => {
-                                        acc[(index + 1).toString()] = child.id;
-                                        return acc;
-                                    }, {}) : {},
-                                    "B": node.children ? node.children.reduce((acc, child, index) => {
                                         acc[(index + 1).toString()] = child.id;
                                         return acc;
                                     }, {}) : {}
@@ -7151,25 +7132,27 @@ function createExportData() {
                         if (activity.children && activity.children.length > 0) {
                             const activityGrades = {};
                             
-                            // Kağıt sırasına göre puanları al
-                            activity.children.forEach((child, index) => {
-                                const questionOrder = (index + 1).toString();
-                                const grade = getStudentGrade(studentId, child.id) || 0;
-                                
-                                // Öğrencinin grup bilgisine göre hangi soru ID'sine denk geldiğini bul
-                                const studentGroup = getStudentGroupForComponent(studentId, activity.id) || 'A';
-                                const groupMapping = APP_STATE.courseData?.grupHaritalari?.[activity.id]?.mappings?.[studentGroup];
-                                let questionId = child.id;
-                                
-                                if (groupMapping && groupMapping[questionOrder]) {
-                                    questionId = groupMapping[questionOrder];
-                                }
-                                
-                                activityGrades[questionOrder] = {
-                                    puan: parseFloat(grade.toFixed(1)),
-                                    soruId: questionId
-                                };
-                            });
+                                        // Kağıt sırasına göre puanları al
+            activity.children.forEach((child, index) => {
+                const questionOrder = (index + 1).toString();
+                
+                // Öğrencinin grup bilgisine göre hangi soru ID'sine denk geldiğini bul
+                const studentGroup = getStudentGroupForComponent(studentId, activity.id) || 'A';
+                const groupMapping = APP_STATE.courseData?.grupHaritalari?.[activity.id]?.haritalar?.[studentGroup];
+                let questionId = child.id;
+                
+                if (groupMapping && groupMapping[questionOrder]) {
+                    questionId = groupMapping[questionOrder];
+                }
+                
+                // ✅ FIX: Doğru soru ID'sinden puanı al - grup haritalama sonrası
+                const grade = getStudentGrade(studentId, questionId) || 0;
+                
+                activityGrades[questionOrder] = {
+                    puan: parseFloat(grade.toFixed(2)),
+                    soruId: questionId
+                };
+            });
                             
                             studentGrades[activity.id] = activityGrades;
                         }
@@ -7309,12 +7292,11 @@ function createGradesExportData() {
                     
                     // Grup bilgisini al
                     const studentGroup = getStudentGroup(studentId, activity.id) || 'A';
-                    const groupMapping = APP_STATE.courseData?.grupHaritalari?.[activity.id]?.mappings?.[studentGroup];
+                    const groupMapping = APP_STATE.courseData?.grupHaritalari?.[activity.id]?.haritalar?.[studentGroup];
                     
                     // Her soru için puan ve soru ID'si
                     activity.children.forEach((child, index) => {
                         const questionOrder = (index + 1).toString();
-                        const grade = getStudentGrade(studentId, child.id) || 0;
                         
                         // Hangi soru ID'sine denk geldiğini bul
                         let questionId = child.id;
@@ -7322,8 +7304,11 @@ function createGradesExportData() {
                             questionId = groupMapping[questionOrder];
                         }
                         
+                        // ✅ FIX: Doğru soru ID'sinden puanı al - grup haritalama sonrası
+                        const grade = getStudentGrade(studentId, questionId) || 0;
+                        
                         activityGrades[questionOrder] = {
-                            puan: parseFloat(grade.toFixed(1)),
+                                                            puan: parseFloat(grade.toFixed(2)),
                             soruId: questionId
                         };
                     });
@@ -7370,10 +7355,23 @@ function createGradesCSV() {
                 let activityGrade = 0;
                 
                 if (activity.children && activity.children.length > 0) {
-                    // Alt etkinlikler
-                    activity.children.forEach(subItem => {
+                    // Alt etkinlikler - grup haritalama dikkate alınarak
+                    const studentGroup = getStudentGroupForComponent(studentId, activity.id) || 'A';
+                    const groupMapping = APP_STATE.courseData?.grupHaritalari?.[activity.id]?.haritalar?.[studentGroup];
+                    
+                    activity.children.forEach((subItem, index) => {
                         const subItemWeight = subItem.weight / 100; // subItem içinde normalize
-                        const grade = getStudentGrade(studentId, subItem.id) || 0;
+                        
+                        // Grup haritalama varsa doğru soru ID'sini kullan
+                        let questionId = subItem.id;
+                        if (groupMapping) {
+                            const questionOrder = (index + 1).toString();
+                            if (groupMapping[questionOrder]) {
+                                questionId = groupMapping[questionOrder];
+                            }
+                        }
+                        
+                        const grade = getStudentGrade(studentId, questionId) || 0;
                         const scaledGrade = (grade / subItem.points) * 100; // 100 üzerinden
                         activityGrade += scaledGrade * subItemWeight;
                     });
@@ -7395,10 +7393,23 @@ function createGradesCSV() {
                 let activityGrade = 0;
                 
                 if (activity.children && activity.children.length > 0) {
-                    // Alt etkinlikler
-                    activity.children.forEach(subItem => {
+                    // Alt etkinlikler - grup haritalama dikkate alınarak
+                    const studentGroup = getStudentGroupForComponent(studentId, activity.id) || 'A';
+                    const groupMapping = APP_STATE.courseData?.grupHaritalari?.[activity.id]?.haritalar?.[studentGroup];
+                    
+                    activity.children.forEach((subItem, index) => {
                         const subItemWeight = subItem.weight / 100; // subItem içinde normalize
-                        const grade = getStudentGrade(studentId, subItem.id) || 0;
+                        
+                        // Grup haritalama varsa doğru soru ID'sini kullan
+                        let questionId = subItem.id;
+                        if (groupMapping) {
+                            const questionOrder = (index + 1).toString();
+                            if (groupMapping[questionOrder]) {
+                                questionId = groupMapping[questionOrder];
+                            }
+                        }
+                        
+                        const grade = getStudentGrade(studentId, questionId) || 0;
                         const scaledGrade = (grade / subItem.points) * 100; // 100 üzerinden
                         activityGrade += scaledGrade * subItemWeight;
                     });
@@ -8608,7 +8619,7 @@ function updateCalculatedGrades() {
                             activity.children.forEach(subItem => {
                                 // Alt öğe ağırlık normalleştirmesi
                                 const subItemWeight = subItem.weight / childrenTotalWeight; 
-                                const grade = getStudentGrade(studentId, subItem.id) || 0;
+                            const grade = getStudentGrade(studentId, subItem.id) || 0;
                                 const scaledGrade = (grade / (subItem.points || 1)) * 100; // 100 üzerinden
                                 activityGrade += scaledGrade * subItemWeight;
                             });
@@ -8644,7 +8655,7 @@ function updateCalculatedGrades() {
                             activity.children.forEach(subItem => {
                                 // Alt öğe ağırlık normalleştirmesi
                                 const subItemWeight = subItem.weight / childrenTotalWeight;
-                                const grade = getStudentGrade(studentId, subItem.id) || 0;
+                            const grade = getStudentGrade(studentId, subItem.id) || 0;
                                 const scaledGrade = (grade / (subItem.points || 1)) * 100; // 100 üzerinden
                                 activityGrade += scaledGrade * subItemWeight;
                             });
@@ -8746,7 +8757,7 @@ function createStudentSubItemInputSection(student, subItem) {
         // Üst bileşen ID'sini bul
         const parentComponentId = getParentComponentId(subItem.id) || subItem.id;
         const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-        const useGroupSystem = component && component.groups && component.groups.length > 1;
+        const useGroupSystem = component && component.gruplar && component.gruplar.length > 1;
         
         if (!useGroupSystem || !subItem.children || subItem.children.length === 0) {
             // Grup sistemi yok veya alt sorular yok - basit giriş
@@ -8879,7 +8890,7 @@ function createStudentTestInputSection(student, testItem) {
         // Üst bileşen ID'sini bul
         const parentComponentId = getParentComponentId(testItem.id) || testItem.id;
         const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-        const useGroupSystem = component && component.groups && component.groups.length > 1;
+        const useGroupSystem = component && component.gruplar && component.gruplar.length > 1;
         
         if (!useGroupSystem || !testItem.children || testItem.children.length === 0) {
             // Grup sistemi yok veya soru detayları yok - basit test girişi
@@ -8919,7 +8930,7 @@ function createStudentTestInputSection(student, testItem) {
                     </div>
                     <div class="student-grade-input">
                         <label>Toplam:</label>
-                        <span class="total-test-score">${totalScore.toFixed(1)}</span>
+                        <span class="total-test-score">${totalScore.toFixed(2)}</span>
                     </div>
                 </div>
             </div>
@@ -9080,7 +9091,7 @@ function updateStudentGradeFromStudentView(input) {
             // Total score'u güncelle
             const assessmentTotalScore = document.querySelector(`#assessment-content tr:has(input[data-student-id="${studentId}"][data-test-id="${activityId}"]) .total-score`);
             if (assessmentTotalScore) {
-                assessmentTotalScore.textContent = value.toFixed(1);
+                assessmentTotalScore.textContent = value.toFixed(2);
             }
             
         } else {
@@ -9301,7 +9312,7 @@ function updateStudentViewTestTotal(studentId, testId) {
     // Öğrenci görünümündeki toplam skoru güncelle
     const studentViewTotalElement = document.querySelector(`#studentGradesContainer .student-test-item[data-subitem-id="${testId}"] .total-test-score`);
     if (studentViewTotalElement) {
-        studentViewTotalElement.textContent = totalScore.toFixed(1);
+                    studentViewTotalElement.textContent = totalScore.toFixed(2);
     }
 }
 
@@ -10334,7 +10345,7 @@ function updateTestDistributionPreview(correct, wrong, totalQuestions, correctWe
     
     // Toplam puanı hesapla
     const totalScore = (correct * correctWeight) - (wrong * wrongPenalty);
-    document.getElementById('testTotalScore').textContent = totalScore.toFixed(1);
+    document.getElementById('testTotalScore').textContent = totalScore.toFixed(2);
     
     // Dağılım önizlemesini güncelle
     const previewElement = document.getElementById('distributionPreview');
@@ -10514,8 +10525,8 @@ function ensureDefaultGroupExists() {
         if (!APP_STATE.courseData.grupHaritalari[component.id]) {
             // Hiç grup yapısı yoksa oluştur
             APP_STATE.courseData.grupHaritalari[component.id] = {
-                groups: ["A"],
-                mappings: {
+                gruplar: ["A"],
+                haritalar: {
                     "A": {}
                 }
             };
@@ -10526,26 +10537,26 @@ function ensureDefaultGroupExists() {
             let needsUpdate = false;
             
             // Grup listesi kontrolü
-            if (!existingComponent.groups || existingComponent.groups.length === 0) {
-                existingComponent.groups = ["A"];
+            if (!existingComponent.gruplar || existingComponent.gruplar.length === 0) {
+                existingComponent.gruplar = ["A"];
                 needsUpdate = true;
                 console.log(`🔧 ${component.id}: Grup listesi düzeltildi (A grubu eklendi)`);
-            } else if (!existingComponent.groups.includes("A")) {
+            } else if (!existingComponent.gruplar.includes("A")) {
                 // A grubu listede yoksa başa ekle
-                existingComponent.groups.unshift("A");
+                existingComponent.gruplar.unshift("A");
                 needsUpdate = true;
                 console.log(`🔧 ${component.id}: A grubu listeye eklendi`);
             }
             
             // Mapping yapısı kontrolü
-            if (!existingComponent.mappings) {
-                existingComponent.mappings = {};
+            if (!existingComponent.haritalar) {
+                existingComponent.haritalar = {};
                 needsUpdate = true;
                 console.log(`🔧 ${component.id}: Mapping yapısı oluşturuldu`);
             }
             
-            if (!existingComponent.mappings["A"]) {
-                existingComponent.mappings["A"] = {};
+            if (!existingComponent.haritalar["A"]) {
+                existingComponent.haritalar["A"] = {};
                 needsUpdate = true;
                 console.log(`🔧 ${component.id}: A grubu mapping'i oluşturuldu`);
             }
@@ -10560,10 +10571,10 @@ function ensureDefaultGroupExists() {
         // Son kontrol
         const finalCheck = APP_STATE.courseData.grupHaritalari[component.id];
         console.log(`📊 ${component.id} final durum:`, {
-            groups: finalCheck.groups,
-            mappingKeys: Object.keys(finalCheck.mappings || {}),
-            hasAGroup: finalCheck.groups?.includes("A"),
-            hasAMapping: !!finalCheck.mappings?.["A"]
+            gruplar: finalCheck.gruplar,
+            mappingKeys: Object.keys(finalCheck.haritalar || {}),
+            hasAGroup: finalCheck.gruplar?.includes("A"),
+            hasAMapping: !!finalCheck.haritalar?.["A"]
         });
     });
     
@@ -10631,8 +10642,8 @@ function createDefaultMapping() {
         // Tüm ana bileşenler için grup yapısı oluştur (soru/rubrik olsun olmasın)
         if (!APP_STATE.courseData.grupHaritalari[parentNode.id]) {
             APP_STATE.courseData.grupHaritalari[parentNode.id] = {
-                groups: ["A"], // Varsayılan olarak sadece A grubu
-                mappings: {
+                gruplar: ["A"], // Varsayılan olarak sadece A grubu
+                haritalar: {
                     "A": {}
                 }
             };
@@ -10644,7 +10655,7 @@ function createDefaultMapping() {
             parentNode.children.forEach(childNode => {
                 if (isQuestionType(childNode.type) || isRubricType(childNode.type)) {
                     // A grubu için varsayılan 1:1 haritalama
-                    APP_STATE.courseData.grupHaritalari[parentNode.id].mappings.A[childNode.id] = questionIndex.toString();
+                    APP_STATE.courseData.grupHaritalari[parentNode.id].haritalar.A[childNode.id] = questionIndex.toString();
                     questionIndex++;
                 }
             });
@@ -10718,7 +10729,7 @@ async function addNewGroupToComponent(componentId) {
         return;
     }
     
-    const existingGroups = component.groups || [];
+    const existingGroups = component.gruplar || [];
     const newGroupName = groupNames.find(name => !existingGroups.includes(name));
     
     if (!newGroupName) {
@@ -10743,11 +10754,11 @@ async function addNewGroupToComponent(componentId) {
     }
     
         // Yeni grubu listeye ekle
-        component.groups.push(newGroupName);
+        component.gruplar.push(newGroupName);
         
         // A grubunun kopyası olarak mapping oluştur (derin kopya)
-        const groupAMapping = component.mappings.A || {};
-        component.mappings[newGroupName] = JSON.parse(JSON.stringify(groupAMapping));
+        const groupAMapping = component.haritalar.A || {};
+        component.haritalar[newGroupName] = JSON.parse(JSON.stringify(groupAMapping));
         
         // Eğer A grubunda mapping yoksa, varsayılan 1:1 mapping oluştur
         if (Object.keys(groupAMapping).length === 0) {
@@ -10757,8 +10768,8 @@ async function addNewGroupToComponent(componentId) {
                 componentNode.children.forEach(childNode => {
                     if (isQuestionType(childNode.type) || isRubricType(childNode.type)) {
                         // DÜZELTME: Veri yapısı {position: questionId} formatında
-                        component.mappings.A[questionIndex.toString()] = childNode.id;
-                        component.mappings[newGroupName][questionIndex.toString()] = childNode.id;
+                        component.haritalar.A[questionIndex.toString()] = childNode.id;
+                        component.haritalar[newGroupName][questionIndex.toString()] = childNode.id;
                         questionIndex++;
                     }
                 });
@@ -10795,13 +10806,13 @@ function addNewGroup() {
     // Her değerlendirme bileşenine grup ekle
     Object.keys(APP_STATE.courseData.grupHaritalari || {}).forEach(componentId => {
         const component = APP_STATE.courseData.grupHaritalari[componentId];
-        const existingGroups = component.groups || [];
+        const existingGroups = component.gruplar || [];
         const newGroupName = groupNames.find(name => !existingGroups.includes(name));
         
         if (newGroupName) {
-            component.groups.push(newGroupName);
-            const groupAMapping = component.mappings.A || {};
-            component.mappings[newGroupName] = {...groupAMapping};
+            component.gruplar.push(newGroupName);
+            const groupAMapping = component.haritalar.A || {};
+            component.haritalar[newGroupName] = {...groupAMapping};
             addedToAny = true;
         }
     });
@@ -10832,7 +10843,7 @@ async function deleteGroupFromComponent(componentId, groupName) {
         return;
     }
     
-    if (!component.groups.includes(groupName)) {
+    if (!component.gruplar.includes(groupName)) {
         showModernToast("Grup bulunamadı", "warning");
         return;
     }
@@ -10854,10 +10865,10 @@ async function deleteGroupFromComponent(componentId, groupName) {
     }
     
             // Grubu listeden çıkar
-            component.groups = component.groups.filter(g => g !== groupName);
+            component.gruplar = component.gruplar.filter(g => g !== groupName);
             
             // Mapping'i sil
-            delete component.mappings[groupName];
+            delete component.haritalar[groupName];
             
             // Bu gruptaki öğrencileri A grubuna taşı (sadece bu bileşen için)
             // Not: Öğrenci grup ataması global olduğu için dikkatli olmalıyız
@@ -10894,7 +10905,7 @@ function showComponentGroupManagementModal(componentId) {
         return;
     }
     
-    const groups = component.groups || ['A'];
+    const groups = component.gruplar || ['A'];
     const totalQuestions = countQuestionsInComponent(componentId);
     
     // Modal body içeriği oluştur
@@ -10976,7 +10987,7 @@ function showComponentGroupManagementModal(componentId) {
  */
 function getComponentSpecificQuestionMappingCount(componentId, groupId) {
     const component = APP_STATE.courseData.grupHaritalari[componentId];
-    if (!component || !component.mappings || !component.mappings[groupId]) {
+    if (!component || !component.haritalar || !component.haritalar[groupId]) {
         return 0;
     }
     
@@ -10995,7 +11006,7 @@ function getComponentSpecificQuestionMappingCount(componentId, groupId) {
     
     // Bu bileşendeki sorulardan kaç tanesi bu grupta eşleştirilmiş
     let mappedCount = 0;
-    const groupMappings = component.mappings[groupId];
+    const groupMappings = component.haritalar[groupId];
     
     componentQuestionIds.forEach(questionId => {
         // DÜZELTME: Veri yapısı {position: questionId} formatında, {questionId: position} değil
@@ -11050,15 +11061,15 @@ function updateComponentGroupList(componentId) {
  */
 function generateGroupMappingsPreview(componentId) {
     const component = APP_STATE.courseData.grupHaritalari[componentId];
-    if (!component || !component.mappings) {
+    if (!component || !component.haritalar) {
         return '<p>Henüz haritalama yapılmamış</p>';
     }
     
-    const groups = component.groups || ['A'];
+    const groups = component.gruplar || ['A'];
     let preview = '<div class="mappings-grid">';
     
     groups.forEach(group => {
-        const mappings = component.mappings[group] || {};
+        const mappings = component.haritalar[group] || {};
         const mappingCount = Object.keys(mappings).length;
         
         preview += `
@@ -11085,7 +11096,7 @@ function deleteGroup() {
     // Tüm bileşenlerde ortak olan grupları bul
     const allGroups = new Set();
     Object.values(APP_STATE.courseData.grupHaritalari || {}).forEach(component => {
-        (component.groups || []).forEach(group => allGroups.add(group));
+        (component.gruplar || []).forEach(group => allGroups.add(group));
     });
     
     const nonAGroups = Array.from(allGroups).filter(g => g !== 'A');
@@ -11103,9 +11114,9 @@ function deleteGroup() {
             // Tüm bileşenlerden bu grubu sil
             Object.keys(APP_STATE.courseData.grupHaritalari || {}).forEach(componentId => {
                 const component = APP_STATE.courseData.grupHaritalari[componentId];
-                if (component.groups && component.groups.includes(lastGroup)) {
-                    component.groups = component.groups.filter(g => g !== lastGroup);
-                    delete component.mappings[lastGroup];
+                if (component.gruplar && component.gruplar.includes(lastGroup)) {
+                    component.gruplar = component.gruplar.filter(g => g !== lastGroup);
+                    delete component.haritalar[lastGroup];
                 }
             });
             
@@ -11180,8 +11191,8 @@ function updateStudentTableGroupSelectors() {
     // Eğer grup sistemi varsa, tüm mevcut grupları ekle
     if (APP_STATE.courseData?.grupHaritalari) {
         Object.values(APP_STATE.courseData.grupHaritalari).forEach(component => {
-            if (component.groups) {
-                component.groups.forEach(group => {
+            if (component.gruplar) {
+                component.gruplar.forEach(group => {
                     // Sadece tek harf olan grupları ekle (A, B, C, D... - bileşen kodları değil)
                     if (group.length === 1 && /^[A-Z]$/.test(group)) {
                         allGroups.add(group);
@@ -11259,7 +11270,7 @@ function updateAssessmentGroupSelectors() {
         if (componentId && studentId) {
             // Bu bileşenin gruplarını al
             const component = APP_STATE.courseData?.grupHaritalari?.[componentId];
-            const componentGroups = component?.groups || ['A'];
+            const componentGroups = component?.gruplar || ['A'];
             
             console.log(`    📊 ${componentId} bileşeni grupları:`, componentGroups);
             
@@ -11505,7 +11516,7 @@ function findComponentIdFromGroupSelector(selectElement) {
 function createGroupOptions(studentId, componentId) {
     // Bu bileşenin gruplarını al
     const component = APP_STATE.courseData?.grupHaritalari?.[componentId];
-    const groups = component?.groups || ['A'];
+    const groups = component?.gruplar || ['A'];
     
     // Öğrencinin bu bileşendeki mevcut grubunu al
     const studentCurrentGroup = getStudentGroupForComponent(studentId, componentId);
@@ -12334,10 +12345,10 @@ function getStudentGroup(studentId, componentId = null) {
  */
 function getComponentGroupCount(componentId) {
     const component = APP_STATE.courseData?.grupHaritalari?.[componentId];
-    if (!component || !component.groups) {
+    if (!component || !component.gruplar) {
         return 1; // En azından A grubu var
     }
-    return component.groups.length;
+    return component.gruplar.length;
 }
 
 /**
@@ -12597,7 +12608,7 @@ function renderMappingRows(activityId) {
         return;
     }
     
-    const groups = component.groups || ['A'];
+    const groups = component.gruplar || ['A'];
     const activity = findNodeById(activityId);
     
     // Sadece bu aktivitenin üst düğümündeki soruları al
@@ -12612,7 +12623,7 @@ function renderMappingRows(activityId) {
     
     groups.forEach(groupName => {
         // DÜZELTME: Veri yapısı {position: questionId} formatında
-        const groupMappings = component.mappings?.[groupName];
+        const groupMappings = component.haritalar?.[groupName];
         const currentPosition = groupMappings ? Object.keys(groupMappings).find(pos => groupMappings[pos] === activityId) : null;
         
         const row = document.createElement('div');
@@ -12715,22 +12726,22 @@ function saveGroupMapping() {
     }
     
     const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-    if (!component || !component.mappings) {
+    if (!component || !component.haritalar) {
         showModernToast('Bileşen grup verisi bulunamadı', 'error');
         return;
     }
     
     // Önce bu sorunun mevcut haritalamalarını kontrol et ve sil
     const oldMappings = [];
-    Object.keys(component.mappings).forEach(existingGroupName => {
-        if (component.mappings[existingGroupName]) {
-            const existingPosition = Object.keys(component.mappings[existingGroupName]).find(pos => 
-                component.mappings[existingGroupName][pos] === activityId
+    Object.keys(component.haritalar).forEach(existingGroupName => {
+        if (component.haritalar[existingGroupName]) {
+            const existingPosition = Object.keys(component.haritalar[existingGroupName]).find(pos => 
+                component.haritalar[existingGroupName][pos] === activityId
             );
             if (existingPosition) {
                 oldMappings.push(`Grup ${existingGroupName} (${existingPosition}. sıra)`);
                 // Eski pozisyonu sil
-                delete component.mappings[existingGroupName][existingPosition];
+                delete component.haritalar[existingGroupName][existingPosition];
             }
         }
     });
@@ -12738,11 +12749,11 @@ function saveGroupMapping() {
     // Yeni haritalamayı uygula
     // DÜZELTME: Veri yapısı {position: questionId} formatında
     newMappings.forEach((position, groupName) => {
-        if (!component.mappings[groupName]) {
-            component.mappings[groupName] = {};
+        if (!component.haritalar[groupName]) {
+            component.haritalar[groupName] = {};
         }
         
-        component.mappings[groupName][position.toString()] = activityId;
+        component.haritalar[groupName][position.toString()] = activityId;
     });
     
     // Kullanıcıya bilgi ver
@@ -12797,7 +12808,7 @@ async function addMappingRow() {
         return;
     }
     
-    const groups = component.groups || ['A'];
+    const groups = component.gruplar || ['A'];
     const groupNames = ['B', 'C', 'D', 'E', 'F', 'G', 'H'];
     const newGroupName = groupNames.find(name => !groups.includes(name));
     
@@ -12823,11 +12834,11 @@ async function addMappingRow() {
     }
     
     // Yeni grubu listeye ekle
-    component.groups.push(newGroupName);
+    component.gruplar.push(newGroupName);
     
     // A grubunun kopyası olarak mapping oluştur (derin kopya)
-    const groupAMapping = component.mappings.A || {};
-    component.mappings[newGroupName] = JSON.parse(JSON.stringify(groupAMapping));
+    const groupAMapping = component.haritalar.A || {};
+    component.haritalar[newGroupName] = JSON.parse(JSON.stringify(groupAMapping));
     
     // Eğer A grubunda mapping yoksa, varsayılan 1:1 mapping oluştur
     if (Object.keys(groupAMapping).length === 0) {
@@ -12837,8 +12848,8 @@ async function addMappingRow() {
             componentNode.children.forEach(childNode => {
                 if (isQuestionType(childNode.type) || isRubricType(childNode.type)) {
                     // DÜZELTME: Veri yapısı {position: questionId} formatında
-                    component.mappings.A[questionIndex.toString()] = childNode.id;
-                    component.mappings[newGroupName][questionIndex.toString()] = childNode.id;
+                    component.haritalar.A[questionIndex.toString()] = childNode.id;
+                    component.haritalar[newGroupName][questionIndex.toString()] = childNode.id;
                     questionIndex++;
                 }
             });
@@ -12946,7 +12957,7 @@ function checkGroupMappingStatus(nodeId) {
     
     // Bu bileşenin gruplarını al
     const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-    const activeGroups = component?.groups || ['A'];
+    const activeGroups = component?.gruplar || ['A'];
     const mappingStatus = {
         isComplete: true,
         missingGroups: [],
@@ -12962,7 +12973,7 @@ function checkGroupMappingStatus(nodeId) {
     
     // Her grup için kontrol et
     activeGroups.forEach(groupId => {
-        const groupMappings = component?.mappings?.[groupId];
+        const groupMappings = component?.haritalar?.[groupId];
         // DÜZELTME: Veri yapısı {position: questionId} formatında
         const hasMapping = groupMappings && Object.values(groupMappings).includes(nodeId);
         if (!hasMapping) {
@@ -12976,7 +12987,7 @@ function checkGroupMappingStatus(nodeId) {
     // Aynı pozisyonda birden fazla soru var mı kontrol et
     const positionGroups = {};
     activeGroups.forEach(groupId => {
-        const groupMappings = component?.mappings?.[groupId];
+        const groupMappings = component?.haritalar?.[groupId];
         if (groupMappings) {
             // DÜZELTME: Veri yapısı {position: questionId} formatında
             const position = Object.keys(groupMappings).find(pos => groupMappings[pos] === nodeId);
@@ -13015,7 +13026,7 @@ function getGroupMappingStatusClass(nodeId) {
     }
     
     const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-    const activeGroups = component?.groups || ['A'];
+    const activeGroups = component?.gruplar || ['A'];
     
     if (activeGroups.length <= 1) {
         return 'group-single'; // Tek grup
@@ -13064,7 +13075,7 @@ function parseBulkGroupMapping(input, nodeId) {
         return { mappings, errors };
     }
     
-    const availableGroups = component.groups || ['A'];
+    const availableGroups = component.gruplar || ['A'];
     const parts = input.split(',').map(p => p.trim());
     
     parts.forEach(part => {
@@ -13176,15 +13187,15 @@ function updateBulkInputFromModalRows() {
     if (!parentComponentId) return;
     
     const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-    if (!component || !component.mappings) return;
+    if (!component || !component.haritalar) return;
     
     const mappingPairs = [];
-    const groups = component.groups || ['A'];
+    const groups = component.gruplar || ['A'];
     
     // Her grup için haritalama bilgisini topla
     // DÜZELTME: Veri yapısı {position: questionId} formatında
     groups.forEach(groupName => {
-        const groupMappings = component.mappings[groupName];
+        const groupMappings = component.haritalar[groupName];
         if (groupMappings) {
             const position = Object.keys(groupMappings).find(pos => groupMappings[pos] === nodeId);
             if (position) {
@@ -13213,16 +13224,16 @@ function updateModalRowsFromBulkInput(mappings) {
     if (!parentComponentId) return;
     
     const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-    if (!component || !component.mappings) return;
+    if (!component || !component.haritalar) return;
     
     // Haritalamayı CourseData'ya uygula
     // DÜZELTME: Veri yapısı {position: questionId} formatında
     Object.keys(mappings).forEach(groupName => {
-        if (!component.mappings[groupName]) {
-            component.mappings[groupName] = {};
+        if (!component.haritalar[groupName]) {
+            component.haritalar[groupName] = {};
         }
         const position = mappings[groupName];
-        component.mappings[groupName][position] = nodeId;
+        component.haritalar[groupName][position] = nodeId;
     });
     
     // Modal satırlarını yenile
@@ -13243,15 +13254,15 @@ function getCurrentMappingText(nodeId) {
         }
         
         const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-        if (!component || !component.mappings) {
+        if (!component || !component.haritalar) {
             return '';
         }
         
         const mappingPairs = [];
-        const groups = component.groups || ['A'];
+        const groups = component.gruplar || ['A'];
         
         groups.forEach(groupName => {
-            const groupMapping = component.mappings[groupName];
+            const groupMapping = component.haritalar[groupName];
             if (groupMapping) {
                 // DÜZELTME: Veri yapısı {position: questionId} formatında
                 // Bu sorunun hangi pozisyonda olduğunu bul
@@ -13270,9 +13281,9 @@ function getCurrentMappingText(nodeId) {
         console.log(`📋 getCurrentMappingText(${nodeId}): "${result}"`, {
             parentComponentId,
             component: component ? {
-                groups: component.groups,
-                mappingKeys: Object.keys(component.mappings || {}),
-                fullMappings: component.mappings
+                gruplar: component.gruplar,
+                mappingKeys: Object.keys(component.haritalar || {}),
+                fullMappings: component.haritalar
             } : null,
             mappingPairs: uniquePairs,
             foundMappings: mappingPairs
@@ -13330,17 +13341,17 @@ function applyInlineGroupMapping(nodeId) {
             }
             
             const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-            if (!component || !component.mappings) {
+            if (!component || !component.haritalar) {
                 showModernToast('Bileşen grup verisi bulunamadı', 'error');
                 return;
             }
             
             // Önce mevcut haritalamları kontrol et ve eski pozisyonları temizle
             const oldMappings = [];
-            Object.keys(component.mappings).forEach(existingGroupName => {
-                if (component.mappings[existingGroupName]) {
-                    const existingPosition = Object.keys(component.mappings[existingGroupName]).find(pos => 
-                        component.mappings[existingGroupName][pos] === nodeId
+            Object.keys(component.haritalar).forEach(existingGroupName => {
+                if (component.haritalar[existingGroupName]) {
+                    const existingPosition = Object.keys(component.haritalar[existingGroupName]).find(pos => 
+                        component.haritalar[existingGroupName][pos] === nodeId
                     );
                     if (existingPosition) {
                         // Eğer yeni haritalamada bu grup yoksa, eski pozisyonu kaydet
@@ -13348,7 +13359,7 @@ function applyInlineGroupMapping(nodeId) {
                             oldMappings.push(`Grup ${existingGroupName} (${existingPosition}. sıra)`);
                         }
                         // Eski pozisyonu sil
-                        delete component.mappings[existingGroupName][existingPosition];
+                        delete component.haritalar[existingGroupName][existingPosition];
                     }
                 }
             });
@@ -13356,11 +13367,11 @@ function applyInlineGroupMapping(nodeId) {
             // Haritalamayı uygula
             // DÜZELTME: Veri yapısı {position: questionId} formatında
             Object.keys(mappings).forEach(groupName => {
-                if (!component.mappings[groupName]) {
-                    component.mappings[groupName] = {};
+                if (!component.haritalar[groupName]) {
+                    component.haritalar[groupName] = {};
                 }
                 const position = mappings[groupName];
-                component.mappings[groupName][position] = nodeId;
+                component.haritalar[groupName][position] = nodeId;
             });
             
             // Başarı animasyonu
@@ -13403,16 +13414,16 @@ function applyInlineGroupMapping(nodeId) {
             const parentComponentId = getParentComponentId(nodeId);
             if (parentComponentId) {
                 const component = APP_STATE.courseData?.grupHaritalari?.[parentComponentId];
-                if (component && component.mappings) {
+                if (component && component.haritalar) {
                     // DÜZELTME: Veri yapısı {position: questionId} formatında
-                    Object.keys(component.mappings).forEach(groupName => {
-                        if (component.mappings[groupName]) {
+                    Object.keys(component.haritalar).forEach(groupName => {
+                        if (component.haritalar[groupName]) {
                             // Bu sorunun pozisyonunu bul ve sil
-                            const position = Object.keys(component.mappings[groupName]).find(pos => 
-                                component.mappings[groupName][pos] === nodeId
+                            const position = Object.keys(component.haritalar[groupName]).find(pos => 
+                                component.haritalar[groupName][pos] === nodeId
                             );
                             if (position) {
-                                delete component.mappings[groupName][position];
+                                delete component.haritalar[groupName][position];
                             }
                         }
                     });
@@ -13459,7 +13470,7 @@ function cleanupGroupMappingsForDeletedNode(nodeId) {
         }
         
         const component = APP_STATE.courseData.grupHaritalari[parentComponentId];
-        if (!component || !component.mappings) {
+        if (!component || !component.haritalar) {
             console.log(`⚠️ Component mapping bulunamadı: ${parentComponentId}`);
             return;
         }
@@ -13467,9 +13478,9 @@ function cleanupGroupMappingsForDeletedNode(nodeId) {
         let cleanupCount = 0;
         
         // Her grup için haritalamayı temizle ve yeniden düzenle
-        Object.keys(component.mappings).forEach(groupName => {
-            if (component.mappings[groupName]) {
-                const groupMapping = component.mappings[groupName];
+        Object.keys(component.haritalar).forEach(groupName => {
+            if (component.haritalar[groupName]) {
+                const groupMapping = component.haritalar[groupName];
                 
                 console.log(`🔍 Grup ${groupName} - silme öncesi mapping:`, {...groupMapping});
                 
@@ -13510,7 +13521,7 @@ function cleanupGroupMappingsForDeletedNode(nodeId) {
                     });
                     
                     // Eski mapping'i temizle ve yenisini ata
-                    component.mappings[groupName] = newMapping;
+                    component.haritalar[groupName] = newMapping;
                     
                     console.log(`✅ Grup ${groupName} - yeniden düzenleme sonrası:`, {...newMapping});
                 }
@@ -13561,18 +13572,18 @@ function updateGroupMappingsAfterNodeAdd(parentComponentId) {
             );
             
             // Her grup için eksik haritalamları kontrol et ve otomatik ekle
-            const groups = component.groups || ['A'];
+            const groups = component.gruplar || ['A'];
             groups.forEach(groupName => {
-                if (!component.mappings[groupName]) {
-                    component.mappings[groupName] = {};
+                if (!component.haritalar[groupName]) {
+                    component.haritalar[groupName] = {};
                 }
                 
                 // Yeni eklenen sorular için otomatik haritalama oluştur
                 questions.forEach((question, index) => {
-                    const hasMapping = Object.values(component.mappings[groupName]).includes(question.id);
+                    const hasMapping = Object.values(component.haritalar[groupName]).includes(question.id);
                     if (!hasMapping) {
                         // Mevcut pozisyonları kontrol et ve sıralı olarak en sona ekle
-                        const existingPositions = Object.keys(component.mappings[groupName])
+                        const existingPositions = Object.keys(component.haritalar[groupName])
                             .map(pos => parseInt(pos))
                             .filter(pos => !isNaN(pos))
                             .sort((a, b) => a - b);
@@ -13586,7 +13597,7 @@ function updateGroupMappingsAfterNodeAdd(parentComponentId) {
                             nextPosition++;
                         }
                         
-                        component.mappings[groupName][nextPosition.toString()] = question.id;
+                        component.haritalar[groupName][nextPosition.toString()] = question.id;
                         console.log(`➕ Otomatik haritalama: Grup ${groupName}, Pozisyon ${nextPosition}, Soru ${question.id}`);
                     }
                 });
@@ -13614,12 +13625,12 @@ function updateGroupMappingsAfterNodeAdd(parentComponentId) {
  */
 function changeQuestionPosition(componentId, groupName, questionId, newPosition) {
     try {
-        if (!APP_STATE.courseData?.grupHaritalari?.[componentId]?.mappings?.[groupName]) {
+        if (!APP_STATE.courseData?.grupHaritalari?.[componentId]?.haritalar?.[groupName]) {
             console.error(`Grup ${groupName} haritalama bulunamadı: ${componentId}`);
             return false;
         }
         
-        const groupMapping = APP_STATE.courseData.grupHaritalari[componentId].mappings[groupName];
+        const groupMapping = APP_STATE.courseData.grupHaritalari[componentId].haritalar[groupName];
         
         console.log(`🔄 Pozisyon değişikliği: ${questionId} → Pozisyon ${newPosition}`);
         console.log(`📋 Değişiklik öncesi mapping:`, {...groupMapping});
@@ -13711,18 +13722,18 @@ function updateComponentGroupInfo(componentId) {
         return;
     }
     
-    const groups = component.groups || ['A'];
+    const groups = component.gruplar || ['A'];
     console.log(`📊 updateComponentGroupInfo(${componentId}): Gruplar:`, groups);
-    console.log(`📊 updateComponentGroupInfo(${componentId}): Mappings:`, component.mappings);
+    console.log(`📊 updateComponentGroupInfo(${componentId}): Mappings:`, component.haritalar);
     
     // v5 formatında detaylı grup bilgisi göster
     let groupInfo = `Gruplar: ${groups.join(', ')}`;
     
     // Mapping bilgisi varsa örnekle - v5 format uyumlu
-    if (component.mappings && Object.keys(component.mappings).length > 0) {
+    if (component.haritalar && Object.keys(component.haritalar).length > 0) {
         const sampleMappings = [];
         groups.slice(0, 2).forEach(groupName => { // İlk 2 grubu göster
-            const groupMapping = component.mappings[groupName];
+            const groupMapping = component.haritalar[groupName];
             if (groupMapping && Object.keys(groupMapping).length > 0) {
                 // v5 formatında pozisyon anahtarları string olabilir
                 const positions = Object.keys(groupMapping).sort((a, b) => {
@@ -13973,8 +13984,8 @@ function validateAndCompleteGroupData() {
                 // Bileşen için grup verisi yoksa oluştur
                 if (!grupHaritalari[componentId]) {
                     grupHaritalari[componentId] = {
-                        groups: ['A'],
-                        mappings: { A: {} }
+                        gruplar: ['A'],
+                        haritalar: { A: {} }
                     };
                     hasChanges = true;
                     console.log(`${componentId} için varsayılan grup verisi oluşturuldu`);
@@ -13983,38 +13994,38 @@ function validateAndCompleteGroupData() {
                 const component = grupHaritalari[componentId];
                 
                 // Groups dizisi yoksa veya boşsa
-                if (!component.groups || !Array.isArray(component.groups) || component.groups.length === 0) {
-                    component.groups = ['A'];
+                if (!component.gruplar || !Array.isArray(component.gruplar) || component.gruplar.length === 0) {
+                    component.gruplar = ['A'];
                     hasChanges = true;
                 }
                 
                 // A grubu yoksa ekle
-                if (!component.groups.includes('A')) {
-                    component.groups.unshift('A');
+                if (!component.gruplar.includes('A')) {
+                    component.gruplar.unshift('A');
                     hasChanges = true;
                 }
                 
                 // Mappings objesi yoksa oluştur
-                if (!component.mappings || typeof component.mappings !== 'object') {
-                    component.mappings = {};
+                if (!component.haritalar || typeof component.haritalar !== 'object') {
+                    component.haritalar = {};
                     hasChanges = true;
                 }
                 
                 // Her grup için mapping yoksa oluştur
-                component.groups.forEach(groupName => {
-                    if (!component.mappings[groupName]) {
+                component.gruplar.forEach(groupName => {
+                    if (!component.haritalar[groupName]) {
                         // A grubunun kopyasını oluştur (eğer varsa)
-                        if (groupName !== 'A' && component.mappings.A && Object.keys(component.mappings.A).length > 0) {
-                            component.mappings[groupName] = JSON.parse(JSON.stringify(component.mappings.A));
+                        if (groupName !== 'A' && component.haritalar.A && Object.keys(component.haritalar.A).length > 0) {
+                            component.haritalar[groupName] = JSON.parse(JSON.stringify(component.haritalar.A));
                         } else {
-                            component.mappings[groupName] = {};
+                            component.haritalar[groupName] = {};
                         }
                         hasChanges = true;
                         console.log(`${componentId}: ${groupName} grubu için mapping oluşturuldu`);
-                    } else if (groupName !== 'A' && Object.keys(component.mappings[groupName]).length === 0 && 
-                              component.mappings.A && Object.keys(component.mappings.A).length > 0) {
+                    } else if (groupName !== 'A' && Object.keys(component.haritalar[groupName]).length === 0 && 
+                              component.haritalar.A && Object.keys(component.haritalar.A).length > 0) {
                         // Eğer grup mapping'i boşsa ve A grubunda veri varsa, A'dan kopyala
-                        component.mappings[groupName] = JSON.parse(JSON.stringify(component.mappings.A));
+                        component.haritalar[groupName] = JSON.parse(JSON.stringify(component.haritalar.A));
                         hasChanges = true;
                         console.log(`${componentId}: ${groupName} grubu için boş mapping A grubundan kopyalandı`);
                     }
@@ -14060,8 +14071,8 @@ function assignDefaultGroups() {
             
             availableGroups.forEach(componentId => {
                 const component = APP_STATE.courseData.grupHaritalari[componentId];
-                if (component && component.groups && Array.isArray(component.groups)) {
-                    component.groups.forEach(group => {
+                if (component && component.gruplar && Array.isArray(component.gruplar)) {
+                    component.gruplar.forEach(group => {
                         if (group && typeof group === 'string' && group.length === 1) {
                             allGroupsSet.add(group);
                         }
@@ -15270,8 +15281,8 @@ function executeGenerateRandomGroups() {
             console.log("⚠️ Öğrenci verisi yok, sadece A grubu oluşturuluyor");
             mainComponents.forEach(component => {
                 APP_STATE.courseData.grupHaritalari[component.id] = {
-                    groups: ['A'],
-                    mappings: { 'A': {} }
+                    gruplar: ['A'],
+                    haritalar: { 'A': {} }
                 };
             });
             
@@ -15320,19 +15331,19 @@ function executeGenerateRandomGroups() {
             
             // Bileşen grup verisini sakla
             componentGroupData[component.id] = {
-                groups: [...componentGroups],
+                gruplar: [...componentGroups],
                 numGroups: numGroups
             };
             
             // Bu bileşenin grup yapısını oluştur
             APP_STATE.courseData.grupHaritalari[component.id] = {
-                groups: [...componentGroups], // Bu bileşen için grup listesi
-                mappings: {}
+                gruplar: [...componentGroups], // Bu bileşen için grup listesi
+                haritalar: {}
             };
             
             // Her grup için mapping objesi oluştur
             componentGroups.forEach(groupName => {
-                APP_STATE.courseData.grupHaritalari[component.id].mappings[groupName] = {};
+                APP_STATE.courseData.grupHaritalari[component.id].haritalar[groupName] = {};
             });
             
             // Bu bileşenin alt sorularını topla
@@ -15402,7 +15413,7 @@ function executeGenerateRandomGroups() {
                     // DÜZELTME: Veri yapısı {position: questionId} formatında
                     shuffledQuestions.forEach((question, index) => {
                         const paperOrderNumber = (index + 1).toString();
-                        APP_STATE.courseData.grupHaritalari[component.id].mappings[groupName][paperOrderNumber] = question.id;
+                        APP_STATE.courseData.grupHaritalari[component.id].haritalar[groupName][paperOrderNumber] = question.id;
                         
                         console.log(`      📄 Kağıt sırası ${paperOrderNumber}: ${question.id} (${question.name})`);
                     });
@@ -15413,11 +15424,11 @@ function executeGenerateRandomGroups() {
                 // ÇAPRAZ DOĞRULAMA: Tüm gruplarda aynı sorular var mı?
                 console.log(`\n🔍 ÇAPRAZ DOĞRULAMA - Tüm gruplarda aynı sorular var mı?`);
                 // DÜZELTME: Veri yapısı {position: questionId} formatında, values'ları karşılaştırmalıyız
-                const baseGroupQuestions = Object.values(APP_STATE.courseData.grupHaritalari[component.id].mappings[componentGroups[0]] || {}).sort();
+                const baseGroupQuestions = Object.values(APP_STATE.courseData.grupHaritalari[component.id].haritalar[componentGroups[0]] || {}).sort();
                 
                 let allGroupsValid = true;
                 componentGroups.forEach(groupName => {
-                    const groupQuestions = Object.values(APP_STATE.courseData.grupHaritalari[component.id].mappings[groupName] || {}).sort();
+                    const groupQuestions = Object.values(APP_STATE.courseData.grupHaritalari[component.id].haritalar[groupName] || {}).sort();
                     
                     if (JSON.stringify(baseGroupQuestions) !== JSON.stringify(groupQuestions)) {
                         console.error(`❌ HATA: Grup ${groupName} farklı sorulara sahip!`);
@@ -16973,7 +16984,7 @@ function createComponentPaperOrderInputSection(activity, container) {
         
         // Grup seçeneklerini güvenli şekilde oluştur
         const groups = (APP_STATE.courseData && APP_STATE.courseData.grupHaritalari && APP_STATE.courseData.grupHaritalari[componentId]) 
-            ? APP_STATE.courseData.grupHaritalari[componentId].groups || ['A']
+            ? APP_STATE.courseData.grupHaritalari[componentId].gruplar || ['A']
             : ['A'];
         
         // Grup sistemi her zaman kullanılır (tek grup olsa bile)
@@ -17175,7 +17186,7 @@ function getQuestionIdByPaperOrder(studentId, paperOrder, componentId) {
         }
         
         // Grup haritası var mı kontrol et
-        const groupMappings = APP_STATE.courseData?.grupHaritalari?.[componentId]?.mappings?.[studentGroup];
+        const groupMappings = APP_STATE.courseData?.grupHaritalari?.[componentId]?.haritalar?.[studentGroup];
         
         if (groupMappings) {
             // Grup haritasına göre kağıt sırasından gerçek soru ID'sini bul
@@ -17243,7 +17254,7 @@ document.addEventListener('DOMContentLoaded', function() {
         { id: 'btnGenerateRandomTermAssessment', func: generateMultipleRandomTermAssessments },
         { id: 'btnGenerateRandomFinalAssessment', func: generateMultipleRandomFinalAssessments },
         { id: 'btnGenerateRandomGroups', func: generateRandomGroups },
-        { id: 'btnGenerateRandomScores', func: generateIntelligentScores },
+        { id: 'btnGenerateIntelligentScores', func: generateIntelligentScores },
         { id: 'btnGenerateTestStudents', func: generateTestStudents },
 
         { id: 'btnGenerateTestCourseData', func: generateTestCourseData },
@@ -17735,13 +17746,13 @@ function generateDetailedEmailContent(studentId) {
                     const activityScore = getStudentActivityScore(studentId, activity.id);
                     const maxScore = getActivityMaxScore(activity.id);
                     const displayName = getComponentDisplayName(activity.id);
-                    const percentage = maxScore > 0 ? ((activityScore / maxScore) * 100).toFixed(1) : '0.0';
+                    const percentage = maxScore > 0 ? ((activityScore / maxScore) * 100).toFixed(2) : '0.0';
                     
                     detailedScores += `
                     <div class="activity-item">
                         <div class="activity-name">${displayName}</div>
                         <div class="activity-score">
-                            <span class="score-value">${activityScore.toFixed(1)}/${maxScore}</span>
+                            <span class="score-value">${activityScore.toFixed(2)}/${maxScore}</span>
                             <span class="score-percentage">%${percentage}</span>
                         </div>
                     </div>`;
@@ -17760,13 +17771,13 @@ function generateDetailedEmailContent(studentId) {
                     const activityScore = getStudentActivityScore(studentId, activity.id);
                     const maxScore = getActivityMaxScore(activity.id);
                     const displayName = getComponentDisplayName(activity.id);
-                    const percentage = maxScore > 0 ? ((activityScore / maxScore) * 100).toFixed(1) : '0.0';
+                    const percentage = maxScore > 0 ? ((activityScore / maxScore) * 100).toFixed(2) : '0.0';
                     
                     detailedScores += `
                     <div class="activity-item">
                         <div class="activity-name">${displayName}</div>
                         <div class="activity-score">
-                            <span class="score-value">${activityScore.toFixed(1)}/${maxScore}</span>
+                            <span class="score-value">${activityScore.toFixed(2)}/${maxScore}</span>
                             <span class="score-percentage">%${percentage}</span>
                         </div>
                     </div>`;
@@ -17791,9 +17802,9 @@ function generateDetailedEmailContent(studentId) {
                     const activityScore = getStudentActivityScore(studentId, activity.id);
                     const maxScore = getActivityMaxScore(activity.id);
                     const displayName = getComponentDisplayName(activity.id);
-                    const percentage = maxScore > 0 ? ((activityScore / maxScore) * 100).toFixed(1) : '0.0';
+                    const percentage = maxScore > 0 ? ((activityScore / maxScore) * 100).toFixed(2) : '0.0';
                     
-                    return `- ${displayName}: ${activityScore.toFixed(1)}/${maxScore} (%${percentage})`;
+                    return `- ${displayName}: ${activityScore.toFixed(2)}/${maxScore} (%${percentage})`;
                 }).join('\n');
             }
             
@@ -17803,9 +17814,9 @@ function generateDetailedEmailContent(studentId) {
                     const activityScore = getStudentActivityScore(studentId, activity.id);
                     const maxScore = getActivityMaxScore(activity.id);
                     const displayName = getComponentDisplayName(activity.id);
-                    const percentage = maxScore > 0 ? ((activityScore / maxScore) * 100).toFixed(1) : '0.0';
+                    const percentage = maxScore > 0 ? ((activityScore / maxScore) * 100).toFixed(2) : '0.0';
                     
-                    return `- ${displayName}: ${activityScore.toFixed(1)}/${maxScore} (%${percentage})`;
+                    return `- ${displayName}: ${activityScore.toFixed(2)}/${maxScore} (%${percentage})`;
                 }).join('\n');
             }
         }
@@ -19175,9 +19186,9 @@ function createTermComponentHTML(componentData, studentGrades, isTermSection = t
         </h4>
         ${childrenHTML}
         <div style="margin: 15px 0; padding: 15px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-            <div style="margin: 5px 0;"><strong>📊 Bileşen Toplamı:</strong> ${componentScore}/${maxComponentScore} (%${componentPercentage.toFixed(1)})</div>
-            <div style="margin: 5px 0; color: #666; font-style: italic;">📐 Formül: BP = ${componentScore}/${maxComponentScore} × 100 = %${componentPercentage.toFixed(1)}</div>
-            <div style="margin: 5px 0; color: ${headerColor}; font-weight: 600;">⚖️ Ağırlıklı Katkı: AK = ${componentPercentage.toFixed(1)} × ${weight}/100 = %${agirlikli_katki.toFixed(1)}</div>
+            <div style="margin: 5px 0;"><strong>📊 Bileşen Toplamı:</strong> ${componentScore}/${maxComponentScore} (%${componentPercentage.toFixed(2)})</div>
+            <div style="margin: 5px 0; color: #666; font-style: italic;">📐 Formül: BP = ${componentScore}/${maxComponentScore} × 100 = %${componentPercentage.toFixed(2)}</div>
+            <div style="margin: 5px 0; color: ${headerColor}; font-weight: 600;">⚖️ Ağırlıklı Katkı: AK = ${componentPercentage.toFixed(2)} × ${weight}/100 = %${agirlikli_katki.toFixed(2)}</div>
         </div>
     </div>`;
 }
@@ -19191,10 +19202,10 @@ function createResultHTML(yilIciOrtalaması, yilSonuOrtalamasi, overallAverage, 
     <div style="background: linear-gradient(135deg, #ff6b6b 0%, #ffa726 100%); color: white; padding: 25px; margin: 25px 0; border-radius: 12px; text-align: center;">
         <h3 style="margin: 0 0 20px 0; font-size: 22px; font-weight: 700;">🎯 Yıl Sonu Hesaplama</h3>
         <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
-            <div style="margin: 8px 0;">Yarıyıl İçi Katkısı: %${yilIciOrtalaması.toFixed(1)} × 40/100 = <strong>%${genel_yariyil_ici_katkisi.toFixed(1)}</strong></div>
-            <div style="margin: 8px 0;">Yarıyıl Sonu Katkısı: %${yilSonuOrtalamasi.toFixed(1)} × 60/100 = <strong>%${genel_yariyil_sonu_katkisi.toFixed(1)}</strong></div>
+            <div style="margin: 8px 0;">Yarıyıl İçi Katkısı: %${yilIciOrtalaması.toFixed(2)} × 40/100 = <strong>%${genel_yariyil_ici_katkisi.toFixed(2)}</strong></div>
+            <div style="margin: 8px 0;">Yarıyıl Sonu Katkısı: %${yilSonuOrtalamasi.toFixed(2)} × 60/100 = <strong>%${genel_yariyil_sonu_katkisi.toFixed(2)}</strong></div>
             <hr style="border: 1px solid rgba(255,255,255,0.3); margin: 15px 0;">
-            <div style="font-size: 20px; font-weight: 700;">Genel Ortalama: %${genel_yariyil_ici_katkisi.toFixed(1)} + %${genel_yariyil_sonu_katkisi.toFixed(1)} = <span style="color: #ffeb3b;">%${overallAverage.toFixed(1)}</span></div>
+            <div style="font-size: 20px; font-weight: 700;">Genel Ortalama: %${genel_yariyil_ici_katkisi.toFixed(2)} + %${genel_yariyil_sonu_katkisi.toFixed(2)} = <span style="color: #ffeb3b;">%${overallAverage.toFixed(2)}</span></div>
         </div>
         <div style="font-size: 24px; font-weight: 700; margin: 15px 0;">
             <span style="color: #ffeb3b;">Harf Notu: ${letterGrade}</span>
@@ -19355,8 +19366,8 @@ function generateDetailedScoreEmail(student, instructor, courseName, courseTerm)
             <h3 style="color: #4caf50; margin: 0 0 15px 0; font-size: 20px; font-weight: 700;">🌱 Yarıyıl İçi Etkinlikler (Toplam Ağırlık: %40)</h3>
             ${termHTML}
             <div style="background: white; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: center;">
-                <div style="font-size: 16px; font-weight: 600; color: #4caf50;">📊 Yarıyıl İçi Toplamı: %${termWeightedSum.toFixed(1)}</div>
-                <div style="font-size: 14px; color: #666; margin-top: 5px;">Yarıyıl İçi Ortalaması: %${yilIciOrtalaması.toFixed(1)}</div>
+                <div style="font-size: 16px; font-weight: 600; color: #4caf50;">📊 Yarıyıl İçi Toplamı: %${termWeightedSum.toFixed(2)}</div>
+                <div style="font-size: 14px; color: #666; margin-top: 5px;">Yarıyıl İçi Ortalaması: %${yilIciOrtalaması.toFixed(2)}</div>
             </div>
         </div>
         
@@ -19364,8 +19375,8 @@ function generateDetailedScoreEmail(student, instructor, courseName, courseTerm)
             <h3 style="color: #ff9800; margin: 0 0 15px 0; font-size: 20px; font-weight: 700;">🏁 Yarıyıl Sonu Etkinlikler (Toplam Ağırlık: %60)</h3>
             ${finalHTML}
             <div style="background: white; padding: 15px; border-radius: 8px; margin-top: 15px; text-align: center;">
-                <div style="font-size: 16px; font-weight: 600; color: #ff9800;">📊 Yarıyıl Sonu Toplamı: %${finalWeightedSum.toFixed(1)}</div>
-                <div style="font-size: 14px; color: #666; margin-top: 5px;">Yarıyıl Sonu Ortalaması: %${yilSonuOrtalamasi.toFixed(1)}</div>
+                <div style="font-size: 16px; font-weight: 600; color: #ff9800;">📊 Yarıyıl Sonu Toplamı: %${finalWeightedSum.toFixed(2)}</div>
+                <div style="font-size: 14px; color: #666; margin-top: 5px;">Yarıyıl Sonu Ortalaması: %${yilSonuOrtalamasi.toFixed(2)}</div>
             </div>
         </div>
         
@@ -19453,7 +19464,7 @@ function generateAnalysisEmail(student, instructor, courseName, courseTerm) {
                                finalPerformance >= 55 ? 'Orta' : 
                                finalPerformance >= 40 ? 'Zayıf' : 'Çok Zayıf';
         
-        outcomeAnalysis += `${outcomeId}: ${performanceLevel} (%${finalPerformance.toFixed(1)})\n`;
+        outcomeAnalysis += `${outcomeId}: ${performanceLevel} (%${finalPerformance.toFixed(2)})\n`;
         outcomeAnalysis += `   Tanımı: ${fullDescription}\n`;
         outcomeAnalysis += `   İlişkili Etkinlik Sayısı: ${relatedActivities}\n\n`;
         
@@ -19490,7 +19501,7 @@ function generateAnalysisEmail(student, instructor, courseName, courseTerm) {
                 else if (strength >= 3) moderateRelations++;
             });
             
-            const avgStrength = relatedRelations.length > 0 ? (totalRelationStrength / relatedRelations.length).toFixed(1) : 0;
+            const avgStrength = relatedRelations.length > 0 ? (totalRelationStrength / relatedRelations.length).toFixed(2) : 0;
             
             programAnalysis += `${pcId} - ${pcCategory}\n`;
             programAnalysis += `   Tanımı: ${pcFullDescription}\n`;
@@ -19529,7 +19540,7 @@ ${programOutcomes.length > 0 ? programAnalysis : 'Program çıktıları bilgisi 
 
 GENEL DEĞERLENDİRME:
 ===================
-Genel ÖÇ Performansı: %${overallPerformance.toFixed(1)}
+Genel ÖÇ Performansı: %${overallPerformance.toFixed(2)}
 Değerlendirme: ${performanceComment}
 
 Analiz Edilen ÖÇ Sayısı: ${validOutcomes}
@@ -19938,7 +19949,7 @@ ${termComponents.map(comp => {
     const name = comp.name || comp.ad || comp.id;
     return `${name}: ${grade}/100 (%${comp.weight || 0})`;
 }).join('\n')}
-Yariyil Ici Ortalama: %${yilIciOrt.toFixed(1)}
+Yariyil Ici Ortalama: %${yilIciOrt.toFixed(2)}
 
 YARIYIL SONU NOTLAR:
 ${finalComponents.map(comp => {
@@ -19957,12 +19968,12 @@ ${finalComponents.map(comp => {
     const name = comp.name || comp.ad || comp.id;
     return `${name}: ${grade}/100 (%${comp.weight || 0})`;
 }).join('\n')}
-Yariyil Sonu Ortalama: %${yilSonuOrt.toFixed(1)}
+Yariyil Sonu Ortalama: %${yilSonuOrt.toFixed(2)}
 
 HESAPLAMA:
-Yariyil Ici (%40): ${yilIciOrt.toFixed(1)} * 0.4 = ${(yilIciOrt * 0.4).toFixed(1)}
-Yariyil Sonu (%60): ${yilSonuOrt.toFixed(1)} * 0.6 = ${(yilSonuOrt * 0.6).toFixed(1)}
-GENEL ORTALAMA: %${genelOrt.toFixed(1)}
+Yariyil Ici (%40): ${yilIciOrt.toFixed(2)} * 0.4 = ${(yilIciOrt * 0.4).toFixed(2)}
+Yariyil Sonu (%60): ${yilSonuOrt.toFixed(2)} * 0.6 = ${(yilSonuOrt * 0.6).toFixed(2)}
+GENEL ORTALAMA: %${genelOrt.toFixed(2)}
 HARF NOTU: ${harfNotu}
 DURUM: ${genelOrt >= 60 ? 'GECTI' : 'KALDI'}
 
@@ -20085,7 +20096,7 @@ function generateAnalysisTextEmail(student) {
         const performance = calculateOCPerformanceFromText(oc.id, studentGrades, assessmentTree);
         totalOCPerformance += performance;
         if (performance > 0) validOCCount++;
-        return `${oc.id}: %${performance.toFixed(1)}`;
+        return `${oc.id}: %${performance.toFixed(2)}`;
     }).join('\n');
     
     // Gerçek PÇ hesaplamaları
@@ -20115,12 +20126,12 @@ Guclu Iliski: ${strongRelations}
 Orta Iliski: ${moderateRelations}
 
 GENEL PERFORMANS:
-OC Ortalamasi: %${avgPerformance.toFixed(1)}
+OC Ortalamasi: %${avgPerformance.toFixed(2)}
 Degerlendirme: ${avgPerformance >= 80 ? 'Cok Iyi' : avgPerformance >= 70 ? 'Iyi' : avgPerformance >= 60 ? 'Orta' : 'Zayif'}
 
 MUDEK DEGERLENDIRME:
-OC Basari Orani: %${validOCCount > 0 ? (validOCCount / totalOC * 100).toFixed(1) : '0.0'}
-PC Iliski Orani: %${totalPC > 0 ? ((strongRelations + moderateRelations) / totalPC * 100).toFixed(1) : '0.0'}
+OC Basari Orani: %${validOCCount > 0 ? (validOCCount / totalOC * 100).toFixed(2) : '0.0'}
+PC Iliski Orani: %${totalPC > 0 ? ((strongRelations + moderateRelations) / totalPC * 100).toFixed(2) : '0.0'}
 
 ${avgPerformance >= 80 ? 
 'ONERI: Mevcut performansinizi koruun ve surdurun' :
@@ -20466,9 +20477,9 @@ function getActiveGroupsCount() {
                 // Sadece ana bileşenleri al (A1, A2, F1... - alt sorular değil A1.1, A1.2...)
                 if (componentId.match(/^[AF]\d+$/) && !componentId.includes('.')) {
                     const component = APP_STATE.courseData.grupHaritalari[componentId];
-                    if (component && component.groups && Array.isArray(component.groups)) {
+                    if (component && component.gruplar && Array.isArray(component.gruplar)) {
                         // Sadece geçerli grupları say
-                        const validGroups = component.groups.filter(group => 
+                        const validGroups = component.gruplar.filter(group => 
                             group && group.length === 1 && /^[A-Z]$/.test(group)
                         );
                         
@@ -20543,7 +20554,7 @@ function updateGroupDetailsTooltip() {
                 // Sadece ana bileşenleri al (A1, A2, F1... - alt sorular değil A1.1, A1.2...)
                 if (componentId.match(/^[AF]\d+$/) && !componentId.includes('.')) {
                     const component = APP_STATE.courseData.grupHaritalari[componentId];
-                    if (component && component.groups && Array.isArray(component.groups)) {
+                    if (component && component.gruplar && Array.isArray(component.gruplar)) {
                         // Bileşen adını al ve formatla
                         const activityNode = APP_STATE.assessmentTree?.find(node => node.id === componentId);
                         let componentName = componentId;
@@ -20584,14 +20595,14 @@ function updateGroupDetailsTooltip() {
                         }
                         
                         // Sadece geçerli grupları say
-                        const validGroups = component.groups.filter(group => 
+                        const validGroups = component.gruplar.filter(group => 
                             group && group.length === 1 && /^[A-Z]$/.test(group)
                         );
                         
                         if (validGroups.length > 0) {
                             componentDetails.push({
                                 name: componentName,
-                                groups: validGroups,
+                                gruplar: validGroups,
                                 count: validGroups.length
                             });
                         }
@@ -20606,7 +20617,7 @@ function updateGroupDetailsTooltip() {
                         <div class="group-detail-item">
                             <div class="group-detail-name">${detail.name}</div>
                             <div>
-                                <span class="group-detail-groups">${detail.groups.join(', ')}</span>
+                                <span class="group-detail-groups">${detail.gruplar.join(', ')}</span>
                                 <span class="group-count-badge">${detail.count}</span>
                             </div>
                         </div>
@@ -21243,7 +21254,7 @@ function performResetSystem() {
         APP_STATE.studentData = [];
         APP_STATE.gradesData = {};
         APP_STATE.testScores = {};
-        APP_STATE.groups = [];
+        APP_STATE.gruplar = [];
         
         // 3. Ders bilgilerini sıfırla
         const courseTitle = document.getElementById('courseTitle');
@@ -21361,7 +21372,7 @@ function performClearGroups() {
         }
         
         // Eski format desteği
-        APP_STATE.groups = [];
+        APP_STATE.gruplar = [];
         
         // UI'ları güncelle
         if (typeof updateGroupSelectors === 'function') {
@@ -22143,7 +22154,7 @@ function createOCPerformanceHTML(outcomes, studentGrades) {
         <div class="performance-item">
             <div class="performance-header">
                 <span class="oc-id">${outcome.id}</span>
-                <span class="performance-score" style="color: ${color};">%${performance.toFixed(1)}</span>
+                <span class="performance-score" style="color: ${color};">%${performance.toFixed(2)}</span>
             </div>
             <div class="performance-level" style="color: ${color};">${level}</div>
             <div class="oc-description">${(outcome.aciklama || '').substring(0, 80)}...</div>
@@ -22238,7 +22249,7 @@ function createPerformanceSummaryHTML(avgPerformance) {
             <div class="performance-overview">
                 <div class="avg-performance">
                     <span class="performance-label">ÖÇ Ortalaması:</span>
-                    <span class="performance-value" style="color: ${color}; font-size: 24px; font-weight: bold;">%${avgPerformance.toFixed(1)}</span>
+                    <span class="performance-value" style="color: ${color}; font-size: 24px; font-weight: bold;">%${avgPerformance.toFixed(2)}</span>
                 </div>
                 <div class="performance-level-display" style="color: ${color}; font-size: 18px; font-weight: bold;">
                     ${level}
@@ -23153,8 +23164,8 @@ function updateGroupStatistics() {
             const uniqueGroups = new Set();
             if (APP_STATE.courseData?.grupHaritalari) {
                 Object.values(APP_STATE.courseData.grupHaritalari).forEach(component => {
-                    if (component.groups && component.groups.length > 0) {
-                        component.groups.forEach(group => uniqueGroups.add(group));
+                    if (component.gruplar && component.gruplar.length > 0) {
+                        component.gruplar.forEach(group => uniqueGroups.add(group));
                     }
                 });
             }
@@ -24560,7 +24571,7 @@ function createSimplifiedAssessmentTree() {
     
     return {
         tree: simplified,
-        groups: groupMappings,
+        gruplar: groupMappings,
         termWeight: APP_STATE.termWeight,
         finalWeight: APP_STATE.finalWeight,
         studentCount: APP_STATE.studentData ? APP_STATE.studentData.length : 0
@@ -25492,8 +25503,8 @@ function createGroupMappingForActivity(activityId) {
     const activity = APP_STATE.assessmentTree.find(node => node.id === activityId);
     if (!activity || !activity.children) {
         return {
-            groups: ["A"],
-            mappings: {
+            gruplar: ["A"],
+            haritalar: {
                 "A": {}
             }
         };
@@ -25517,8 +25528,8 @@ function createGroupMappingForActivity(activityId) {
     });
     
     return {
-        groups: ["A"],
-        mappings: mappings
+        gruplar: ["A"],
+        haritalar: mappings
     };
 }
 
@@ -25576,69 +25587,11 @@ function loadGroupMappingsFromAssessmentData(jsonData) {
             }
         }
         
-        // v5 format için özel kontrol - ogrenciNotlari içindeki ilk öğrenciden grup bilgilerini çıkar
+        // SADECE öğrenci grup bilgilerini yükle - mapping bilgilerini etkinlik verilerinden al
         if (jsonData.ogrenciNotlari) {
-            console.log("🔍 v5 format grup bilgileri öğrenci notlarından çıkarılıyor...");
-            const firstStudentId = Object.keys(jsonData.ogrenciNotlari)[0];
-            if (firstStudentId) {
-                const firstStudent = jsonData.ogrenciNotlari[firstStudentId];
-                console.log(`📋 İlk öğrenci (${firstStudentId}) verisi kontrol ediliyor:`, firstStudent);
-                
-                // Her etkinlik için grup bilgilerini çıkar
-                Object.keys(firstStudent).forEach(activityId => {
-                    if (activityId === 'grupBilgileri') return; // grupBilgileri alanını atla
-                    
-                    const activityData = firstStudent[activityId];
-                    if (activityData && typeof activityData === 'object') {
-                        console.log(`🔍 ${activityId} etkinliği için veri yapısı analiz ediliyor:`, activityData);
-                        
-                        // Soru pozisyonlarından grup bilgilerini çıkar
-                        const questionIds = [];
-                        const groups = new Set();
-                        const mappings = {};
-                        
-                        Object.keys(activityData).forEach(position => {
-                            const questionData = activityData[position];
-                            if (questionData && questionData.soruId) {
-                                questionIds.push({
-                                    position: position,
-                                    soruId: questionData.soruId
-                                });
-                            }
-                        });
-                        
-                        // Tüm öğrencileri kontrol ederek grup bilgilerini çıkar
-                        Object.keys(jsonData.ogrenciNotlari).forEach(studentId => {
-                            const studentData = jsonData.ogrenciNotlari[studentId];
-                            if (studentData.grupBilgileri && studentData.grupBilgileri[activityId]) {
-                                const studentGroup = studentData.grupBilgileri[activityId];
-                                groups.add(studentGroup);
-                                
-                                if (!mappings[studentGroup]) {
-                                    mappings[studentGroup] = {};
-                                }
-                                
-                                // Bu öğrencinin bu etkinlikteki sorularını haritalandır
-                                questionIds.forEach(q => {
-                                    // DÜZELTME: Veri yapısı zaten doğru {position: questionId} formatında
-                                    mappings[studentGroup][q.position] = q.soruId;
-                                });
-                            }
-                        });
-                        
-                        // Grup bilgilerini kaydet
-                        if (groups.size > 0) {
-                            APP_STATE.courseData.grupHaritalari[activityId] = {
-                                groups: Array.from(groups).sort(),
-                                mappings: mappings
-                            };
-                            console.log(`✅ ${activityId} için v5 grup bilgileri oluşturuldu:`, APP_STATE.courseData.grupHaritalari[activityId]);
-                        }
-                    }
-                });
-            }
+            console.log("🔍 Öğrenci grup bilgileri yükleniyor...");
             
-            // Öğrenci grup bilgilerini de yükle
+            // Öğrenci grup bilgilerini yükle
             Object.keys(jsonData.ogrenciNotlari).forEach(studentId => {
                 const studentGrades = jsonData.ogrenciNotlari[studentId];
                 if (studentGrades.grupBilgileri) {
@@ -25661,9 +25614,9 @@ function loadGroupMappingsFromAssessmentData(jsonData) {
         Object.keys(APP_STATE.courseData.grupHaritalari || {}).forEach(componentId => {
             const component = APP_STATE.courseData.grupHaritalari[componentId];
             console.log(`📊 ${componentId} grup detayları:`, {
-                groups: component.groups,
-                mappings: component.mappings,
-                mappingCount: Object.keys(component.mappings || {}).length
+                gruplar: component.gruplar,
+                haritalar: component.haritalar,
+                mappingCount: Object.keys(component.haritalar || {}).length
             });
         });
         
@@ -25820,8 +25773,8 @@ function generateTamDosyaTermAssessmentWithParams(activityCount, componentCount,
                 katkiYuzdesi: weight,
                 detaylar: details,
                 grupBilgileri: {
-                    groups: ["A", "B"],
-                    mappings: groupMappings
+                    gruplar: ["A", "B"],
+                    haritalar: groupMappings
                 }
             });
         }
@@ -26073,8 +26026,8 @@ function generateTamDosyaFinalAssessmentWithParams(activityCount, componentCount
                 katkiYuzdesi: weight,
                 detaylar: details,
                 grupBilgileri: {
-                    groups: ["A", "B"],
-                    mappings: groupMappings
+                    gruplar: ["A", "B"],
+                    haritalar: groupMappings
                 }
             });
         }
@@ -26201,8 +26154,8 @@ function createDefaultGroupSystemForTemelDosya() {
             // Bu bileşen için grup bilgisi oluştur
             if (!APP_STATE.courseData.grupHaritalari[node.id]) {
                 APP_STATE.courseData.grupHaritalari[node.id] = {
-                    groups: ['A'],
-                    mappings: {
+                    gruplar: ['A'],
+                    haritalar: {
                         'A': {}
                     }
                 };
@@ -26212,7 +26165,7 @@ function createDefaultGroupSystemForTemelDosya() {
             
             // Alt bileşenleri varsa onları A grubuna sırayla ata
             if (node.children && Array.isArray(node.children) && node.children.length > 0) {
-                const groupMapping = APP_STATE.courseData.grupHaritalari[node.id].mappings['A'];
+                const groupMapping = APP_STATE.courseData.grupHaritalari[node.id].haritalar['A'];
                 
                 node.children.forEach((child, index) => {
                     const position = (index + 1).toString();
@@ -26305,8 +26258,8 @@ function assignDefaultGroupsToNewActivity(activityNode) {
         
         // Bu etkinlik için grup bilgisi oluştur
         APP_STATE.courseData.grupHaritalari[activityNode.id] = {
-            groups: ['A'],
-            mappings: {
+            gruplar: ['A'],
+            haritalar: {
                 'A': {}
             }
         };
@@ -26316,14 +26269,14 @@ function assignDefaultGroupsToNewActivity(activityNode) {
         // Alt bileşenleri varsa onları A grubuna sırayla ata
         if (activityNode.children && Array.isArray(activityNode.children) && activityNode.children.length > 0) {
             // Grup mapping'ini kontrol et ve oluştur
-            if (!APP_STATE.courseData.grupHaritalari[activityNode.id].mappings) {
-                APP_STATE.courseData.grupHaritalari[activityNode.id].mappings = {};
+            if (!APP_STATE.courseData.grupHaritalari[activityNode.id].haritalar) {
+                APP_STATE.courseData.grupHaritalari[activityNode.id].haritalar = {};
             }
-            if (!APP_STATE.courseData.grupHaritalari[activityNode.id].mappings['A']) {
-                APP_STATE.courseData.grupHaritalari[activityNode.id].mappings['A'] = {};
+            if (!APP_STATE.courseData.grupHaritalari[activityNode.id].haritalar['A']) {
+                APP_STATE.courseData.grupHaritalari[activityNode.id].haritalar['A'] = {};
             }
             
-            const groupMapping = APP_STATE.courseData.grupHaritalari[activityNode.id].mappings['A'];
+            const groupMapping = APP_STATE.courseData.grupHaritalari[activityNode.id].haritalar['A'];
             
             activityNode.children.forEach((child, index) => {
                 const position = (index + 1).toString();
@@ -26384,7 +26337,7 @@ function assignDefaultMappingToNewComponent(parentId, newComponent) {
         console.log(`🎯 Yeni bileşen için mapping ataması: ${newComponent.id} → ${parentId}`);
         
         // CourseData yapısını kontrol et
-        if (!APP_STATE.courseData?.grupHaritalari?.[parentId]?.mappings?.['A']) {
+        if (!APP_STATE.courseData?.grupHaritalari?.[parentId]?.haritalar?.['A']) {
             console.log("⚠️ Parent etkinlik için A grubu bulunamadı, önce grup oluşturuluyor");
             
             // Parent için grup sistemi oluştur
@@ -26392,13 +26345,13 @@ function assignDefaultMappingToNewComponent(parentId, newComponent) {
             if (!APP_STATE.courseData.grupHaritalari) APP_STATE.courseData.grupHaritalari = {};
             if (!APP_STATE.courseData.grupHaritalari[parentId]) {
                 APP_STATE.courseData.grupHaritalari[parentId] = {
-                    groups: ['A'],
-                    mappings: { 'A': {} }
+                    gruplar: ['A'],
+                    haritalar: { 'A': {} }
                 };
             }
         }
         
-        const groupMapping = APP_STATE.courseData.grupHaritalari[parentId].mappings['A'];
+        const groupMapping = APP_STATE.courseData.grupHaritalari[parentId].haritalar['A'];
         
         // Mevcut en yüksek pozisyonu bul
         const existingPositions = Object.keys(groupMapping).map(pos => parseInt(pos)).filter(pos => !isNaN(pos));
@@ -27029,7 +26982,7 @@ function saveNodeGroupMappings(node, savedMappings) {
     
     console.log(`💾 saveNodeGroupMappings çağrıldı: ${node.id}`);
     
-    // Yeni format: grupHaritalari[activityId] = { groups: [], mappings: {} }
+    // Yeni format: grupHaritalari[activityId] = { gruplar: [], haritalar: {} }
     if (APP_STATE.courseData.grupHaritalari[node.id]) {
         savedMappings[node.id] = JSON.parse(JSON.stringify(APP_STATE.courseData.grupHaritalari[node.id]));
         console.log(`✅ Grup haritalama kaydedildi: ${node.id}`, savedMappings[node.id]);
@@ -27069,9 +27022,9 @@ function restoreGroupMappings(savedMappings, oldToNewIdMap) {
             APP_STATE.courseData.grupHaritalari[newId] = JSON.parse(JSON.stringify(savedMappings[oldId]));
             
             // CRITICAL: Alt soru ID'lerini de güncelle
-            if (savedMappings[oldId].mappings) {
-                Object.keys(savedMappings[oldId].mappings).forEach(groupName => {
-                    const groupMapping = savedMappings[oldId].mappings[groupName];
+            if (savedMappings[oldId].haritalar) {
+                Object.keys(savedMappings[oldId].haritalar).forEach(groupName => {
+                    const groupMapping = savedMappings[oldId].haritalar[groupName];
                     const updatedGroupMapping = {};
                     
                     // Her sıra numarası için yeni soru ID'sini hesapla
@@ -27089,7 +27042,7 @@ function restoreGroupMappings(savedMappings, oldToNewIdMap) {
                         }
                     });
                     
-                    APP_STATE.courseData.grupHaritalari[newId].mappings[groupName] = updatedGroupMapping;
+                    APP_STATE.courseData.grupHaritalari[newId].haritalar[groupName] = updatedGroupMapping;
                 });
             }
             
@@ -28169,15 +28122,15 @@ function updateGroupMappingsWithNewIds(componentId, idMapping) {
         console.log(`📋 ID Mapping:`, idMapping);
         
         const component = APP_STATE.courseData.grupHaritalari[componentId];
-        if (!component.mappings) {
+        if (!component.haritalar) {
             console.log(`⚠️ Component mappings bulunamadı: ${componentId}`);
             return;
         }
         
         let updateCount = 0;
         
-        Object.keys(component.mappings).forEach(groupName => {
-            const groupMapping = component.mappings[groupName];
+        Object.keys(component.haritalar).forEach(groupName => {
+            const groupMapping = component.haritalar[groupName];
             console.log(`🔍 ${groupName} grubu kontrol ediliyor...`, groupMapping);
             
             Object.keys(groupMapping).forEach(position => {
