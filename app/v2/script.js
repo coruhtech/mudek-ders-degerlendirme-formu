@@ -14746,12 +14746,21 @@ function clearAssessments() {
         showModernConfirm(
             "Değerlendirme Bileşenlerini Sil",
             "Tüm değerlendirme bileşenleri silinecek. Bu işlem geri alınamaz. Emin misiniz?",
-            function() {
-                console.log("✅ Onay verildi, performClearAssessments çağrılıyor");
-                // Onay verildiğinde çalışacak kod
-                performClearAssessments();
+            {
+                confirmText: 'Evet, Sil',
+                cancelText: 'İptal',
+                confirmClass: 'btn-modern-danger',
+                cancelClass: 'btn-modern-secondary'
             }
-        );
+        ).then((confirmed) => {
+            if (confirmed) {
+                console.log("✅ Onay verildi, performClearAssessments çağrılıyor");
+                performClearAssessments();
+            } else {
+                console.log('👤 Kullanıcı değerlendirme bileşenlerini silmeyi iptal etti');
+                showModernToast('❌ Değerlendirme bileşenlerini silme iptal edildi', 'info', 2000);
+            }
+        });
     } catch (error) {
         console.error("❌ Değerlendirmeler temizlenirken hata:", error);
         showModernToast("Değerlendirmeler temizlenemedi!", "error");
@@ -14818,13 +14827,22 @@ function clearGroups() {
         }
         
         showModernConfirm(
-            "Grup Verilerini Sil",
-            "Tüm grup haritalama verileri silinecek. Bu işlem geri alınamaz. Emin misiniz?",
-            function() {
-                // Onay verildiğinde çalışacak kod
-                performClearGroups();
+            "A Grubu Hariç Tüm Grupları Sil",
+            "A grubu hariç tüm grup haritalama verileri silinecek. A grubundaki sorular 1'den başlayarak sıralı hale getirilecek. Bu işlem geri alınamaz. Emin misiniz?",
+            {
+                confirmText: 'Evet, Sil',
+                cancelText: 'İptal',
+                confirmClass: 'btn-modern-danger',
+                cancelClass: 'btn-modern-secondary'
             }
-        );
+        ).then((confirmed) => {
+            if (confirmed) {
+                performClearGroups();
+            } else {
+                console.log('👤 Kullanıcı grup verilerini silmeyi iptal etti');
+                showModernToast('❌ Grup verilerini silme iptal edildi', 'info', 2000);
+            }
+        });
     } catch (error) {
         console.error("Gruplar temizlenirken hata:", error);
         showModernToast("Gruplar temizlenemedi!", "error");
@@ -14833,14 +14851,43 @@ function clearGroups() {
 
 function performClearGroups() {
     try {
-        console.log("🔧 performClearGroups başlatıldı");
+        console.log("🔧 performClearGroups başlatıldı - A grubu korunacak");
         
-        // 1. Grup haritalamalarını temizle
-        if (APP_STATE.courseData) {
-            APP_STATE.courseData.grupHaritalari = {};
+        // 1. A grubu hariç tüm grup haritalamalarını temizle ve A grubunu yeniden düzenle
+        if (APP_STATE.courseData && APP_STATE.courseData.grupHaritalari) {
+            const assessmentComponents = Object.keys(APP_STATE.courseData.grupHaritalari);
+            
+            // Her değerlendirme bileşeni için A grubunu koru, diğerlerini sil
+            assessmentComponents.forEach(componentId => {
+                // A grubunu koru, diğer grupları sil
+                APP_STATE.courseData.grupHaritalari[componentId] = {
+                    gruplar: ['A'],
+                    haritalar: {
+                        'A': {}
+                    }
+                };
+                
+                // A grubu için soruları 1'den başlayarak sıralı ata
+                const component = APP_STATE.assessmentTree.find(item => item.id === componentId);
+                if (component && component.children) {
+                    const aGroupMapping = {};
+                    let questionIndex = 1;
+                    
+                    // Çocuk öğeleri (sorular/rubrikler) için sıralı numara ata
+                    // DÜZELTME: Veri yapısı {position: questionId} formatında olmalı
+                    component.children.forEach(child => {
+                        aGroupMapping[questionIndex.toString()] = child.id;
+                        questionIndex++;
+                    });
+                    
+                    APP_STATE.courseData.grupHaritalari[componentId].haritalar['A'] = aGroupMapping;
+                    
+                    console.log(`📝 ${componentId} bileşeni A grubu: ${Object.keys(aGroupMapping).length} soru sıralı hale getirildi`);
+                }
+            });
         }
         
-        // 2. Öğrencilerin gruplarını varsayılan gruba ata
+        // 2. Tüm öğrencileri A grubuna ata
         if (APP_STATE.studentData) {
             APP_STATE.studentData.forEach(student => {
                 student.grup = 'A';
@@ -14857,22 +14904,40 @@ function performClearGroups() {
         }
         
         // 4. UI'ları güvenli şekilde güncelle
+        console.log("🔄 UI güncellemeleri başlatılıyor...");
+        
+        // Ana tree'yi yeniden render et (grup textarea'ları için kritik)
+        renderTree();
+        
+        // Grup seçicilerini güncelle
         if (typeof updateGroupSelectors === 'function') {
-        updateGroupSelectors();
+            updateGroupSelectors();
         }
+        
+        // Öğrenci tablosunu güncelle
         updateStudentTable();
+        
+        // Tree mapping kontrollerini güncelle
         if (typeof updateTreeMappingControls === 'function') {
-        updateTreeMappingControls();
+            updateTreeMappingControls();
         }
+        
+        // Inline grup input'larını güncelle
         if (typeof updateAllInlineGroupInputs === 'function') {
-        updateAllInlineGroupInputs();
+            updateAllInlineGroupInputs();
         }
+        
+        // Mapping görünümlerini güncelle
         if (typeof updateAllMappingDisplays === 'function') {
-        updateAllMappingDisplays();
+            updateAllMappingDisplays();
         }
+        
+        // Değerlendirme görünümünü güncelle
         updateAssessmentView();
         
-        showModernToast("🗑️ Tüm grup haritalama verileri temizlendi!", "success");
+        console.log("✅ UI güncellemeleri tamamlandı");
+        
+        showModernToast("✅ A grubu korundu, diğer gruplar temizlendi! A grubundaki sorular 1'den başlayarak sıralı hale getirildi.", "success");
         
     } catch (error) {
         console.error("❌ Gruplar temizlenirken hata:", error);
@@ -14897,11 +14962,20 @@ function clearScores() {
         showModernConfirm(
             "Öğrenci Puanlarını Sil",
             "Tüm öğrenci puanları silinecek. Bu işlem geri alınamaz. Emin misiniz?",
-            function() {
-                // Onay verildiğinde çalışacak kod
-                performClearScores();
+            {
+                confirmText: 'Evet, Sil',
+                cancelText: 'İptal',
+                confirmClass: 'btn-modern-danger',
+                cancelClass: 'btn-modern-secondary'
             }
-        );
+        ).then((confirmed) => {
+            if (confirmed) {
+                performClearScores();
+            } else {
+                console.log('👤 Kullanıcı öğrenci puanlarını silmeyi iptal etti');
+                showModernToast('❌ Öğrenci puanlarını silme iptal edildi', 'info', 2000);
+            }
+        });
     } catch (error) {
         console.error("Puanlar temizlenirken hata:", error);
         showModernToast("Puanlar temizlenemedi!", "error");
@@ -14910,48 +14984,403 @@ function clearScores() {
 
 function performClearScores() {
     try {
-        console.log("🔧 performClearScores başlatıldı");
+        console.log("🔧 performClearScores başlatıldı - Puanlar sıfırlanacak");
         
-        // 1. Puanları temizle
-        APP_STATE.gradesData = {};
-        APP_STATE.testScores = {};
+        // 1. Puanları sıfırla (silmek yerine 0 yap)
+        if (APP_STATE.studentData && APP_STATE.studentData.length > 0) {
+            APP_STATE.studentData.forEach(student => {
+                const studentId = student.ogrenciNo || student.id;
+                
+                // Her öğrenci için mevcut puanları sıfırla
+                if (APP_STATE.gradesData[studentId]) {
+                    Object.keys(APP_STATE.gradesData[studentId]).forEach(assessmentId => {
+                        if (typeof APP_STATE.gradesData[studentId][assessmentId] === 'object') {
+                            // Alt sorular için her birini sıfırla
+                            Object.keys(APP_STATE.gradesData[studentId][assessmentId]).forEach(subId => {
+                                APP_STATE.gradesData[studentId][assessmentId][subId] = 0;
+                            });
+                        } else {
+                            // Direkt puan ise sıfırla
+                            APP_STATE.gradesData[studentId][assessmentId] = 0;
+                        }
+                    });
+                }
+                
+                // Test skorlarını da sıfırla
+                if (APP_STATE.testScores && APP_STATE.testScores[studentId]) {
+                    Object.keys(APP_STATE.testScores[studentId]).forEach(testId => {
+                        if (typeof APP_STATE.testScores[studentId][testId] === 'object') {
+                            // Test detayları için
+                            if (APP_STATE.testScores[studentId][testId].correct !== undefined) {
+                                APP_STATE.testScores[studentId][testId].correct = 0;
+                                APP_STATE.testScores[studentId][testId].wrong = 0;
+                                APP_STATE.testScores[studentId][testId].empty = APP_STATE.testScores[studentId][testId].total || 0;
+                                APP_STATE.testScores[studentId][testId].score = 0;
+                            }
+                        } else {
+                            APP_STATE.testScores[studentId][testId] = 0;
+                        }
+                    });
+                }
+            });
+            
+            console.log("✅ Mevcut puanlar sıfırlandı");
+        } else {
+            // Öğrenci yoksa boş objeler oluştur
+            APP_STATE.gradesData = {};
+            APP_STATE.testScores = {};
+            console.log("ℹ️ Öğrenci bulunamadı, puanlar temizlendi");
+        }
         
         // 2. UI'ları GÜVENLİ ŞEKİLDE güncelle
+        console.log("🔄 UI güncellemeleri başlatılıyor...");
+        
+        // Değerlendirme girişi sekmesini yeniden render et
         updateAssessmentView();
         
-        // 3. Öğrenci bazlı not girişi sekmesini temizle
-        const studentGradesContainer = document.getElementById('studentGradesContainer');
-        if (studentGradesContainer) {
-            studentGradesContainer.innerHTML = '<p class="empty-message">Veri bulunamadı.</p>';
-        }
+        // Değerlendirme tablosunu manuel olarak yeniden oluştur
+        setTimeout(() => {
+            console.log("🔄 Değerlendirme tablosu yeniden oluşturuluyor...");
+            
+            // Değerlendirme container'ını tamamen temizle ve yeniden oluştur
+            const assessmentContainer = document.getElementById('assessmentContainer');
+            if (assessmentContainer) {
+                console.log("🗑️ Değerlendirme container'ı temizleniyor...");
+                assessmentContainer.innerHTML = '<p class="empty-message">Değerlendirme tablosu yeniden oluşturuluyor...</p>';
+            }
+            
+            // Değerlendirme girişi sekmesini zorla güncelle
+            updateAssessmentView();
+            
+            // Öğrenci filtresini de güncelle
+            const assessmentStudentFilter = document.getElementById('assessmentStudentFilter');
+            if (assessmentStudentFilter) {
+                const currentValue = assessmentStudentFilter.value;
+                // Filtreyi tetikle
+                assessmentStudentFilter.dispatchEvent(new Event('change'));
+            }
+        }, 100);
         
-        // 4. Not tablosunu GÜVENLİ ŞEKİLDE temizle
-        const gradesTableContainer = document.getElementById('gradesTableContainer');
-        if (gradesTableContainer) {
-            gradesTableContainer.innerHTML = '<p class="empty-message">Henüz not hesaplanmadı.</p>';
-        }
-        
-        // 5. Not tablosunu güvenli güncelleme
+        // 3. Not tablosunu güvenli güncelleme
         try {
-            // Boş final grades ile tabloyu güncelle
-            updateGradesTable([]);
+            // Sıfırlanmış puanlarla tabloyu güncelle
+            updateGradesTable();
         } catch (tableError) {
             console.warn("⚠️ Not tablosu güncellenirken hata (görmezden gelindi):", tableError);
-            // Hata olursa manuel temizle
-            const gradesTable = document.getElementById('gradesTable');
-            if (gradesTable) {
-                const tbody = gradesTable.querySelector('tbody');
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="8" class="empty-message">Not girişi yapılmadı</td></tr>';
-                }
-            }
         }
         
-        showModernToast("🗑️ Tüm öğrenci puanları temizlendi!", "success");
+        // 4. SADECE ÖĞRENCI PUANLARINI ITERATIF OLARAK SIFIRLA
+        setTimeout(() => {
+            console.log("🔄 Öğrenci puanları iteratif olarak sıfırlanıyor...");
+            
+            // Her öğrenci için tüm puanları sıfırla (veri modelinde)
+            if (APP_STATE.studentData && APP_STATE.studentData.length > 0) {
+                APP_STATE.studentData.forEach((student, studentIndex) => {
+                    const studentId = student.ogrenciNo || student.id;
+                    console.log(`📝 ${studentIndex + 1}. öğrenci (${studentId}) puanları sıfırlanıyor...`);
+                    
+                    // Öğrencinin tüm değerlendirme puanlarını sıfırla
+                    if (APP_STATE.gradesData[studentId]) {
+                        Object.keys(APP_STATE.gradesData[studentId]).forEach(assessmentId => {
+                            const oldValue = APP_STATE.gradesData[studentId][assessmentId];
+                            APP_STATE.gradesData[studentId][assessmentId] = 0;
+                            console.log(`  ✅ ${assessmentId}: ${oldValue} → 0`);
+                        });
+                    }
+                    
+                    // Öğrencinin test skorlarını da sıfırla
+                    if (APP_STATE.testScores[studentId]) {
+                        Object.keys(APP_STATE.testScores[studentId]).forEach(testId => {
+                            const oldValue = APP_STATE.testScores[studentId][testId];
+                            APP_STATE.testScores[studentId][testId] = 0;
+                            console.log(`  ✅ Test ${testId}: ${oldValue} → 0`);
+                        });
+                    }
+                });
+                
+                console.log(`✅ ${APP_STATE.studentData.length} öğrencinin puanları başarıyla sıfırlandı`);
+            } else {
+                console.log("ℹ️ Öğrenci bulunamadı, sadece veri yapıları temizlendi");
+            }
+            
+        }, 300);
+        
+        // 5. GÜÇLÜ GUI GÜNCELLEMESİ - Çoklu zamanlı güncelleme
+        setTimeout(() => {
+            console.log("🔄 Final güncelleme - değerlendirme tablosu güçlü güncelleme başlatılıyor...");
+            
+            // Çoklu güncelleme dalgası
+            updateAssessmentView();
+            
+            // Container'ı temizle ve yeniden oluştur
+            const assessmentContainer = document.getElementById('assessmentContainer');
+            if (assessmentContainer) {
+                console.log("🗑️ Assessment container temizleniyor ve yeniden oluşturuluyor...");
+                assessmentContainer.innerHTML = '<p class="empty-message">Değerlendirme tablosu güncelleniyor...</p>';
+                
+                // Hemen ardından yeniden oluştur
+                setTimeout(() => {
+                    updateAssessmentView();
+                }, 50);
+            }
+            
+            // Tüm input'lara 0 değerini zorla uygula
+            setTimeout(() => {
+                const allInputs = document.querySelectorAll('#assessmentContainer input[type="number"]');
+                allInputs.forEach((input, index) => {
+                    // Sadece öğrenci puan input'larını güncelle (readonly veya disabled olmayanları)
+                    if (!input.readOnly && !input.disabled) {
+                        const inputId = input.id || '';
+                        const inputName = input.name || '';
+                        
+                        // Maksimum puan input'larını atla
+                        if (!inputId.includes('max') && !inputId.includes('total') && 
+                            !inputId.includes('limit') && !inputId.includes('point') &&
+                            !inputName.includes('max') && !inputName.includes('total') && 
+                            !inputName.includes('limit') && !inputName.includes('point')) {
+                            
+                            input.value = '0';
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            console.log(`🔄 Input ${index + 1} güncellendi: ${inputId || inputName} → 0`);
+                        }
+                    }
+                });
+            }, 100);
+            
+        }, 500);
+        
+        // 6. NOTLARI VE HESAPLAMALARI YENİDEN HESAPLA (SEKME DEĞİŞTİRMEDEN)
+        setTimeout(() => {
+            console.log("🧮 Puanlar sıfırlandıktan sonra tüm hesaplamalar yeniden yapılıyor (sekme korunacak)...");
+            
+            // Mevcut aktif sekmeyi kaydet
+            const currentActiveTab = document.querySelector('.nav-tab.active');
+            const currentActiveContent = document.querySelector('.nav-content.active');
+            console.log("💾 Mevcut aktif sekme kaydedildi:", currentActiveTab?.getAttribute('data-tab'));
+            
+            // Not hesaplama fonksiyonunu sekme korumalı çağır
+            if (typeof calculateGrades === 'function') {
+                console.log("🧮 calculateGrades çağrılıyor (sekme korumalı)...");
+                
+                // Sekme geçişini engelleyen kapsamlı wrapper fonksiyon
+                const originalShowTab = window.showTab;
+                const originalSwitchTab = window.switchTab;
+                const originalActivateTab = window.activateTab;
+                const originalShowGradesTab = window.showGradesTab;
+                const originalSwitchToGrades = window.switchToGrades;
+                const originalActivateGradesTab = window.activateGradesTab;
+                
+                // Tüm sekme fonksiyonlarını geçici olarak devre dışı bırak
+                window.showTab = function() { console.log("🚫 showTab engellendi"); };
+                window.switchTab = function() { console.log("🚫 switchTab engellendi"); };
+                window.activateTab = function() { console.log("🚫 activateTab engellendi"); };
+                window.showGradesTab = function() { console.log("🚫 showGradesTab engellendi"); };
+                window.switchToGrades = function() { console.log("🚫 switchToGrades engellendi"); };
+                window.activateGradesTab = function() { console.log("🚫 activateGradesTab engellendi"); };
+                
+                // Click event'lerini de geçici olarak engelle
+                const tabElements = document.querySelectorAll('.nav-tab');
+                const originalClickHandlers = [];
+                tabElements.forEach((tab, index) => {
+                    originalClickHandlers[index] = tab.onclick;
+                    tab.onclick = function(e) { 
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        console.log("🚫 Tab click engellendi:", tab.getAttribute('data-tab')); 
+                        return false;
+                    };
+                });
+                
+                try {
+                    // Hesaplama yap
+                    calculateGrades();
+                    console.log("✅ Notlar başarıyla yeniden hesaplandı (sekme korumalı)");
+                } catch (error) {
+                    console.error("❌ calculateGrades hatası:", error);
+                } finally {
+                    // Tüm sekme fonksiyonlarını geri yükle
+                    if (originalShowTab) window.showTab = originalShowTab;
+                    if (originalSwitchTab) window.switchTab = originalSwitchTab;
+                    if (originalActivateTab) window.activateTab = originalActivateTab;
+                    if (originalShowGradesTab) window.showGradesTab = originalShowGradesTab;
+                    if (originalSwitchToGrades) window.switchToGrades = originalSwitchToGrades;
+                    if (originalActivateGradesTab) window.activateGradesTab = originalActivateGradesTab;
+                    
+                    // Click handler'ları geri yükle
+                    tabElements.forEach((tab, index) => {
+                        tab.onclick = originalClickHandlers[index];
+                    });
+                    
+                    console.log("🔄 Tüm sekme fonksiyonları ve event handler'lar geri yüklendi");
+                }
+                
+                // Hesaplama sonrası sekmeyi zorla geri döndür
+                if (currentActiveTab && currentActiveContent) {
+                    // Tüm sekmeleri pasif yap
+                    document.querySelectorAll('.nav-tab').forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    document.querySelectorAll('.nav-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Orijinal sekmeyi geri getir
+                    currentActiveTab.classList.add('active');
+                    currentActiveContent.classList.add('active');
+                    console.log("🔄 Orijinal sekme zorla geri getirildi");
+                }
+            } else {
+                console.log("⚠️ calculateGrades fonksiyonu bulunamadı");
+            }
+            
+            // Değerlendirme tablosundaki hesaplamaları da yenile
+            if (typeof updateAssessmentCalculations === 'function') {
+                updateAssessmentCalculations();
+                console.log("✅ Değerlendirme hesaplamaları güncellendi");
+            }
+            
+            // Tüm input hesaplamalarını zorla yenile
+            const assessmentContainer = document.getElementById('assessmentContainer');
+            if (assessmentContainer) {
+                const allInputs = assessmentContainer.querySelectorAll('input[type="number"]');
+                allInputs.forEach(input => {
+                    // Input event'lerini tetikle
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                console.log(`✅ ${allInputs.length} input hesaplaması tetiklendi`);
+            }
+            
+            // Notlar sekmesini güncelle (ama sekme değiştirme)
+            updateGradesTable();
+            
+            // Tekrar sekmeyi kontrol et ve düzelt
+            setTimeout(() => {
+                if (currentActiveTab && currentActiveContent) {
+                    // Tüm sekmeleri pasif yap
+                    document.querySelectorAll('.nav-tab').forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    document.querySelectorAll('.nav-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Orijinal sekmeyi geri getir
+                    currentActiveTab.classList.add('active');
+                    currentActiveContent.classList.add('active');
+                    console.log("🔄 Sekme tekrar düzeltildi");
+                }
+            }, 50);
+            
+            // İstatistikleri güncelle
+            if (typeof updateModernStats === 'function') {
+                updateModernStats();
+            }
+            if (typeof updatePassFailCounts === 'function') {
+                updatePassFailCounts();
+            }
+            
+            // Değerlendirme girişini bir kez daha güncelle
+            setTimeout(() => {
+                updateAssessmentView();
+                console.log("🔄 Değerlendirme girişi son kez güncellendi");
+                
+                // Tüm satırlardaki hesaplama fonksiyonlarını zorla tetikle
+                setTimeout(() => {
+                    const assessmentRows = document.querySelectorAll('#assessmentContainer tr');
+                    assessmentRows.forEach((row, index) => {
+                        // Her satırdaki input'ları bul ve hesaplama event'lerini tetikle
+                        const inputs = row.querySelectorAll('input[type="number"]');
+                        inputs.forEach(input => {
+                            if (!input.readOnly && !input.disabled) {
+                                // Hesaplama fonksiyonlarını tetikle
+                                input.dispatchEvent(new Event('blur', { bubbles: true }));
+                                input.dispatchEvent(new Event('focusout', { bubbles: true }));
+                            }
+                        });
+                    });
+                    console.log(`🔄 ${assessmentRows.length} satır hesaplaması tetiklendi`);
+                }, 50);
+                
+            }, 100);
+            
+        }, 600);
+
+        // 7. ZORLA DERS TANIMLAMA SEKMESİNDE KAL
+        setTimeout(() => {
+            console.log("📍 ZORLA Ders Tanımlama sekmesinde tutuluyor...");
+            
+            // Ders Tanımlama sekmesini zorla aktif yap
+            const definitionTab = document.querySelector('[data-tab="definition"]');
+            const definitionContent = document.getElementById('definition-content');
+            
+            if (definitionTab && definitionContent) {
+                // Tüm sekmeleri pasif yap
+                document.querySelectorAll('.nav-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelectorAll('.nav-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                // Ders Tanımlama sekmesini zorla aktif yap
+                definitionTab.classList.add('active');
+                definitionContent.classList.add('active');
+                
+                console.log("✅ ZORLA Ders Tanımlama sekmesi aktif edildi");
+                
+                // Bir kez daha kontrol et ve zorla düzelt
+                setTimeout(() => {
+                    if (!definitionTab.classList.contains('active')) {
+                        // Tüm sekmeleri pasif yap
+                        document.querySelectorAll('.nav-tab').forEach(tab => {
+                            tab.classList.remove('active');
+                        });
+                        document.querySelectorAll('.nav-content').forEach(content => {
+                            content.classList.remove('active');
+                        });
+                        
+                        // Ders Tanımlama sekmesini tekrar zorla aktif yap
+                        definitionTab.classList.add('active');
+                        definitionContent.classList.add('active');
+                        console.log("🔄 Ders Tanımlama sekmesi TEKRAR zorla aktif edildi");
+                    }
+                }, 100);
+                
+                // 900ms sonra son kontrol ve Notlar sekmesi kapama
+                setTimeout(() => {
+                    const gradesTab = document.querySelector('.nav-tab[data-tab="grades"]');
+                    const gradesContent = document.querySelector('#grades-content');
+                    
+                    // Eğer hala Notlar sekmesi aktifse zorla düzelt
+                    if (gradesTab?.classList.contains('active') || gradesContent?.classList.contains('active')) {
+                        console.log("⚠️ 900ms sonra Notlar sekmesi hala aktif! Zorla düzeltiliyor...");
+                        
+                        // Notlar sekmesini kapat
+                        gradesTab?.classList.remove('active');
+                        gradesContent?.classList.remove('active');
+                        
+                        // Ders Tanımlama sekmesini aç
+                        definitionTab?.classList.add('active');
+                        definitionContent?.classList.add('active');
+                        
+                        console.log("🔧 Sekme zorla düzeltildi (900ms)");
+                    } else {
+                        console.log("✅ Sekme durumu doğru (900ms)");
+                    }
+                }, 900);
+                
+            } else {
+                console.log("⚠️ Ders Tanımlama sekmesi bulunamadı");
+            }
+            
+        }, 800);
+
+        showModernToast("🔄 Tüm öğrenci puanları sıfırlandı ve notlar yeniden hesaplandı! Maksimum puanlar korundu, sadece alınan puanlar 0 yapıldı.", "success");
         
     } catch (error) {
-        console.error("❌ Puanlar temizlenirken hata:", error);
-        showModernToast("Puanlar temizlenemedi!", "error");
+        console.error("❌ Puanlar sıfırlanırken hata:", error);
+        showModernToast("Puanlar sıfırlanamadı!", "error");
     }
 }
 
@@ -15164,6 +15593,7 @@ function generateRandomGroups() {
             executeGenerateRandomGroups();
         } else {
             console.log('❌ Kullanıcı iptal etti');
+            showModernToast('❌ Rastgele öğrenci grupları oluşturma iptal edildi', 'info', 2000);
         }
     });
 }
@@ -15678,10 +16108,20 @@ function generateRandomScores() {
     showModernConfirm(
         '🧠 Akıllı Puanlama Sistemi Uygula',
         warningMessage,
-        () => {
-            executeGenerateRandomScores();
+        {
+            confirmText: 'Evet, Oluştur',
+            cancelText: 'İptal',
+            confirmClass: 'btn-modern-primary',
+            cancelClass: 'btn-modern-secondary'
         }
-    );
+    ).then((confirmed) => {
+        if (confirmed) {
+            executeGenerateRandomScores();
+        } else {
+            console.log('👤 Kullanıcı rastgele puanlama yapmayı iptal etti');
+            showModernToast('❌ Rastgele puanlama iptal edildi', 'info', 2000);
+        }
+    });
 }
 
 /**
@@ -15912,8 +16352,13 @@ function generateTestStudents() {
             cancelText: 'İptal',
         confirmClass: 'btn-modern-primary',
         cancelClass: 'btn-modern-secondary'
-    }).then(() => {
-        executeGenerateTestStudents();
+    }).then((confirmed) => {
+        if (confirmed) {
+            executeGenerateTestStudents();
+        } else {
+            console.log('👤 Kullanıcı test öğrencileri oluşturmayı iptal etti');
+            showModernToast('❌ Test öğrencileri oluşturma iptal edildi', 'info', 2000);
+        }
     });
 }
 
@@ -16107,7 +16552,8 @@ function clearAllTestData() {
             cancelText: 'İptal',
             confirmClass: 'btn-modern-danger',
             cancelClass: 'btn-modern-secondary'
-        }).then(() => {
+        }).then((confirmed) => {
+            if (confirmed) {
                 console.log("✅ clearAllTestData onaylandı, temizleme başlıyor...");
         
                 // 1. Tüm verileri koordineli şekilde temizle
@@ -16183,6 +16629,10 @@ function clearAllTestData() {
         }
         
                 showModernToast("🧪 Tüm test verileri koordineli şekilde temizlendi!", "success");
+            } else {
+                console.log('👤 Kullanıcı test verilerini temizlemeyi iptal etti');
+                showModernToast('❌ Test verilerini temizleme iptal edildi', 'info', 2000);
+            }
         });
         
     } catch (error) {
@@ -16213,8 +16663,13 @@ function generateTestCourseData() {
                 cancelText: 'İptal',
             confirmClass: 'btn-modern-primary',
             cancelClass: 'btn-modern-secondary'
-        }).then(() => {
-            executeGenerateTestCourseData();
+        }).then((confirmed) => {
+            if (confirmed) {
+                executeGenerateTestCourseData();
+            } else {
+                console.log('👤 Kullanıcı test ders verisi oluşturmayı iptal etti');
+                showModernToast('❌ Test ders verisi oluşturma iptal edildi', 'info', 2000);
+            }
         });
 }
 
@@ -20903,8 +21358,13 @@ function generateIntelligentScores(targetPassRate) {
             cancelText: 'İptal',
         confirmClass: 'btn-modern-warning',
         cancelClass: 'btn-modern-secondary'
-    }).then(() => {
-        executeGenerateIntelligentScores(targetPassRate);
+    }).then((confirmed) => {
+        if (confirmed) {
+            executeGenerateIntelligentScores(targetPassRate);
+        } else {
+            console.log('👤 Kullanıcı akıllı puanlama sistemini iptal etti');
+            showModernToast('❌ Akıllı puanlama sistemi iptal edildi', 'info', 2000);
+        }
     });
 }
 
@@ -21127,8 +21587,13 @@ function clearAllStudents() {
         cancelText: 'İptal',
         confirmClass: 'btn-modern-danger',
         cancelClass: 'btn-modern-secondary'
-    }).then(() => {
+    }).then((confirmed) => {
+        if (confirmed) {
             performClearStudentsOnly();
+        } else {
+            console.log('👤 Kullanıcı öğrencileri silmeyi iptal etti');
+            showModernToast('❌ Öğrencileri silme iptal edildi', 'info', 2000);
+        }
     });
 }
 
@@ -21156,9 +21621,14 @@ function resetCompleteSystem() {
         cancelText: 'İptal',
         confirmClass: 'btn-modern-danger',
         cancelClass: 'btn-modern-secondary'
-    }).then(() => {
+    }).then((confirmed) => {
+        if (confirmed) {
             console.log("✅ resetCompleteSystem onaylandı, resetleme başlıyor...");
             performResetSystem();
+        } else {
+            console.log('👤 Kullanıcı sistemi resetlemeyi iptal etti');
+            showModernToast('❌ Sistem resetleme iptal edildi', 'info', 2000);
+        }
     });
 }
 
@@ -21171,8 +21641,13 @@ function testToastSystem() {
         cancelText: 'İptal',
         confirmClass: 'btn-modern-primary',
         cancelClass: 'btn-modern-secondary'
-    }).then(() => {
+    }).then((confirmed) => {
+        if (confirmed) {
             performToastSystemTest();
+        } else {
+            console.log('👤 Kullanıcı toast testini iptal etti');
+            showModernToast('❌ Toast testi iptal edildi', 'info', 2000);
+        }
     });
 }
 
@@ -21330,14 +21805,46 @@ function performResetSystem() {
 }
 
 /**
- * Grup temizleme işlemini gerçekleştir
+ * Grup temizleme işlemini gerçekleştir - A grubunu koruyarak
  */
 function performClearGroups() {
     try {
-        // Grup haritalamalarını temizle
-        if (APP_STATE.courseData) {
-            APP_STATE.courseData.grupHaritalari = {};
+        console.log("🔧 performClearGroups (eski format) başlatıldı - A grubu korunacak");
+        
+        // A grubu hariç tüm grup haritalamalarını temizle ve A grubunu yeniden düzenle
+        if (APP_STATE.courseData && APP_STATE.courseData.grupHaritalari) {
+            const assessmentComponents = Object.keys(APP_STATE.courseData.grupHaritalari);
+            
+            // Her değerlendirme bileşeni için A grubunu koru, diğerlerini sil
+            assessmentComponents.forEach(componentId => {
+                // A grubunu koru, diğer grupları sil
+                APP_STATE.courseData.grupHaritalari[componentId] = {
+                    gruplar: ['A'],
+                    haritalar: {
+                        'A': {}
+                    }
+                };
+                
+                // A grubu için soruları 1'den başlayarak sıralı ata
+                const component = APP_STATE.assessmentTree.find(item => item.id === componentId);
+                if (component && component.children) {
+                    const aGroupMapping = {};
+                    let questionIndex = 1;
+                    
+                    // Çocuk öğeleri (sorular/rubrikler) için sıralı numara ata
+                    // DÜZELTME: Veri yapısı {position: questionId} formatında olmalı
+                    component.children.forEach(child => {
+                        aGroupMapping[questionIndex.toString()] = child.id;
+                        questionIndex++;
+                    });
+                    
+                    APP_STATE.courseData.grupHaritalari[componentId].haritalar['A'] = aGroupMapping;
+                    
+                    console.log(`📝 ${componentId} bileşeni A grubu: ${Object.keys(aGroupMapping).length} soru sıralı hale getirildi`);
+                }
+            });
         }
+        
         APP_STATE.groupMapping = {};
         
         // Öğrencilerin gruplarını varsayılan gruba ata
@@ -21382,7 +21889,7 @@ function performClearGroups() {
             updatePassFailCounts();
         }
         
-        showModernToast("👥 Tüm grup atamaları silindi!", "success");
+        showModernToast("✅ A grubu korundu, diğer gruplar temizlendi! A grubundaki sorular 1'den başlayarak sıralı hale getirildi.", "success");
         
     } catch (error) {
         console.error("Gruplar temizlenirken hata:", error);
@@ -21391,32 +21898,406 @@ function performClearGroups() {
 }
 
 /**
- * Puan temizleme işlemini gerçekleştir
+ * Puan temizleme işlemini gerçekleştir - Eski format desteği
  */
 function performClearScores() {
     try {
-        APP_STATE.studentGrades = {};
-        APP_STATE.gradesData = {};
-        if (typeof APP_STATE.testScores !== 'undefined') {
-            APP_STATE.testScores = {};
+        console.log("🔧 performClearScores (eski format) başlatıldı - Puanlar sıfırlanacak");
+        
+        // Puanları sıfırla (silmek yerine 0 yap)
+        if (APP_STATE.studentData && APP_STATE.studentData.length > 0) {
+            APP_STATE.studentData.forEach(student => {
+                const studentId = student.ogrenciNo || student.id;
+                
+                // Her öğrenci için mevcut puanları sıfırla
+                if (APP_STATE.gradesData[studentId]) {
+                    Object.keys(APP_STATE.gradesData[studentId]).forEach(assessmentId => {
+                        if (typeof APP_STATE.gradesData[studentId][assessmentId] === 'object') {
+                            // Alt sorular için her birini sıfırla
+                            Object.keys(APP_STATE.gradesData[studentId][assessmentId]).forEach(subId => {
+                                APP_STATE.gradesData[studentId][assessmentId][subId] = 0;
+                            });
+                        } else {
+                            // Direkt puan ise sıfırla
+                            APP_STATE.gradesData[studentId][assessmentId] = 0;
+                        }
+                    });
+                }
+                
+                // Test skorlarını da sıfırla
+                if (APP_STATE.testScores && APP_STATE.testScores[studentId]) {
+                    Object.keys(APP_STATE.testScores[studentId]).forEach(testId => {
+                        if (typeof APP_STATE.testScores[studentId][testId] === 'object') {
+                            // Test detayları için
+                            if (APP_STATE.testScores[studentId][testId].correct !== undefined) {
+                                APP_STATE.testScores[studentId][testId].correct = 0;
+                                APP_STATE.testScores[studentId][testId].wrong = 0;
+                                APP_STATE.testScores[studentId][testId].empty = APP_STATE.testScores[studentId][testId].total || 0;
+                                APP_STATE.testScores[studentId][testId].score = 0;
+                            }
+                        } else {
+                            APP_STATE.testScores[studentId][testId] = 0;
+                        }
+                    });
+                }
+            });
+            
+            console.log("✅ Mevcut puanlar sıfırlandı");
+        } else {
+            // Öğrenci yoksa boş objeler oluştur
+            APP_STATE.studentGrades = {};
+            APP_STATE.gradesData = {};
+            if (typeof APP_STATE.testScores !== 'undefined') {
+                APP_STATE.testScores = {};
+            }
+            console.log("ℹ️ Öğrenci bulunamadı, puanlar temizlendi");
         }
         
         // UI'ları güncelle
+        console.log("🔄 UI güncellemeleri başlatılıyor (eski format)...");
+        
         updateAssessmentView();
         updateGradesTable();
         
-        // Öğrenci bazlı not girişi sekmesini temizle
-        const studentGradesContainer = document.getElementById('studentGradesContainer');
-        if (studentGradesContainer) {
-            studentGradesContainer.innerHTML = '<p class="empty-message">Veri bulunamadı.</p>';
-        }
+        // Değerlendirme tablosunu manuel olarak yeniden oluştur
+        setTimeout(() => {
+            console.log("🔄 Değerlendirme tablosu yeniden oluşturuluyor (eski format)...");
+            
+            // Değerlendirme container'ını tamamen temizle ve yeniden oluştur
+            const assessmentContainer = document.getElementById('assessmentContainer');
+            if (assessmentContainer) {
+                console.log("🗑️ Değerlendirme container'ı temizleniyor (eski format)...");
+                assessmentContainer.innerHTML = '<p class="empty-message">Değerlendirme tablosu yeniden oluşturuluyor...</p>';
+            }
+            
+            // Değerlendirme girişi sekmesini zorla güncelle
+            updateAssessmentView();
+            
+            // Öğrenci filtresini de güncelle
+            const assessmentStudentFilter = document.getElementById('assessmentStudentFilter');
+            if (assessmentStudentFilter) {
+                const currentValue = assessmentStudentFilter.value;
+                // Filtreyi tetikle
+                assessmentStudentFilter.dispatchEvent(new Event('change'));
+            }
+        }, 100);
         
-        // Not tablosunu temizle
-        const gradesTableContainer = document.getElementById('gradesTableContainer');
-        if (gradesTableContainer) {
-            gradesTableContainer.innerHTML = '<p class="empty-message">Henüz not hesaplanmadı.</p>';
-        }
+        // SADECE ÖĞRENCI PUANLARINI ITERATIF OLARAK SIFIRLA (ESKİ FORMAT)
+        setTimeout(() => {
+            console.log("🔄 Öğrenci puanları iteratif olarak sıfırlanıyor (eski format)...");
+            
+            // Her öğrenci için tüm puanları sıfırla (veri modelinde)
+            if (APP_STATE.studentData && APP_STATE.studentData.length > 0) {
+                APP_STATE.studentData.forEach((student, studentIndex) => {
+                    const studentId = student.ogrenciNo || student.id;
+                    console.log(`📝 ${studentIndex + 1}. öğrenci (${studentId}) puanları sıfırlanıyor (eski format)...`);
+                    
+                    // Öğrencinin tüm değerlendirme puanlarını sıfırla
+                    if (APP_STATE.gradesData[studentId]) {
+                        Object.keys(APP_STATE.gradesData[studentId]).forEach(assessmentId => {
+                            const oldValue = APP_STATE.gradesData[studentId][assessmentId];
+                            APP_STATE.gradesData[studentId][assessmentId] = 0;
+                            console.log(`  ✅ ${assessmentId}: ${oldValue} → 0 (eski format)`);
+                        });
+                    }
+                    
+                    // Eski format için studentGrades da sıfırla
+                    if (APP_STATE.studentGrades && APP_STATE.studentGrades[studentId]) {
+                        Object.keys(APP_STATE.studentGrades[studentId]).forEach(assessmentId => {
+                            const oldValue = APP_STATE.studentGrades[studentId][assessmentId];
+                            APP_STATE.studentGrades[studentId][assessmentId] = 0;
+                            console.log(`  ✅ Eski Format ${assessmentId}: ${oldValue} → 0`);
+                        });
+                    }
+                    
+                    // Öğrencinin test skorlarını da sıfırla
+                    if (APP_STATE.testScores && APP_STATE.testScores[studentId]) {
+                        Object.keys(APP_STATE.testScores[studentId]).forEach(testId => {
+                            const oldValue = APP_STATE.testScores[studentId][testId];
+                            APP_STATE.testScores[studentId][testId] = 0;
+                            console.log(`  ✅ Test ${testId}: ${oldValue} → 0 (eski format)`);
+                        });
+                    }
+                });
+                
+                console.log(`✅ ${APP_STATE.studentData.length} öğrencinin puanları başarıyla sıfırlandı (eski format)`);
+            } else {
+                console.log("ℹ️ Öğrenci bulunamadı, sadece veri yapıları temizlendi (eski format)");
+            }
+            
+        }, 300);
         
+        // 5. GÜÇLÜ GUI GÜNCELLEMESİ - Çoklu zamanlı güncelleme (ESKİ FORMAT)
+        setTimeout(() => {
+            console.log("🔄 Final güncelleme - değerlendirme tablosu güçlü güncelleme başlatılıyor (eski format)...");
+            
+            // Çoklu güncelleme dalgası
+            updateAssessmentView();
+            
+            // Container'ı temizle ve yeniden oluştur
+            const assessmentContainer = document.getElementById('assessmentContainer');
+            if (assessmentContainer) {
+                console.log("🗑️ Assessment container temizleniyor ve yeniden oluşturuluyor (eski format)...");
+                assessmentContainer.innerHTML = '<p class="empty-message">Değerlendirme tablosu güncelleniyor...</p>';
+                
+                // Hemen ardından yeniden oluştur
+                setTimeout(() => {
+                    updateAssessmentView();
+                }, 50);
+            }
+            
+            // Tüm input'lara 0 değerini zorla uygula
+            setTimeout(() => {
+                const allInputs = document.querySelectorAll('#assessmentContainer input[type="number"]');
+                allInputs.forEach((input, index) => {
+                    // Sadece öğrenci puan input'larını güncelle (readonly veya disabled olmayanları)
+                    if (!input.readOnly && !input.disabled) {
+                        const inputId = input.id || '';
+                        const inputName = input.name || '';
+                        
+                        // Maksimum puan input'larını atla
+                        if (!inputId.includes('max') && !inputId.includes('total') && 
+                            !inputId.includes('limit') && !inputId.includes('point') &&
+                            !inputName.includes('max') && !inputName.includes('total') && 
+                            !inputName.includes('limit') && !inputName.includes('point')) {
+                            
+                            input.value = '0';
+                            input.dispatchEvent(new Event('input', { bubbles: true }));
+                            console.log(`🔄 Input ${index + 1} güncellendi (eski format): ${inputId || inputName} → 0`);
+                        }
+                    }
+                });
+            }, 100);
+            
+        }, 500);
+        
+        // 6. NOTLARI VE HESAPLAMALARI YENİDEN HESAPLA (ESKİ FORMAT - SEKME DEĞİŞTİRMEDEN)
+        setTimeout(() => {
+            console.log("🧮 Puanlar sıfırlandıktan sonra tüm hesaplamalar yeniden yapılıyor (eski format - sekme korunacak)...");
+            
+            // Mevcut aktif sekmeyi kaydet
+            const currentActiveTab = document.querySelector('.nav-tab.active');
+            const currentActiveContent = document.querySelector('.nav-content.active');
+            console.log("💾 Mevcut aktif sekme kaydedildi (eski format):", currentActiveTab?.getAttribute('data-tab'));
+            
+            // Not hesaplama fonksiyonunu sekme korumalı çağır (eski format)
+            if (typeof calculateGrades === 'function') {
+                console.log("🧮 calculateGrades çağrılıyor (eski format - sekme korumalı)...");
+                
+                // Sekme geçişini engelleyen kapsamlı wrapper fonksiyon (eski format)
+                const originalShowTab = window.showTab;
+                const originalSwitchTab = window.switchTab;
+                const originalActivateTab = window.activateTab;
+                const originalShowGradesTab = window.showGradesTab;
+                const originalSwitchToGrades = window.switchToGrades;
+                const originalActivateGradesTab = window.activateGradesTab;
+                
+                // Tüm sekme fonksiyonlarını geçici olarak devre dışı bırak (eski format)
+                window.showTab = function() { console.log("🚫 showTab engellendi (eski format)"); };
+                window.switchTab = function() { console.log("🚫 switchTab engellendi (eski format)"); };
+                window.activateTab = function() { console.log("🚫 activateTab engellendi (eski format)"); };
+                window.showGradesTab = function() { console.log("🚫 showGradesTab engellendi (eski format)"); };
+                window.switchToGrades = function() { console.log("🚫 switchToGrades engellendi (eski format)"); };
+                window.activateGradesTab = function() { console.log("🚫 activateGradesTab engellendi (eski format)"); };
+                
+                // Click event'lerini de geçici olarak engelle (eski format)
+                const tabElements = document.querySelectorAll('.nav-tab');
+                const originalClickHandlers = [];
+                tabElements.forEach((tab, index) => {
+                    originalClickHandlers[index] = tab.onclick;
+                    tab.onclick = function(e) { 
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        console.log("🚫 Tab click engellendi (eski format):", tab.getAttribute('data-tab')); 
+                        return false;
+                    };
+                });
+                
+                try {
+                    // Hesaplama yap
+                    calculateGrades();
+                    console.log("✅ Notlar başarıyla yeniden hesaplandı (eski format - sekme korumalı)");
+                } catch (error) {
+                    console.error("❌ calculateGrades hatası (eski format):", error);
+                } finally {
+                    // Tüm sekme fonksiyonlarını geri yükle (eski format)
+                    if (originalShowTab) window.showTab = originalShowTab;
+                    if (originalSwitchTab) window.switchTab = originalSwitchTab;
+                    if (originalActivateTab) window.activateTab = originalActivateTab;
+                    if (originalShowGradesTab) window.showGradesTab = originalShowGradesTab;
+                    if (originalSwitchToGrades) window.switchToGrades = originalSwitchToGrades;
+                    if (originalActivateGradesTab) window.activateGradesTab = originalActivateGradesTab;
+                    
+                    // Click handler'ları geri yükle (eski format)
+                    tabElements.forEach((tab, index) => {
+                        tab.onclick = originalClickHandlers[index];
+                    });
+                    
+                    console.log("🔄 Tüm sekme fonksiyonları ve event handler'lar geri yüklendi (eski format)");
+                }
+                
+                // Hesaplama sonrası sekmeyi zorla geri döndür
+                if (currentActiveTab && currentActiveContent) {
+                    // Tüm sekmeleri pasif yap
+                    document.querySelectorAll('.nav-tab').forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    document.querySelectorAll('.nav-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Orijinal sekmeyi geri getir
+                    currentActiveTab.classList.add('active');
+                    currentActiveContent.classList.add('active');
+                    console.log("🔄 Orijinal sekme zorla geri getirildi (eski format)");
+                }
+            } else {
+                console.log("⚠️ calculateGrades fonksiyonu bulunamadı (eski format)");
+            }
+            
+            // Değerlendirme tablosundaki hesaplamaları da yenile
+            if (typeof updateAssessmentCalculations === 'function') {
+                updateAssessmentCalculations();
+                console.log("✅ Değerlendirme hesaplamaları güncellendi (eski format)");
+            }
+            
+            // Tüm input hesaplamalarını zorla yenile
+            const assessmentContainer = document.getElementById('assessmentContainer');
+            if (assessmentContainer) {
+                const allInputs = assessmentContainer.querySelectorAll('input[type="number"]');
+                allInputs.forEach(input => {
+                    // Input event'lerini tetikle
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                console.log(`✅ ${allInputs.length} input hesaplaması tetiklendi (eski format)`);
+            }
+            
+            // Notlar sekmesini güncelle (ama sekme değiştirme)
+            updateGradesTable();
+            
+            // Tekrar sekmeyi kontrol et ve düzelt
+            setTimeout(() => {
+                if (currentActiveTab && currentActiveContent) {
+                    // Tüm sekmeleri pasif yap
+                    document.querySelectorAll('.nav-tab').forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    document.querySelectorAll('.nav-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    
+                    // Orijinal sekmeyi geri getir
+                    currentActiveTab.classList.add('active');
+                    currentActiveContent.classList.add('active');
+                    console.log("🔄 Sekme tekrar düzeltildi (eski format)");
+                }
+            }, 50);
+            
+            // İstatistikleri güncelle
+            if (typeof updateModernStats === 'function') {
+                updateModernStats();
+            }
+            if (typeof updatePassFailCounts === 'function') {
+                updatePassFailCounts();
+            }
+            
+            // Değerlendirme girişini bir kez daha güncelle
+            setTimeout(() => {
+                updateAssessmentView();
+                console.log("🔄 Değerlendirme girişi son kez güncellendi (eski format)");
+                
+                // Tüm satırlardaki hesaplama fonksiyonlarını zorla tetikle
+                setTimeout(() => {
+                    const assessmentRows = document.querySelectorAll('#assessmentContainer tr');
+                    assessmentRows.forEach((row, index) => {
+                        // Her satırdaki input'ları bul ve hesaplama event'lerini tetikle
+                        const inputs = row.querySelectorAll('input[type="number"]');
+                        inputs.forEach(input => {
+                            if (!input.readOnly && !input.disabled) {
+                                // Hesaplama fonksiyonlarını tetikle
+                                input.dispatchEvent(new Event('blur', { bubbles: true }));
+                                input.dispatchEvent(new Event('focusout', { bubbles: true }));
+                            }
+                        });
+                    });
+                    console.log(`🔄 ${assessmentRows.length} satır hesaplaması tetiklendi (eski format)`);
+                }, 50);
+                
+            }, 100);
+            
+        }, 700);
+
+        // 7. ZORLA DERS TANIMLAMA SEKMESİNDE KAL (ESKİ FORMAT)
+        setTimeout(() => {
+            console.log("📍 ZORLA Ders Tanımlama sekmesinde tutuluyor (eski format)...");
+            
+            // Ders Tanımlama sekmesini zorla aktif yap
+            const definitionTab = document.querySelector('[data-tab="definition"]');
+            const definitionContent = document.getElementById('definition-content');
+            
+            if (definitionTab && definitionContent) {
+                // Tüm sekmeleri pasif yap
+                document.querySelectorAll('.nav-tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelectorAll('.nav-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                // Ders Tanımlama sekmesini zorla aktif yap
+                definitionTab.classList.add('active');
+                definitionContent.classList.add('active');
+                
+                console.log("✅ ZORLA Ders Tanımlama sekmesi aktif edildi (eski format)");
+                
+                // Bir kez daha kontrol et ve zorla düzelt
+                setTimeout(() => {
+                    if (!definitionTab.classList.contains('active')) {
+                        // Tüm sekmeleri pasif yap
+                        document.querySelectorAll('.nav-tab').forEach(tab => {
+                            tab.classList.remove('active');
+                        });
+                        document.querySelectorAll('.nav-content').forEach(content => {
+                            content.classList.remove('active');
+                        });
+                        
+                        // Ders Tanımlama sekmesini tekrar zorla aktif yap
+                        definitionTab.classList.add('active');
+                        definitionContent.classList.add('active');
+                        console.log("🔄 Ders Tanımlama sekmesi TEKRAR zorla aktif edildi (eski format)");
+                    }
+                }, 100);
+                
+                // 900ms sonra son kontrol ve Notlar sekmesi kapama (eski format)
+                setTimeout(() => {
+                    const gradesTab = document.querySelector('.nav-tab[data-tab="grades"]');
+                    const gradesContent = document.querySelector('#grades-content');
+                    
+                    // Eğer hala Notlar sekmesi aktifse zorla düzelt
+                    if (gradesTab?.classList.contains('active') || gradesContent?.classList.contains('active')) {
+                        console.log("⚠️ 900ms sonra Notlar sekmesi hala aktif! Zorla düzeltiliyor... (eski format)");
+                        
+                        // Notlar sekmesini kapat
+                        gradesTab?.classList.remove('active');
+                        gradesContent?.classList.remove('active');
+                        
+                        // Ders Tanımlama sekmesini aç
+                        definitionTab?.classList.add('active');
+                        definitionContent?.classList.add('active');
+                        
+                        console.log("🔧 Sekme zorla düzeltildi (900ms - eski format)");
+                    } else {
+                        console.log("✅ Sekme durumu doğru (900ms - eski format)");
+                    }
+                }, 900);
+                
+            } else {
+                console.log("⚠️ Ders Tanımlama sekmesi bulunamadı (eski format)");
+            }
+            
+        }, 900);
+
         // Eski format fonksiyonları varsa çağır
         if (typeof updateGradeDisplays === 'function') {
             updateGradeDisplays();
@@ -21428,11 +22309,11 @@ function performClearScores() {
             updatePassFailCounts();
         }
         
-        showModernToast("📊 Tüm öğrenci puanları silindi!", "success");
+        showModernToast("🔄 Tüm öğrenci puanları sıfırlandı ve notlar yeniden hesaplandı! Maksimum puanlar korundu, sadece alınan puanlar 0 yapıldı.", "success");
         
     } catch (error) {
-        console.error("Puanlar temizlenirken hata:", error);
-        showModernToast("❌ Puanlar temizlenemedi!", "error");
+        console.error("Puanlar sıfırlanırken hata:", error);
+        showModernToast("❌ Puanlar sıfırlanamadı!", "error");
     }
 }
 
@@ -22761,8 +23642,13 @@ function generateMultipleRandomTermAssessments() {
             cancelText: 'İptal',
         confirmClass: 'btn-modern-primary',
         cancelClass: 'btn-modern-secondary'
-    }).then(() => {
-        executeGenerateMultipleRandomTermAssessments();
+    }).then((confirmed) => {
+        if (confirmed) {
+            executeGenerateMultipleRandomTermAssessments();
+        } else {
+            console.log('👤 Kullanıcı yarıyıl içi etkinlik oluşturmayı iptal etti');
+            showModernToast('❌ Yarıyıl içi etkinlik oluşturma iptal edildi', 'info', 2000);
+        }
     });
 }
 
@@ -22823,8 +23709,13 @@ function generateMultipleRandomFinalAssessments() {
             cancelText: 'İptal',
         confirmClass: 'btn-modern-success',
         cancelClass: 'btn-modern-secondary'
-    }).then(() => {
-        executeGenerateMultipleRandomFinalAssessments();
+    }).then((confirmed) => {
+        if (confirmed) {
+            executeGenerateMultipleRandomFinalAssessments();
+        } else {
+            console.log('👤 Kullanıcı yarıyıl sonu etkinlik oluşturmayı iptal etti');
+            showModernToast('❌ Yarıyıl sonu etkinlik oluşturma iptal edildi', 'info', 2000);
+        }
     });
 }
 
