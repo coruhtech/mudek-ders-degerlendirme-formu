@@ -4465,9 +4465,9 @@ function createAssessmentActivitySection(activity, container, type) {
                                     ${getStudentTotalEarnedPointsForComponent(student.studentId, activity.id)}
                                 </td>
                                 <td>
-                                    <input type="number" min="0" max="${maxPoints}" 
-                                        data-student-id="${student.studentId}" 
-                                        data-activity-id="${activity.id}" 
+                                                        <input type="number" min="0" max="100"
+                        data-student-id="${student.studentId}"
+                        data-activity-id="${activity.id}" 
                                         value="${getStudentGrade(student.studentId, activity.id) || ''}"
                                         onchange="updateStudentGrade(this)"
                                         placeholder="0-${maxPoints}"
@@ -4964,7 +4964,7 @@ function createSubItemInputSection(subItem, container) {
                             <span class="outcomes-badge">${Array.isArray(studentOutcomes) ? studentOutcomes.join(', ') : (studentOutcomes || '-')}</span>
                         </td>` : ''}
                         <td>
-                            <input type="number" min="0" max="${maxPoints}" 
+                            <input type="number" min="0" max="100" 
                                 data-student-id="${student.studentId}" 
                                 data-activity-id="${actualQuestionId}"
                                 data-paper-order="${paperOrder}"
@@ -5511,15 +5511,20 @@ function updateStudentGrade(input) {
             return;
         }
         
-        // Maksimum puan kontrolü
+        // Maksimum puan kontrolü - Görsel uyarı sistemi
         const maxPoints = activity.points || 100;
         let value = parseFloat(input.value) || 0;
         
-        // Maksimum puanı aşan değerleri sınırla
+        // Maksimum puanı aşan değerler için görsel uyarı (değeri değiştirmeden)
         if (value > maxPoints) {
-            value = maxPoints;
-            input.value = maxPoints;
-            showModernToast(`Dikkat: Puan ${maxPoints} değerinden büyük olamaz!`, "warning");
+            input.style.borderColor = '#ff6b6b';
+            input.style.backgroundColor = '#fff5f5';
+            input.title = `⚠️ Girilen puan (${value}) maksimum puandan (${maxPoints}) büyük!`;
+            // Değeri değiştirmiyoruz, sadece uyarı veriyoruz
+        } else {
+            input.style.borderColor = '';
+            input.style.backgroundColor = '';
+            input.title = `Maksimum puan: ${maxPoints}`;
         }
         
         // Öğrenci verisi oluştur
@@ -8853,7 +8858,7 @@ function createStudentSubItemInputSection(student, subItem) {
                     <td class="grade-input-cell">
                         <input type="number" 
                                min="0" 
-                               max="${maxPoints}" 
+                               max="100" 
                                step="0.1"
                                class="grade-input" 
                                data-student-id="${student.studentId}" 
@@ -9008,7 +9013,7 @@ function createStudentTestInputSection(student, testItem) {
                     <td class="grade-input-cell">
                         <input type="number" 
                                min="0" 
-                               max="${maxPoints}" 
+                               max="100" 
                                step="0.1"
                                class="grade-input" 
                                data-student-id="${student.studentId}" 
@@ -9050,15 +9055,20 @@ function updateStudentGradeFromStudentView(input) {
             return;
         }
         
-        // Maksimum puan kontrolü
+        // Maksimum puan kontrolü - Görsel uyarı sistemi
         const maxPoints = activity.points || 100;
         let value = parseFloat(input.value) || 0;
         
-        // Maksimum puanı aşan değerleri sınırla
+        // Maksimum puanı aşan değerler için görsel uyarı (değeri değiştirmeden)
         if (value > maxPoints) {
-            value = maxPoints;
-            input.value = maxPoints;
-            showModernToast(`Dikkat: Puan ${maxPoints} değerinden büyük olamaz!`, "warning");
+            input.style.borderColor = '#ff6b6b';
+            input.style.backgroundColor = '#fff5f5';
+            input.title = `⚠️ Girilen puan (${value}) maksimum puandan (${maxPoints}) büyük!`;
+            // Değeri değiştirmiyoruz, sadece uyarı veriyoruz
+        } else {
+            input.style.borderColor = '';
+            input.style.backgroundColor = '';
+            input.title = `Maksimum puan: ${maxPoints}`;
         }
         
         // Öğrenci verisi oluştur
@@ -11770,7 +11780,7 @@ function refreshAssessmentViewForStudent(studentId, componentId) {
             // Input alanını güncelle
             const input = row.querySelector('input[data-student-id]');
             if (input && question) {
-                input.max = question.points;
+                
                 input.placeholder = `0-${question.points}`;
                 input.dataset.activityId = questionId;
                 
@@ -11947,7 +11957,7 @@ function updateQuestionInfoForComponent(studentId, groupId, componentId) {
                         input.dataset.activityId = questionId;
                     }
                     
-                    input.max = newPoints;
+                    
                     input.placeholder = `0-${newPoints}`;
                     
                     // Maksimum puan bilgisini title'da göster
@@ -11964,42 +11974,13 @@ function updateQuestionInfoForComponent(studentId, groupId, componentId) {
                     }
                     maxInfoSpan.textContent = `(max: ${newPoints})`;
                     
-                    // Eğer mevcut değer yeni maksimumdan büyükse, uyarı ver ve düzelt
+                    // Eğer mevcut değer yeni maksimumdan büyükse, sadece görsel uyarı ver (değeri değiştirme)
                     const currentValue = parseFloat(input.value);
                     if (currentValue > newPoints) {
-                        const oldValue = currentValue;
-                        input.value = newPoints; // Otomatik düzelt
                         input.style.borderColor = '#ff6b6b';
                         input.style.backgroundColor = '#fff5f5';
-                        
-                        // Düzeltilmiş değeri kaydet
-                        if (questionId) {
-                            // Grup bazlı not saklama sistemi
-                            if (!APP_STATE.gradesData[studentId]) {
-                                APP_STATE.gradesData[studentId] = {};
-                            }
-                            if (!APP_STATE.gradesData[studentId].grupBazliNotlar) {
-                                APP_STATE.gradesData[studentId].grupBazliNotlar = {};
-                            }
-                            
-                            const studentGroup = getStudentGroupForComponent(studentId, componentId);
-                            if (!APP_STATE.gradesData[studentId].grupBazliNotlar[studentGroup]) {
-                                APP_STATE.gradesData[studentId].grupBazliNotlar[studentGroup] = {};
-                            }
-                            
-                            APP_STATE.gradesData[studentId].grupBazliNotlar[studentGroup][questionId] = newPoints;
-                            APP_STATE.gradesData[studentId][questionId] = newPoints;
-                            
-                            console.log(`🔧 Puan otomatik düzeltildi: ${oldValue} → ${newPoints}`);
-                        }
-                        
-                        showModernToast(`${studentId} öğrencisinin kağıt sırası ${paperOrder} sorusundaki puanı otomatik olarak ${oldValue} → ${newPoints} düzeltildi!`, "warning");
-                        
-                        // Borderi 3 saniye sonra temizle
-                        setTimeout(() => {
-                            input.style.borderColor = '';
-                            input.style.backgroundColor = '';
-                        }, 3000);
+                        input.title += ` (Mevcut değer ${currentValue} maksimumdan büyük!)`;
+                        console.log(`⚠️ Uyarı: ${studentId} öğrencisinin kağıt sırası ${paperOrder} sorusu puanı (${currentValue}) maksimumdan (${newPoints}) büyük!`);
                     } else {
                         input.style.borderColor = '';
                         input.style.backgroundColor = '';
@@ -12094,7 +12075,7 @@ function updateQuestionInfoForComponent(studentId, groupId, componentId) {
                     // Input alanının max değerini güncelle
                     const input = row.querySelector(`input[data-student-id="${studentId}"]`);
                     if (input) {
-                        input.max = newPoints;
+                        
                         input.placeholder = `0-${newPoints}`;
                         input.title = `Bu aktivitenin maksimum puanı: ${newPoints}`;
                         
@@ -12200,7 +12181,7 @@ function updateQuestionPointsInAssessmentTable(studentId) {
                         input.dataset.activityId = questionId;
                     }
                     
-                    input.max = newPoints;
+                    
                     input.placeholder = `0-${newPoints}`;
                     input.title = `Bu öğrencinin grubundaki bu sorunun maksimum puanı: ${newPoints}`;
                     
@@ -17096,7 +17077,7 @@ function createComponentPaperOrderInputSection(activity, container) {
                                     <span class="outcomes-badge">${Array.isArray(studentOutcomes) ? studentOutcomes.join(', ') : (studentOutcomes || '-')}</span>
                                 </td>` : ''}
                                 <td>
-                                    <input type="number" min="0" max="${maxPoints}" 
+                                    <input type="number" min="0" max="100" 
                                         data-student-id="${student.studentId}" 
                                         data-activity-id="${actualQuestionId}"
                                         data-paper-order="${paperOrder}"
@@ -24764,6 +24745,26 @@ function attachInstantUpdateListeners() {
             clearTimeout(typingTimer);
             typingTimer = setTimeout(() => instantAssessmentRefresh("Metin girişi"), 400);
         }
+        
+        // Puan input'ları için görsel uyarı sistemi
+        if (e.target.type === 'number' && e.target.dataset.activityId) {
+            const activityId = e.target.dataset.activityId;
+            const activity = findNodeById(activityId);
+            if (activity) {
+                const maxPoints = activity.points || 100;
+                const value = parseFloat(e.target.value) || 0;
+                
+                if (value > maxPoints) {
+                    e.target.style.borderColor = '#ff6b6b';
+                    e.target.style.backgroundColor = '#fff5f5';
+                    e.target.title = `⚠️ Girilen puan (${value}) maksimum puandan (${maxPoints}) büyük!`;
+                } else {
+                    e.target.style.borderColor = '';
+                    e.target.style.backgroundColor = '';
+                    e.target.title = `Maksimum puan: ${maxPoints}`;
+                }
+            }
+        }
     });
     
     console.log('✅ Anında güncelleme dinleyicileri aktif!');
@@ -27006,9 +27007,18 @@ function restoreGroupMappings(savedMappings, oldToNewIdMap) {
     console.log(`📊 Kayıtlı haritalamalar:`, Object.keys(savedMappings));
     console.log(`📊 ID Mapping:`, oldToNewIdMap);
     
-    // Önce eski ID'lere ait tüm haritalamları temizle
+    // CRITICAL FIX: ID'ler gerçekten değişip değişmediğini kontrol et
+    const hasActualIdChanges = Object.keys(oldToNewIdMap).some(oldId => oldId !== oldToNewIdMap[oldId]);
+    
+    if (!hasActualIdChanges) {
+        console.log(`⚠️ ID'ler değişmediği için haritalama geri yükleme atlanıyor`);
+        return;
+    }
+    
+    // Önce sadece gerçekten değişen ID'lere ait haritalamları temizle
     Object.keys(oldToNewIdMap).forEach(oldId => {
-        if (APP_STATE.courseData.grupHaritalari[oldId]) {
+        const newId = oldToNewIdMap[oldId];
+        if (oldId !== newId && APP_STATE.courseData.grupHaritalari[oldId]) {
             delete APP_STATE.courseData.grupHaritalari[oldId];
             console.log(`🗑️ Eski haritalama silindi: ${oldId}`);
         }
@@ -27017,7 +27027,7 @@ function restoreGroupMappings(savedMappings, oldToNewIdMap) {
     // Yeni ID'lerle haritalamları geri yükle
     Object.keys(savedMappings).forEach(oldId => {
         const newId = oldToNewIdMap[oldId];
-        if (newId && savedMappings[oldId]) {
+        if (newId && savedMappings[oldId] && oldId !== newId) {
             // Yeni ID için haritalamayı kopyala
             APP_STATE.courseData.grupHaritalari[newId] = JSON.parse(JSON.stringify(savedMappings[oldId]));
             
@@ -27767,11 +27777,47 @@ async function moveComponentWithinParent(draggedId, targetId) {
         parentNode.children.splice(draggedIndex, 1);
         parentNode.children.splice(targetIndex, 0, draggedChild);
         
-        // Tüm sistemdeki ID'leri yeniden düzenle
-        const oldToNewIdMap = await reorganizeAllIds();
+        // ID mapping'i oluştur (ID güncelleme öncesi)
+        const oldToNewIdMap = {};
+        parentNode.children.forEach((child, index) => {
+            const oldId = child.id;
+            const newId = `${draggedParent}.${index + 1}`;
+            oldToNewIdMap[oldId] = newId;
+        });
         
-        // Grup haritalamalarını geri yükle
-        restoreGroupMappings(savedMappings, oldToNewIdMap);
+        // Alt bileşenlerin ID'lerini parent içinde yeniden düzenle
+        parentNode.children.forEach((child, index) => {
+            const newChildId = `${draggedParent}.${index + 1}`;
+            updateNodeIdRecursive(child, newChildId);
+        });
+        
+        // Grup haritalamalarını ID mapping'e göre güncelle
+        if (APP_STATE.courseData.grupHaritalari[draggedParent]) {
+            const parentMapping = APP_STATE.courseData.grupHaritalari[draggedParent];
+            if (parentMapping.haritalar) {
+                Object.keys(parentMapping.haritalar).forEach(groupName => {
+                    const groupMapping = parentMapping.haritalar[groupName];
+                    const updatedGroupMapping = {};
+                    
+                    // Her pozisyon için doğru ID mapping'i kullan
+                    Object.keys(groupMapping).forEach(position => {
+                        const oldQuestionId = groupMapping[position];
+                        
+                        // Eğer bu bir parent'a ait soru ID'si ise mapping'i kullan
+                        if (oldToNewIdMap[oldQuestionId]) {
+                            const newQuestionId = oldToNewIdMap[oldQuestionId];
+                            updatedGroupMapping[position] = newQuestionId;
+                            console.log(`📝 Grup haritalama güncellendi: ${oldQuestionId} → ${newQuestionId}`);
+                        } else {
+                            // Mapping'de yoksa eski değeri koru
+                            updatedGroupMapping[position] = oldQuestionId;
+                        }
+                    });
+                    
+                    parentMapping.haritalar[groupName] = updatedGroupMapping;
+                });
+            }
+        }
         
         // Ağacı yeniden render et
         renderTree();
