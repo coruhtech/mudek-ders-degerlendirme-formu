@@ -65,44 +65,45 @@
 }
 
 /* =====================================================
-   CSS VARIABLES
+   CSS VARIABLES - RTEÜ TEMASı
    ===================================================== */
 
 :root {
-    --primary-color: #1F4E78;
-    --primary-light: #2F6EA8;
-    --primary-dark: #0F3E68;
-    --secondary-color: #9CC2E5;
-    --secondary-light: #C2D9EF;
-    --secondary-dark: #6899CC;
-    --success-color: #28a745;
-    --success-hover: #218838;
-    --success-light: #48c765;
-    --success-dark: #1e7e34;
+    /* RTEÜ Ana Renk Şeması - Turkuaz Tonları */
+    --primary-color: #4ba3a8;          /* RTEÜ Turkuaz Ana Renk */
+    --primary-light: #6bb6bb;          /* RTEÜ Açık Turkuaz */
+    --primary-dark: #2d7a7e;           /* RTEÜ Koyu Turkuaz */
+    --secondary-color: #7bc4c9;        /* RTEÜ Üçüncül Turkuaz */
+    --secondary-light: #9dd1d5;        /* RTEÜ Açık Üçüncül */
+    --secondary-dark: #5cb3b8;         /* RTEÜ Koyu Üçüncül */
+    --success-color: #5cb3b8;          /* RTEÜ Başarı Rengi */
+    --success-hover: #4ba3a8;
+    --success-light: #7bc4c9;
+    --success-dark: #3d8d92;
     --danger-color: #dc3545;
     --danger-light: #e05c6a;
     --danger-dark: #bd2130;
-    --warning-color: #ffc107;
-    --warning-light: #ffce3a;
-    --warning-dark: #d39e00;
-    --info-color: #17a2b8;
-    --info-light: #3ab1c3;
-    --info-dark: #138496;
+    --warning-color: #f6c23e;
+    --warning-light: #f8d369;
+    --warning-dark: #dda520;
+    --info-color: #6bb6bb;             /* RTEÜ Highlight Turkuaz */
+    --info-light: #7bc4c9;
+    --info-dark: #4ba3a8;
     --border-color: #e0e0e0;
     --text-color: #333;
     --text-light: #666;
-    --text-dark: #111;
-    --bg-color: #f5f5f5;
+    --text-dark: #1e4b4f;              /* RTEÜ Çok Koyu Turkuaz */
+    --bg-color: #f8fafb;               /* Hafif turkuaz tint */
     --card-bg: #ffffff;
-    --header-bg: #f5f8fa;
-    --node-bg: #f9f9f9;
-    --hover-bg: #f0f0f0;
-    --selected-bg: #e0f0ff;
+    --header-bg: #f5f9fa;              /* Turkuaz tint header */
+    --node-bg: #f9fcfd;                /* Turkuaz tint node */
+    --hover-bg: #f0f7f8;               /* Turkuaz tint hover */
+    --selected-bg: #e8f4f5;            /* Turkuaz tint selected */
     --rubric-color: #E6B8AF;
     --question-color: #B8E0D2;
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.1);
+    --shadow-sm: 0 2px 4px rgba(75, 163, 168, 0.05);
+    --shadow-md: 0 4px 8px rgba(75, 163, 168, 0.1);
+    --shadow-lg: 0 8px 16px rgba(75, 163, 168, 0.1);
     --radius-sm: 4px;
     --radius-md: 6px;
     --radius-lg: 12px;
@@ -190,7 +191,7 @@ button {
 
 button:focus, input:focus, select:focus, textarea:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(31, 78, 120, 0.3);
+    box-shadow: 0 0 0 3px rgba(45, 93, 49, 0.3);
 }
 
 /* Container */
@@ -1995,7 +1996,275 @@ button:focus, input:focus, select:focus, textarea:focus {
     to { width: 0%; }
 }
 
-/* Footer */
+/* =====================================================
+   RTEÜ FOOTER STİLLERİ
+   ===================================================== */
+
+.rte-footer {
+    background: linear-gradient(135deg, #2d7a7e 0%, #1e4b4f 100%);
+    color: white;
+    margin-top: 3rem;
+    padding: 2.5rem 0 1rem;
+    font-size: 14px;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.footer-main {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 3rem;
+    margin-bottom: 2rem;
+}
+
+.footer-logo-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.footer-logo {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.footer-logo img {
+    height: 60px;
+    filter: brightness(1.2);
+}
+
+.footer-university-info h3 {
+    color: white;
+    margin: 0 0 0.5rem 0;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.footer-university-info p {
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0.25rem 0;
+    font-size: 0.95rem;
+}
+
+.footer-faculty {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-style: italic;
+}
+
+.footer-links {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+}
+
+.footer-section h4 {
+    color: #7bc4c9;
+    margin: 0 0 1rem 0;
+    font-size: 1rem;
+    font-weight: 600;
+    border-bottom: 2px solid #4ba3a8;
+    padding-bottom: 0.5rem;
+}
+
+.footer-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.footer-section ul li {
+    margin: 0.5rem 0;
+}
+
+.footer-section ul li a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+}
+
+.footer-section ul li a:hover {
+    color: #9dd1d5;
+    transform: translateX(5px);
+}
+
+.contact-info p {
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0.75rem 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.contact-info i {
+    color: #7bc4c9;
+    margin-top: 0.1rem;
+    min-width: 16px;
+}
+
+.project-info p {
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0.75rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.project-info i {
+    color: #7bc4c9;
+    min-width: 16px;
+}
+
+.project-developer {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.95) !important;
+}
+
+.project-company {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.project-email a {
+    color: #9dd1d5;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.project-website a {
+    color: #9dd1d5;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.project-website a:hover,
+
+
+.company-logo a {
+    display: inline-block;
+    transition: transform 0.3s ease;
+}
+
+.company-logo a:hover {
+    transform: scale(1.05);
+}
+
+.project-address {
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0.75rem 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    line-height: 1.4;
+}
+
+.project-email a:hover {
+    color: white;
+}
+
+.footer-bottom {
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 1.5rem;
+    text-align: center;
+}
+
+.footer-bottom-content p {
+    color: rgba(255, 255, 255, 0.8);
+    margin: 0.5rem 0;
+    font-size: 0.9rem;
+}
+
+.footer-note {
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-style: italic;
+    font-size: 0.85rem !important;
+}
+
+/* Responsive Footer */
+@media (max-width: 992px) {
+    .footer-main {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+    
+    .footer-links {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .rte-footer {
+        padding: 2rem 0 1rem;
+    }
+    
+    .footer-content {
+        padding: 0 1rem;
+    }
+    
+    .footer-logo {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .footer-logo img {
+        height: 50px;
+    }
+    
+    .footer-university-info {
+        text-align: center;
+    }
+    
+    .footer-links {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .footer-section {
+        text-align: center;
+    }
+    
+    .contact-info p,
+    .project-info p {
+        justify-content: center;
+        text-align: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .rte-footer {
+        padding: 1.5rem 0 1rem;
+    }
+    
+    .footer-university-info h3 {
+        font-size: 1rem;
+    }
+    
+    .footer-section h4 {
+        font-size: 0.9rem;
+    }
+    
+    .contact-info p,
+    .project-info p {
+        font-size: 0.85rem;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .footer-bottom-content p {
+        font-size: 0.8rem;
+    }
+}
+
+/* Legacy Footer (eski footer stilleri korunuyor) */
 footer {
     margin-top: var(--spacing-xl);
     text-align: center;
@@ -3188,18 +3457,8 @@ footer {
     background: linear-gradient(135deg, #218838, #1e7e34);
 }
 
-.btn-modern-cyan {
-    background: linear-gradient(135deg, #20c997, #1a9f7a);
-    color: white;
-}
-
 .btn-modern-cyan:hover {
     background: linear-gradient(135deg, #1a9f7a, #17a2b8);
-}
-
-.btn-modern-purple {
-    background: linear-gradient(135deg, #6f42c1, #5a32a3);
-    color: white;
 }
 
 .btn-modern-purple:hover {
@@ -4026,7 +4285,7 @@ footer {
 .group-select:focus, .position-select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(31, 78, 120, 0.2);
+    box-shadow: 0 0 0 2px rgba(45, 93, 49, 0.2);
 }
 
 /* Öğrenci grup seçici */
@@ -4114,7 +4373,7 @@ footer {
 .mapping-row-modal select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(31, 78, 120, 0.1);
+    box-shadow: 0 0 0 3px rgba(45, 93, 49, 0.1);
 }
 
 .mapping-row-modal select:hover {
@@ -4158,7 +4417,11 @@ footer {
 
 .student-name {
     font-weight: var(--font-weight-medium);
-    color: var(--primary-color);
+    color: var(--text-color);
+    background: var(--card-bg);
+    padding: 0.2rem 0.4rem;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
 }
 
 .student-group {
@@ -4222,7 +4485,7 @@ footer {
 }
 
 .btn-group-mapping:hover {
-    background: #e0a800 !important;
+    background: #dda520 !important;
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
 }
@@ -4270,7 +4533,7 @@ footer {
 .student-group-selector select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(31, 78, 120, 0.2);
+    box-shadow: 0 0 0 2px rgba(45, 93, 49, 0.2);
 }
 
 /* Grup haritalama durum renkleri */
@@ -4446,8 +4709,8 @@ footer {
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem;
-    background: rgba(59, 130, 246, 0.05);
-    border: 1px solid rgba(59, 130, 246, 0.1);
+    background: rgba(45, 93, 49, 0.05);
+    border: 1px solid rgba(45, 93, 49, 0.1);
     border-radius: var(--radius-sm);
     margin-top: 0.5rem;
 }
@@ -4476,7 +4739,7 @@ footer {
 .nodeGroupMapping:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 2px rgba(45, 93, 49, 0.1);
 }
 
 .nodeGroupMapping.success {
@@ -4547,8 +4810,8 @@ footer {
     display: inline-flex;
     align-items: center;
     margin-right: 0.5rem;
-    background: rgba(59, 130, 246, 0.1);
-    border: 1px solid rgba(59, 130, 246, 0.2);
+    background: rgba(45, 93, 49, 0.1);
+    border: 1px solid rgba(45, 93, 49, 0.2);
     border-radius: var(--radius-sm);
     padding: 0.25rem 0.5rem;
 }
@@ -4584,8 +4847,8 @@ footer {
 
 /* Grup haritalama modal - toplu giriş alanları */
 .bulk-input-section {
-    background: rgba(59, 130, 246, 0.05);
-    border: 1px solid rgba(59, 130, 246, 0.1);
+    background: rgba(45, 93, 49, 0.05);
+    border: 1px solid rgba(45, 93, 49, 0.1);
     border-radius: var(--radius-md);
     padding: 1rem;
     margin-bottom: 1rem;
@@ -4626,7 +4889,7 @@ footer {
 .bulk-input:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 2px rgba(45, 93, 49, 0.1);
 }
 
 .bulk-error-messages {
@@ -4984,7 +5247,7 @@ footer {
 .outcomes-textarea:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px rgba(45, 93, 49, 0.1);
 }
 
 .outcomes-available {
@@ -6162,12 +6425,14 @@ footer {
 
 .student-name {
     display: inline-block;
-    background: var(--success-light);
-    color: var(--success-color);
+    background: var(--card-bg);
+    color: var(--text-color);
     padding: 0.2rem 0.4rem;
-    border-radius: 3px;
+    border-radius: 4px;
     margin: 0.1rem;
     font-size: 12px;
+    border: 1px solid var(--border-color);
+    font-weight: var(--font-weight-medium);
 }
 
 /* Responsive design */
@@ -7160,12 +7425,6 @@ footer {
     border-left-color: #4caf50;
 }
 
-.grade-summary-cell.letter-grade.grade-good {
-    background-color: #e3f2fd;
-    color: var(--text-color);
-    border-left-color: #2196f3;
-}
-
 .grade-summary-cell.letter-grade.grade-pass {
     background-color: #fff8e1;
     color: var(--text-color);
@@ -7446,7 +7705,7 @@ footer {
 .assessment-table input[type="number"]:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 0 0 3px rgba(45, 93, 49, 0.2), 0 2px 6px rgba(0, 0, 0, 0.15);
     background-color: #f8f9ff;
     transform: scale(1.02);
 }
@@ -7472,7 +7731,7 @@ footer {
 .assessment-table select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 2px rgba(45, 93, 49, 0.1);
 }
 
 .assessment-table select:hover {
@@ -7575,7 +7834,7 @@ footer {
 }
 
 .email-modal-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #2d5d31 0%, #1a3d1d 100%);
     color: white;
     border-radius: 12px 12px 0 0;
     padding: 24px;
@@ -7625,7 +7884,7 @@ footer {
     left: 0;
     width: 100%;
     height: 4px;
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: linear-gradient(90deg, #2d5d31, #1a3d1d);
     transform: scaleX(0);
     transition: transform 0.3s ease;
 }
@@ -7633,7 +7892,7 @@ footer {
 .email-type-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.12);
-    border-color: #667eea;
+    border-color: #2d5d31;
 }
 
 .email-type-card:hover::before {
@@ -7641,10 +7900,10 @@ footer {
 }
 
 .email-type-card.selected {
-    border-color: #667eea;
+    border-color: #2d5d31;
     background: linear-gradient(145deg, #f7fafc 0%, #edf2f7 100%);
     transform: translateY(-2px);
-    box-shadow: 0 12px 32px rgba(102, 126, 234, 0.2);
+    box-shadow: 0 12px 32px rgba(45, 93, 49, 0.2);
 }
 
 .email-type-card.selected::before {
@@ -7692,7 +7951,7 @@ footer {
 }
 
 .email-type-card.selected .feature-badge {
-    background: linear-gradient(90deg, #667eea, #764ba2);
+    background: linear-gradient(90deg, #2d5d31, #1a3d1d);
     color: white;
     border-color: transparent;
 }
@@ -7838,7 +8097,7 @@ footer {
 }
 
 .smart-scoring-header {
-    background: linear-gradient(135deg, var(--info-color) 0%, #5a67d8 100%);
+    background: linear-gradient(135deg, var(--info-color) 0%, #1a3d1d 100%);
     color: white;
     padding: var(--spacing-md);
     border-bottom: 1px solid rgba(255,255,255,0.1);
@@ -9446,19 +9705,69 @@ input[type="range"].rainbow-slider.final-activity-slider,
     font-weight: 600;
 }
 
+.cleanup-section .btn.btn-danger,
 .cleanup-section .btn-compact.btn-danger {
     background-color: var(--danger-color) !important;
     color: white !important;
     border: 1px solid var(--danger-color) !important;
     font-weight: 600;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    font-size: 0.875rem !important;
+    padding: 0.5rem 0.75rem !important;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    text-align: left;
 }
 
+.cleanup-section .btn.btn-danger:hover,
 .cleanup-section .btn-compact.btn-danger:hover {
     background-color: var(--danger-light) !important;
     color: white !important;
     transform: translateY(-2px);
     box-shadow: 0 6px 12px rgba(220, 53, 69, 0.4);
+}
+
+.cleanup-section .btn.btn-danger svg,
+.cleanup-section .btn-compact.btn-danger svg {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+}
+
+.cleanup-section .btn.btn-secondary {
+    background-color: var(--secondary-color) !important;
+    color: white !important;
+    border: 1px solid var(--secondary-color) !important;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    font-size: 0.875rem !important;
+    padding: 0.5rem 0.75rem !important;
+    min-height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    text-align: left;
+}
+
+.cleanup-section .btn.btn-secondary:hover {
+    background-color: #5a6268 !important;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(108, 117, 125, 0.4);
+}
+
+.cleanup-section .btn.btn-secondary svg {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
 }
 
 /* Responsive Design */
@@ -10528,7 +10837,7 @@ input[type="range"].rainbow-slider.final-activity-slider,
 .outcomes-multiselect:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(31, 78, 120, 0.1);
+    box-shadow: 0 0 0 3px rgba(45, 93, 49, 0.1);
 }
 
 .outcomes-multiselect option {
@@ -10743,7 +11052,7 @@ input[type="range"].rainbow-slider.final-activity-slider,
 .option-input:focus {
     border-color: var(--primary-color);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    box-shadow: 0 0 0 3px rgba(45, 93, 49, 0.1);
 }
 
 .control-group {
@@ -10769,8 +11078,8 @@ input[type="range"].rainbow-slider.final-activity-slider,
 }
 
 #targetActivitySelect:focus {
-    border-color: #007bff;
-    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    border-color: #2d5d31;
+    box-shadow: 0 0 0 0.2rem rgba(45, 93, 49, 0.25);
     outline: none;
     background: #ffffff;
 }
@@ -10801,8 +11110,8 @@ input[type="range"].rainbow-slider.final-activity-slider,
 .points-info {
     margin-top: 8px;
     padding: 8px 12px;
-    background: rgba(33, 150, 243, 0.1);
-    border: 1px solid rgba(33, 150, 243, 0.3);
+    background: rgba(45, 93, 49, 0.1);
+    border: 1px solid rgba(45, 93, 49, 0.3);
     border-radius: 6px;
     font-size: 12px;
     animation: fadeInDown 0.3s ease;
@@ -10812,13 +11121,13 @@ input[type="range"].rainbow-slider.final-activity-slider,
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    color: #1976d2;
+    color: #2d5d31;
 }
 
 .points-info .info-message svg {
     flex-shrink: 0;
     margin-top: 2px;
-    stroke: #1976d2;
+    stroke: #2d5d31;
 }
 
 .points-info .info-message span {
@@ -10941,9 +11250,9 @@ input[type="range"].rainbow-slider.final-activity-slider,
     margin-top: 15px;
     padding: 15px;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
-    background: linear-gradient(135deg, rgba(0, 123, 255, 0.02) 0%, rgba(0, 123, 255, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(45, 93, 49, 0.02) 0%, rgba(45, 93, 49, 0.05) 100%);
     border-radius: 8px;
-    border: 1px solid rgba(0, 123, 255, 0.1);
+    border: 1px solid rgba(45, 93, 49, 0.1);
 }
 
 .sub-components-title {
@@ -10983,17 +11292,17 @@ input[type="range"].rainbow-slider.final-activity-slider,
 
 .sub-component-item:hover {
     background: #f8f9fa;
-    border-color: #007bff;
+    border-color: #2d5d31;
     transform: translateY(-1px);
-    box-shadow: 0 3px 8px rgba(0, 123, 255, 0.15);
+    box-shadow: 0 3px 8px rgba(45, 93, 49, 0.15);
 }
 
 .sub-component-id {
     font-weight: 600;
-    color: #007bff;
+    color: #2d5d31;
     margin-right: 6px;
     font-family: 'Courier New', monospace;
-    background: rgba(0, 123, 255, 0.1);
+    background: rgba(45, 93, 49, 0.1);
     padding: 2px 4px;
     border-radius: 3px;
     font-size: 11px;
@@ -11143,7 +11452,7 @@ input[type="range"].rainbow-slider.final-activity-slider,
 
 .radio-option:hover {
     border-color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.02);
+    background: rgba(45, 93, 49, 0.02);
 }
 
 .radio-option input[type="radio"] {
@@ -11159,8 +11468,8 @@ input[type="range"].rainbow-slider.final-activity-slider,
 
 .radio-option:has(input[type="radio"]:checked) {
     border-color: var(--primary-color);
-    background: rgba(59, 130, 246, 0.05);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: rgba(45, 93, 49, 0.05);
+    box-shadow: 0 0 0 3px rgba(45, 93, 49, 0.1);
 }
 
 .radio-label {
@@ -11214,7 +11523,7 @@ input[type="range"].rainbow-slider.final-activity-slider,
 #targetGroupSelect:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    box-shadow: 0 0 0 3px rgba(45, 93, 49, 0.1);
     background-color: #fafbfc;
 }
 
@@ -11317,5 +11626,132 @@ input[type="range"].rainbow-slider.final-activity-slider,
     .students-list {
         padding: 0.5rem;
         font-size: 0.85rem;
+    }
+}
+
+/* =====================================================
+   RTEÜ ÜNİVERSİTE HEADER STİLLERİ
+   ===================================================== */
+
+.university-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+    color: white;
+    padding: 1rem 0;
+    margin-bottom: 2rem;
+    box-shadow: var(--shadow-lg);
+}
+
+.university-banner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    gap: 2rem;
+}
+
+.rteu-logo img {
+    height: 60px;
+    width: auto;
+    object-fit: contain;
+}
+
+.university-info {
+    flex: 1;
+    text-align: center;
+}
+
+.university-info h1 {
+    color: white;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.university-info .subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1rem;
+    font-weight: 500;
+    margin: 0;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.coruh-logo img {
+    height: 60px;
+    width: auto;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.coruh-logo a:hover img {
+    transform: scale(1.05);
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .university-banner {
+        padding: 0 1.5rem;
+    }
+    
+    .university-info h1 {
+        font-size: 1.6rem;
+    }
+    
+    .university-info .subtitle {
+        font-size: 0.9rem;
+    }
+    
+    .rteu-logo img,
+    .coruh-logo img {
+        height: 50px;
+    }
+}
+
+@media (max-width: 768px) {
+    .university-banner {
+        flex-direction: column;
+        text-align: center;
+        gap: 1.5rem;
+        padding: 0 1rem;
+    }
+    
+    .university-info h1 {
+        font-size: 1.4rem;
+    }
+    
+    .university-info .subtitle {
+        font-size: 0.85rem;
+    }
+    
+    .rteu-logo img,
+    .coruh-logo img {
+        height: 45px;
+    }
+}
+
+@media (max-width: 576px) {
+    .university-header {
+        padding: 0.75rem 0;
+        margin-bottom: 1.5rem;
+    }
+    
+    .university-banner {
+        gap: 1rem;
+        padding: 0 0.75rem;
+    }
+    
+    .university-info h1 {
+        font-size: 1.2rem;
+    }
+    
+    .university-info .subtitle {
+        font-size: 0.8rem;
+    }
+    
+    .rteu-logo img,
+    .coruh-logo img {
+        height: 40px;
     }
 }

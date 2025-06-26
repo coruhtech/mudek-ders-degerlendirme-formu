@@ -3,31 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Ders değerlendirme kriterleri ve öğrenci notları yönetim sistemi">
-    <title>MUDEK Ders Değerlendirme Formu - v2.0</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    <meta name="description" content="RTEÜ Bilgisayar Mühendisliği Bölümü - MUDEK ders değerlendirme kriterleri ve öğrenci notları yönetim sistemi">
+    <title>RTEÜ MUDEK Ders Değerlendirme Formu - v2.0</title>
+    <link rel="icon" href="https://erdogan.edu.tr/Images/Uploads/Logos/logo-small-1.png">
     <link rel="stylesheet" href="styles.css">
     <script src="script.js" defer></script>
     <style>
+        /* RTEÜ Üniversite Header Banner */
+        .university-header {
+            background: linear-gradient(135deg, #2d7a7e 0%, #1e4b4f 100%);
+            color: white;
+            padding: 1.5rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 32px rgba(75, 163, 168, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .university-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 20"><defs><linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="%23ffffff" stop-opacity="0.1"/><stop offset="100%" stop-color="%23ffffff" stop-opacity="0"/></linearGradient></defs><rect width="100" height="20" fill="url(%23a)"/></svg>');
+            pointer-events: none;
+        }
+        
+        .university-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .university-logo {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        
+        .university-logo img {
+            height: 70px;
+            filter: brightness(1.1) drop-shadow(0 2px 8px rgba(0,0,0,0.2));
+            transition: transform 0.3s ease;
+        }
+        
+        .university-logo img:hover {
+            transform: scale(1.05);
+        }
+        
+        .university-info h1 {
+            color: white;
+            margin: 0 0 0.25rem 0;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .university-info .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+            margin: 0;
+            font-weight: 400;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        
+        .developer-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .developer-info:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+        }
+        
+        .coruh-logo a {
+            display: block;
+            transition: transform 0.3s ease;
+        }
+        
+        .coruh-logo img {
+            height: 50px;
+            width: auto;
+            filter: brightness(1.2) drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            transition: transform 0.3s ease;
+        }
+        
+        .coruh-logo:hover img {
+            transform: scale(1.1) rotate(2deg);
+        }
+        
+        .developer-details h3 {
+            margin: 0 0 0.25rem 0;
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            color: white;
+        }
+        
+        .company-subtitle {
+            margin: 0;
+            font-size: 0.8rem;
+            opacity: 0.9;
+            font-weight: 400;
+            letter-spacing: 0.02em;
+            color: rgba(255, 255, 255, 0.85);
+        }
+        
         /* Taşıma Butonları Stili */
         .btn-move-up, .btn-move-down {
-            background: linear-gradient(135deg, #3498db, #2980b9);
+            background: linear-gradient(135deg, #4ba3a8, #2d7a7e);
             border: none; color: white; padding: 4px 6px; border-radius: 3px;
             cursor: pointer; transition: all 0.2s ease; font-size: 10px;
             min-width: 24px; height: 20px; display: inline-flex;
             align-items: center; justify-content: center; margin: 1px;
         }
         .btn-move-up:hover, .btn-move-down:hover {
-            background: linear-gradient(135deg, #2980b9, #21618c);
-            transform: translateY(-1px); box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+            background: linear-gradient(135deg, #2d7a7e, #1e4b4f);
+            transform: translateY(-1px); box-shadow: 0 2px 4px rgba(75, 163, 168, 0.3);
         }
         .btn-move-up svg, .btn-move-down svg { width: 10px; height: 10px; margin-right: 2px; }
+        
+        @media (max-width: 768px) {
+            .university-header {
+                padding: 1.25rem 0;
+            }
+            
+            .university-banner {
+                flex-direction: column;
+                text-align: center;
+                gap: 1.5rem;
+                padding: 0 1rem;
+            }
+            
+            .university-logo {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .university-logo img {
+                height: 60px;
+            }
+            
+            .university-info {
+                text-align: center;
+            }
+            
+            .university-info h1 {
+                font-size: 1.6rem;
+            }
+            
+            .university-info .subtitle {
+                font-size: 1rem;
+            }
+            
+            .developer-info {
+                flex-direction: column;
+                text-align: center;
+                padding: 0.75rem 1rem;
+                margin: 0 auto;
+                max-width: 280px;
+                gap: 0.75rem;
+            }
+            
+            .developer-details h3 {
+                font-size: 1rem;
+            }
+            
+            .company-subtitle {
+                font-size: 0.75rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .university-header {
+                padding: 1rem 0;
+            }
+            
+            .university-info h1 {
+                font-size: 1.4rem;
+                letter-spacing: -0.25px;
+            }
+            
+            .university-info .subtitle {
+                font-size: 0.95rem;
+            }
+            
+            .developer-info {
+                padding: 0.5rem 0.75rem;
+                max-width: 250px;
+                gap: 0.5rem;
+            }
+            
+            .coruh-logo img {
+                height: 40px;
+            }
+            
+            .developer-details h3 {
+                font-size: 0.9rem;
+            }
+            
+            .company-subtitle {
+                font-size: 0.7rem;
+            }
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
+    <!-- RTEÜ Üniversite Header -->
+    <header class="university-header">
+        <div class="university-banner">
+            <div class="rteu-logo">
+                <img src="assets/img/rteu-logo.png" alt="RTEÜ Logo">
+            </div>
+            <div class="university-info">
+                <h1>Recep Tayyip Erdoğan Üniversitesi</h1>
+                <p class="subtitle">Ders Değerlendirme ve Akreditasyon Sistemi</p>
+            </div>
+            <div class="coruh-logo">
+                <a href="http://www.coruh.com.tr/" target="_blank" rel="noopener noreferrer">
+                    <img src="assets/img/coruh-logo-name.png" alt="CORUH R&D Logo">
+                </a>
+            </div>
+        </div>
+    </header>
+
     <div class="container">
         <div class="header">
             <h1>Ders Değerlendirme Sistemi</h1>
@@ -823,8 +1044,76 @@
             </div>
         </div>
         
-        <footer>
-            <p>&copy; 2025 Ders Değerlendirme Sistemi | Bu araç çevrimdışı olarak çalışır. Değişikliklerinizi kaydetmek için "JSON Dışa Aktar" seçeneğini kullanın.</p>
+        <!-- RTEÜ Footer -->
+        <footer class="rte-footer">
+            <div class="footer-content">
+                <div class="footer-main">
+                    <div class="footer-logo-section">
+                        <div class="footer-logo">
+                            <img src="assets/img/rteu-logo.png" alt="RTEÜ Logo">
+                            <div class="footer-university-info">
+                                <h3>Recep Tayyip Erdoğan Üniversitesi</h3>
+                                <p>Akreditasyon Değerlendirme Sistemi</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="footer-links">
+                        <div class="footer-section">
+                            <h4>Hızlı Linkler</h4>
+                            <ul>
+                                <li><a href="https://erdogan.edu.tr" target="_blank">RTEÜ Ana Sayfa</a></li>
+                            </ul>
+                        </div>
+                        
+                        <div class="footer-section">
+                            <h4>Üniversite Bilgileri</h4>
+                            <div class="contact-info">
+                                <p><i class="fas fa-map-marker-alt"></i> Zihni Derin Yerleşkesi, Fener Mahallesi<br>53100 Merkez/RİZE</p>
+                                <p><i class="fas fa-globe"></i> www.erdogan.edu.tr</p>
+                                <p><i class="fas fa-info-circle"></i> Akreditasyon Değerlendirme Sistemi</p>
+                            </div>
+                        </div>
+                        
+                        <div class="footer-section">
+                            <h4>Geliştirici Firma</h4>
+                            <div class="project-info">
+                                <div class="company-logo" style="text-align: center; margin-bottom: 1rem;">
+                                    <a href="http://www.coruh.com.tr/" target="_blank" rel="noopener noreferrer">
+                                        <img src="assets/img/coruh-logo-name.png" 
+                                             alt="CORUH R&D Logo" style="height: 60px; filter: brightness(1.1);">
+                                    </a>
+                                </div>
+                                <p><strong>CORUH R&D and TECHNOLOGY</strong></p>
+                                <p class="project-company">
+                                    <i class="fas fa-building"></i>
+                                    CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ
+                                </p>
+                                <p class="project-developer">
+                                    <i class="fas fa-user-graduate"></i>
+                                    <strong>Dr. Öğr. Üyesi Uğur CORUH</strong>
+                                </p>
+                                <p class="project-website">
+                                    <i class="fas fa-globe"></i>
+                                    <a href="http://www.coruh.com.tr/" target="_blank" rel="noopener noreferrer">www.coruh.com.tr</a>
+                                </p>
+
+                                <p class="project-address">
+                                    <i class="fas fa-map-marker-alt"></i>
+                                    Fener Mah. Atatürk Cad. No:28/2 İç Kapı No:3 Merkez/Rize
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="footer-bottom">
+                    <div class="footer-bottom-content">
+                        <p>CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ &copy; 2025 RTEÜ - Akreditasyon Değerlendirme Sistemi</p>
+                        <p class="footer-note">Bu araç çevrimdışı olarak çalışır. Değişikliklerinizi kaydetmek için "JSON Dışa Aktar" seçeneğini kullanın.</p>
+                    </div>
+                </div>
+            </div>
         </footer>
     </div>
     
@@ -1885,3 +2174,4 @@
 
 </body>
 </html>
+
