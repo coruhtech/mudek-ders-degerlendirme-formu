@@ -1,18 +1,20 @@
-name: Build and Deploy
+name: Build and Release
 
 on:
   push:
-    branches: [ main, develop ]
-    tags: [ 'v*' ]
-  pull_request:
     branches: [ main ]
+    tags: [ 'v*' ]
 
-env:
-  # GitHub Actions optimizasyon
-  NODE_OPTIONS: '--max-old-space-size=4096'
-  CI: true
+permissions:
+  contents: write
+  packages: write
+  issues: write
+  pull-requests: write
+  pages: write
+  id-token: write
 
 jobs:
+  # Web Deploy için GitHub Pages
   web-deploy:
     name: Deploy Web App
     runs-on: ubuntu-latest
@@ -36,137 +38,41 @@ jobs:
       id: deployment
       uses: actions/deploy-pages@v4
 
-  build-electron:
-    name: Build Desktop App
-    runs-on: ${{ matrix.os }}
-    
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-        registry-url: 'https://registry.npmjs.org'
-        
-    - name: Configure npm
-      run: |
-        npm config set fund false
-        npm config set audit false
-        npm config set progress false
-        
-    - name: Cache node modules
-      uses: actions/cache@v3
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
-          
-    - name: Install dependencies
-      run: |
-        npm ci --no-audit --no-fund --prefer-offline --no-optional
-      timeout-minutes: 15
-      
-    - name: Update Version
-      id: update-version
-      run: |
-        # Tarih saat formatında version oluştur
-        BUILD_DATE=$(date +'%Y.%m%d')
-        BUILD_TIME=$(date +'%H%M')
-        BUILD_NUM=$(printf "%04d" ${{ github.run_number }})
-        VERSION_TAG="${BUILD_DATE}.${BUILD_TIME}.${BUILD_NUM}"
-        
-        # Package.json version güncelle
-        npm version $VERSION_TAG --no-git-tag-version
-        
-        echo "version=${VERSION_TAG}" >> $GITHUB_OUTPUT
-        echo "Generated version: ${VERSION_TAG}"
-      
-    - name: Create app icons
-      run: |
-        mkdir -p app/v2/assets/img
-        # Windows için ico dosyası oluştur
-        if [ "${{ matrix.os }}" == "windows-latest" ]; then
-          # Windows'ta icon converter kullanılabilir
-          echo "Windows icon creation placeholder"
-        fi
-        # macOS için icns dosyası oluştur  
-        if [ "${{ matrix.os }}" == "macos-latest" ]; then
-          # macOS'ta iconutil kullanılabilir
-          echo "macOS icon creation placeholder"
-        fi
-        # Linux için png dosyası zaten mevcut
-        if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-          cp app/v2/assets/img/coruh-logo.png app/v2/assets/img/app-icon.png
-        fi
-      shell: bash
-      
-    - name: Build Electron App (Windows)
-      if: matrix.os == 'windows-latest'
-      run: npm run build:win
-      timeout-minutes: 30
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        NODE_OPTIONS: '--max-old-space-size=4096'
-        
-    - name: Build Electron App (macOS)
-      if: matrix.os == 'macos-latest'
-      run: npm run build:mac
-      timeout-minutes: 30
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        CSC_IDENTITY_AUTO_DISCOVERY: false
-        NODE_OPTIONS: '--max-old-space-size=4096'
-        
-    - name: Build Electron App (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: npm run build:linux
-      timeout-minutes: 30
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        NODE_OPTIONS: '--max-old-space-size=4096'
-        
-    - name: Upload Windows Artifacts
-      if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v4
-      with:
-        name: mudek-windows
-        path: |
-          dist/*.exe
-          dist/*.msi
-          dist/*.appx
-          
-    - name: Upload macOS Artifacts  
-      if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v4
-      with:
-        name: mudek-macos
-        path: |
-          dist/*.dmg
-          dist/*.zip
-          dist/*.pkg
-          
-    - name: Upload Linux Artifacts
-      if: matrix.os == 'ubuntu-latest'  
-      uses: actions/upload-artifact@v4
-      with:
-        name: mudek-linux
-        path: |
-          dist/*.AppImage
-          dist/*.deb
-          dist/*.rpm
-          dist/*.tar.gz
+  # Windows Desktop App Build
+  build-windows:
+    name: Build Windows App
+    runs-on: windows-latest
 
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Electron App
+        run: npm run build:win
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mudek-windows
+          path: |
+            dist/*.exe
+            dist/*.blockmap
+            dist/latest.yml
+
+  # Auto Release (sadece main branch push)
   auto-release:
-    name: Auto Release 
-    needs: [web-deploy, build-electron]
+    name: Auto Release
+    needs: [web-deploy, build-windows]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
@@ -177,15 +83,11 @@ jobs:
     - name: Generate Version Tag
       id: version
       run: |
-        # Tarih saat formatında version oluştur
         BUILD_DATE=$(date +'%Y.%m%d')
         BUILD_TIME=$(date +'%H%M')
         BUILD_NUM=$(printf "%04d" ${{ github.run_number }})
         VERSION_TAG="v${BUILD_DATE}.${BUILD_TIME}.${BUILD_NUM}"
         echo "version=${VERSION_TAG}" >> $GITHUB_OUTPUT
-        echo "date=${BUILD_DATE}" >> $GITHUB_OUTPUT
-        echo "time=${BUILD_TIME}" >> $GITHUB_OUTPUT
-        echo "build=${BUILD_NUM}" >> $GITHUB_OUTPUT
         echo "Generated version: ${VERSION_TAG}"
         
     - name: Create and Push Tag
@@ -199,78 +101,46 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: mudek-windows
-        path: ./release-assets/windows/
-        
-    - name: Download macOS Artifacts
-      uses: actions/download-artifact@v4  
-      with:
-        name: mudek-macos
-        path: ./release-assets/macos/
-        
-    - name: Download Linux Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: mudek-linux
-        path: ./release-assets/linux/
-        
+        path: ./release-assets/
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: MUDEK Ders Değerlendirme Sistemi ${{ steps.version.outputs.version }}
+        files: |
+          release-assets/*.exe
+          release-assets/*.blockmap
+          release-assets/latest.yml
+        draft: false
+        prerelease: false
         body: |
           ## 🚀 MUDEK Ders Değerlendirme Sistemi ${{ steps.version.outputs.version }}
           
-          ### 📅 Build Bilgileri
-          - **Build Tarihi:** ${{ steps.version.outputs.date }}
-          - **Build Saati:** ${{ steps.version.outputs.time }}
-          - **Build Numarası:** ${{ steps.version.outputs.build }}
-          - **Commit:** ${{ github.sha }}
-          - **Branch:** ${{ github.ref_name }}
+          ### 📱 CORUH ARGE Logosu ile Windows Masaüstü Uygulaması
           
-          ### 📋 Değişiklikler
-          Bu sürüm aşağıdaki commit'leri içerir:
-          ${{ github.event.head_commit.message }}
+          **Build Bilgileri:**
+          - Build Tarihi: $(date +'%Y-%m-%d')
+          - Build Numarası: ${{ github.run_number }}
+          - Commit: ${{ github.sha }}
           
-          ### 🎓 MUDEK Ders Değerlendirme Sistemi ${{ steps.version.outputs.version }}
+          **Özellikler:**
+          - 🏢 CORUH ARGE logosu ve branding
+          - 🎓 MUDEK ders değerlendirme sistemi
+          - 💾 Native Windows dosya işlemleri
+          - ⌨️ Klavye kısayolları (Ctrl+O, Ctrl+S)
+          - 🌐 Web versiyonu: https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/
           
-          ### 🎓 Özellikler
-          - RTEÜ MUDEK ders değerlendirme kriterleri yönetimi
-          - Öğrenci notları giriş ve hesaplama sistemi
-          - Web ve masaüstü uygulaması desteği
-          - Multi-platform support (Windows, macOS, Linux)
-          
-          ### 📥 İndirme Seçenekleri
-          
-          #### 🌐 Web Uygulaması
-          [Web Uygulamasını Kullan](https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/)
-          
-          #### 💻 Masaüstü Uygulaması
-          - **Windows**: `.exe` (Portable) veya `.msi` (Installer)
-          - **macOS**: `.dmg` (Disk Image) veya `.zip` (Archive)  
-          - **Linux**: `.AppImage` (Portable), `.deb` (Debian/Ubuntu), `.rpm` (Red Hat/CentOS)
-          
-          ### 👨‍💻 Geliştirici
-          **Dr. Öğr. Üyesi Uğur CORUH**  
-          CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ  
-          🌐 [www.coruh.com.tr](https://www.coruh.com.tr)  
-          📍 Fener Mah. Atatürk Cad. No:28/2 İç Kapı No:3 Merkez/Rize
-          
-          ---
-          © 2024 CORUH R&D and TECHNOLOGY. Tüm hakları saklıdır.
-        files: |
-          release-assets/windows/*
-          release-assets/macos/*
-          release-assets/linux/*
-        draft: false
-        prerelease: false
-        generate_release_notes: true
+          **Geliştirici:** Dr. Öğr. Üyesi Uğur CORUH  
+          **Firma:** CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ  
+          **Web:** [www.coruh.com.tr](https://www.coruh.com.tr)
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+  # Manuel Release (tag ile)
   manual-release:
     name: Manual Tagged Release
-    needs: [web-deploy, build-electron]
+    needs: [web-deploy, build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     
@@ -282,68 +152,36 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         name: mudek-windows
-        path: ./release-assets/windows/
-        
-    - name: Download macOS Artifacts
-      uses: actions/download-artifact@v4  
-      with:
-        name: mudek-macos
-        path: ./release-assets/macos/
-        
-    - name: Download Linux Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: mudek-linux
-        path: ./release-assets/linux/
+        path: ./release-assets/
         
     - name: Create Manual Release
       uses: softprops/action-gh-release@v1
       with:
         name: MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
+        files: |
+          release-assets/*.exe
+          release-assets/*.blockmap
+          release-assets/latest.yml
+        draft: false
+        prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
         body: |
           ## 🎓 MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
           
-          ### 📋 Manuel Release
-          Bu sürüm manuel olarak tag ile oluşturulmuştur.
-          - **Tag:** ${{ github.ref_name }}
-          - **Commit:** ${{ github.sha }}
+          **Manuel Release - CORUH ARGE Logosu ile**
           
-          ### 🎓 Özellikler
-          - RTEÜ MUDEK ders değerlendirme kriterleri yönetimi
-          - Öğrenci notları giriş ve hesaplama sistemi
-          - Web ve masaüstü uygulaması desteği
-          - Multi-platform support (Windows, macOS, Linux)
+          RTEÜ MUDEK ders değerlendirme ve akreditasyon sistemi masaüstü uygulaması.
           
-          ### 📥 İndirme Seçenekleri
+          **Özellikler:**
+          - CORUH ARGE kurumsal logosu ve tasarım
+          - Native Windows uygulaması
+          - Dosya aç/kaydet native dialog'ları  
+          - Klavye kısayolları desteği
+          - MUDEK kriterlerine uygun değerlendirme sistemi
           
-          #### 🌐 Web Uygulaması
-          [Web Uygulamasını Kullan](https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/)
+          **Web Versiyonu:** https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/
           
-          #### 💻 Masaüstü Uygulaması
-          - **Windows**: `.exe` (Portable) veya `.msi` (Installer)
-          - **macOS**: `.dmg` (Disk Image) veya `.zip` (Archive)  
-          - **Linux**: `.AppImage` (Portable), `.deb` (Debian/Ubuntu), `.rpm` (Red Hat/CentOS)
-          
-          ### 👨‍💻 Geliştirici
-          **Dr. Öğr. Üyesi Uğur CORUH**  
-          CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ  
-          🌐 [www.coruh.com.tr](https://www.coruh.com.tr)  
-          📍 Fener Mah. Atatürk Cad. No:28/2 İç Kapı No:3 Merkez/Rize
-          
-          ---
-          © 2024 CORUH R&D and TECHNOLOGY. Tüm hakları saklıdır.
-        files: |
-          release-assets/windows/*
-          release-assets/macos/*
-          release-assets/linux/*
-        draft: false
-        prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
-        generate_release_notes: true
+          **Geliştirici:** Dr. Öğr. Üyesi Uğur CORUH
+          **İletişim:** ugur.coruh@erdogan.edu.tr
+          **Web:** www.coruh.com.tr
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-# GitHub Pages için permissions
-permissions:
-  contents: read
-  pages: write
-  id-token: write 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

@@ -1,13 +1,7 @@
 const { app, BrowserWindow, Menu, dialog, shell, ipcMain } = require('electron');
 const path = require('path');
 
-// Optional electron-updater import (production modunda kullanılır)
-let autoUpdater = null;
-try {
-    autoUpdater = require('electron-updater').autoUpdater;
-} catch (error) {
-    console.log('electron-updater modülü bulunamadı (geliştirici modunda normal)');
-}
+// Auto-updater kaldırıldı, sadece basit desktop app
 const fs = require('fs');
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
@@ -363,17 +357,16 @@ function exportGrades() {
  * Güncelleme kontrolü
  */
 function checkForUpdates() {
-    if (isDev || !autoUpdater) {
-        dialog.showMessageBox(mainWindow, {
-            type: 'info',
-            title: 'Güncelleme',
-            message: 'Development modunda veya güncelleme modülü olmadan güncelleme kontrol edilemez.',
-            buttons: ['Tamam']
-        });
-        return;
-    }
-    
-    autoUpdater.checkForUpdatesAndNotify();
+    dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        title: 'Güncelleme',
+        message: 'Manuel güncelleme: GitHub releases sayfasından en son sürümü indirin.',
+        buttons: ['GitHub\'a Git', 'Tamam']
+    }).then((result) => {
+        if (result.response === 0) {
+            shell.openExternal('https://github.com/coruhtech/mudek-ders-degerlendirme-formu/releases');
+        }
+    });
 }
 
 /**
@@ -456,32 +449,7 @@ app.whenReady().then(() => {
         }
     });
 
-    // Auto Updater ayarları (sadece production modunda ve modül mevcutsa)
-    if (!isDev && autoUpdater) {
-        autoUpdater.checkForUpdatesAndNotify();
-        
-        autoUpdater.on('update-available', () => {
-            dialog.showMessageBox(mainWindow, {
-                type: 'info',
-                title: 'Güncelleme Mevcut',
-                message: 'Yeni bir sürüm mevcut. İndiriliyor...',
-                buttons: ['Tamam']
-            });
-        });
-
-        autoUpdater.on('update-downloaded', () => {
-            dialog.showMessageBox(mainWindow, {
-                type: 'info',
-                title: 'Güncelleme Hazır',
-                message: 'Güncelleme indirildi. Uygulama yeniden başlatılacak.',
-                buttons: ['Şimdi Yeniden Başlat', 'Sonra']
-            }).then((result) => {
-                if (result.response === 0) {
-                    autoUpdater.quitAndInstall();
-                }
-            });
-        });
-    }
+    // Auto Updater kaldırıldı - basit desktop app
 });
 
 app.on('window-all-closed', () => {
