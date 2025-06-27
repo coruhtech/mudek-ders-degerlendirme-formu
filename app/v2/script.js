@@ -202,8 +202,8 @@ const STUDENT_VIEW_SETTINGS = {
         name: true,
         surname: true,
         email: true,
-        phone: true,
-        tckn: true,
+        phone: false,  // Varsayılan olarak gizli
+        tckn: false,   // Varsayılan olarak gizli
         status: true,
         groups: true,
         actions: true
@@ -214,6 +214,29 @@ const STUDENT_VIEW_SETTINGS = {
     currentStatusFilter: '',
     currentDirectSelect: '',
     currentGroupFilter: ''
+};
+
+// Değerlendirme tablosu görünürlük ayarları
+const ASSESSMENT_VIEW_SETTINGS = {
+    visibleColumns: {
+        no: true,
+        studentId: true,
+        name: true,
+        surname: true,
+        email: true,
+        group: true,
+        answerKey: true,       // Artık varsayılan görünür
+        activityName: true,    // Artık varsayılan görünür
+        description: true,     // Artık varsayılan görünür
+        maxPoints: true,
+        totalPoints: true,
+        outcomes: true,        // Artık varsayılan görünür
+        earnedPoints: true,
+        termGrade: true,
+        finalGrade: true,
+        average: true,
+        letterGrade: true
+    }
 };
 
 /**
@@ -227,8 +250,8 @@ function initializeStudentControls() {
         // Buton event listener'ları
         setupStudentActionButtons();
         
-        // Kolon kontrolleri
-        setupColumnControls();
+        // Kolon kontrolleri - tek sistem kullan
+        setupTableViewControls();
         
     } catch (error) {
         console.error("Öğrenci kontrolleri başlatılırken hata:", error);
@@ -236,56 +259,104 @@ function initializeStudentControls() {
 }
 
 /**
- * Kolon kontrol butonlarını ayarla
+ * Değerlendirme tablosu kolon görünürlük kontrollerini başlat
  */
-function setupColumnControls() {
-    // Kolon toggle butonları
-    document.querySelectorAll('.column-toggle').forEach(button => {
-        const column = button.dataset.column;
-        const columnKey = column.replace('col-', '');
+function initializeAssessmentControls() {
+    try {
+        // Değerlendirme tablosu kolon kontrolleri
+        setupAssessmentTableViewControls();
         
-        // Initial state'i ayarla
-        button.classList.toggle('active', STUDENT_VIEW_SETTINGS.visibleColumns[columnKey]);
+    } catch (error) {
+        console.error("Değerlendirme kontrolleri başlatılırken hata:", error);
+    }
+}
+
+/**
+ * Değerlendirme tablosu kolon kontrolleri
+ */
+function setupAssessmentTableViewControls() {
+    const assessmentColumnToggles = document.getElementById('assessmentColumnToggles');
+    if (!assessmentColumnToggles) {
+        console.log('❌ assessmentColumnToggles elementi bulunamadı!');
+        return;
+    }
+
+    // Mevcut event listener'ları temizle
+    const existingButtons = assessmentColumnToggles.querySelectorAll('.column-toggle');
+    existingButtons.forEach(button => {
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+    });
+
+    // Yeni event listener'ları ekle
+    const columnButtons = assessmentColumnToggles.querySelectorAll('.column-toggle');
+    
+    columnButtons.forEach((button, index) => {
+        const columnKey = button.dataset.column;
+        
+        // Başlangıç durumunu ayarla
+        const isVisible = ASSESSMENT_VIEW_SETTINGS.visibleColumns[columnKey];
+        if (isVisible) {
+            button.classList.add('active');
+        } else {
+            button.classList.remove('active');
+        }
         
         button.addEventListener('click', function() {
+            const columnKey = this.dataset.column;
+            
             // Durumu değiştir
-            STUDENT_VIEW_SETTINGS.visibleColumns[columnKey] = !STUDENT_VIEW_SETTINGS.visibleColumns[columnKey];
+            ASSESSMENT_VIEW_SETTINGS.visibleColumns[columnKey] = !ASSESSMENT_VIEW_SETTINGS.visibleColumns[columnKey];
             
             // Buton görünümünü güncelle
-            this.classList.toggle('active', STUDENT_VIEW_SETTINGS.visibleColumns[columnKey]);
+            if (ASSESSMENT_VIEW_SETTINGS.visibleColumns[columnKey]) {
+                this.classList.add('active');
+            } else {
+                this.classList.remove('active');
+            }
             
-            // Tabloyu güncelle
-            updateColumnVisibility();
+            // Tablo kolonlarını güncelle
+            updateAssessmentColumnVisibility();
         });
     });
     
-    // Maskeleme butonları
-    document.querySelectorAll('.mask-toggle').forEach(button => {
-        const field = button.dataset.field;
+    // İlk yükleme sırasında kolon görünürlüğünü ayarla
+    updateAssessmentColumnVisibility();
+}
+
+/**
+ * Değerlendirme tablosu kolon görünürlüğünü güncelle
+ */
+function updateAssessmentColumnVisibility() {
+    // Tüm assessment tablolarını bul (normal ve paper-order dahil)
+    const assessmentTables = document.querySelectorAll('.assessment-table');
+    console.log(`🔄 Toplam ${assessmentTables.length} assessment tablosu bulundu`);
+    
+    assessmentTables.forEach((table, tableIndex) => {
+        console.log(`📊 Tablo ${tableIndex + 1} işleniyor`);
         
-        // Initial state'i ayarla
-        if (field === 'phone') {
-            button.classList.toggle('masked', STUDENT_VIEW_SETTINGS.maskPhone);
-        } else if (field === 'tckn') {
-            button.classList.toggle('masked', STUDENT_VIEW_SETTINGS.maskTCKN);
-        }
-        
-        button.addEventListener('click', function(e) {
-            e.stopPropagation(); // Parent toggle'ı tetikleme
+        Object.keys(ASSESSMENT_VIEW_SETTINGS.visibleColumns).forEach(columnKey => {
+            const isVisible = ASSESSMENT_VIEW_SETTINGS.visibleColumns[columnKey];
+            const columnClass = `col-${columnKey}`;
             
-            if (field === 'phone') {
-                STUDENT_VIEW_SETTINGS.maskPhone = !STUDENT_VIEW_SETTINGS.maskPhone;
-                this.classList.toggle('masked', STUDENT_VIEW_SETTINGS.maskPhone);
-            } else if (field === 'tckn') {
-                STUDENT_VIEW_SETTINGS.maskTCKN = !STUDENT_VIEW_SETTINGS.maskTCKN;
-                this.classList.toggle('masked', STUDENT_VIEW_SETTINGS.maskTCKN);
-            }
+            // Header hücreleri
+            const headerCells = table.querySelectorAll(`th.${columnClass}`);
+            headerCells.forEach(cell => {
+                cell.style.display = isVisible ? '' : 'none';
+            });
             
-            // Tabloyu güncelle
-            updateStudentTableEnhanced();
+            // Body hücreleri
+            const bodyCells = table.querySelectorAll(`td.${columnClass}`);
+            bodyCells.forEach(cell => {
+                cell.style.display = isVisible ? '' : 'none';
+            });
+            
+            console.log(`🔄 ${columnKey}: ${isVisible ? 'Göster' : 'Gizle'} (${headerCells.length} header, ${bodyCells.length} body)`);
         });
     });
 }
+
+// Bu fonksiyon setupTableViewControls() ile birleştirildi ve kaldırıldı
 
 /**
  * Kolon görünürlüğünü güncelle
@@ -536,6 +607,9 @@ function updateStudentTableEnhanced() {
         
         // Kolon görünürlüğünü güncelle
         updateColumnVisibility();
+        
+        // Event listener'ları yeniden bağla
+        setupTableViewControls();
         
     } catch (error) {
         console.error("Öğrenci tablosu güncellenirken hata:", error);
@@ -6662,6 +6736,12 @@ function updateAssessmentView() {
         
         console.log('✅ updateAssessmentView tamamlandı');
         
+        // Değerlendirme kontrolleri başlat
+        setTimeout(() => {
+            initializeAssessmentControls();
+            console.log('✅ Değerlendirme kolon kontrolleri başlatıldı');
+        }, 200);
+        
     } catch (error) {
         console.error("❌ Değerlendirme görünümü güncellenirken hata oluştu:", error);
         showModernToast("Değerlendirme görünümü güncellenemedi!", "error");
@@ -7113,7 +7193,7 @@ function createAssessmentActivitySection(activity, container, type) {
             // Yarıyıl içi ve sonu oranlarını dinamik olarak al
             const termWeight = getTermWeight();
             const finalWeight = getFinalWeight();
-            const tableHeaders = `<th>No</th><th>Öğrenci No</th><th>Adı</th><th>Soyadı</th><th>E-posta</th><th>Grup</th><th>Etkinlik Max. Puan<br/><small>(Soru/Rubrik)</small></th><th>Toplam Puan<br/><small>(Değerlendirme Oranı: ${getAssessmentWeight(activity.id)}%)</small></th><th>Alınan Puan<br/><small>(Etkinlik Puanı)</small></th><th>Yarıyıl İçi<br/><small>(${termWeight}%)</small></th><th>Yarıyıl Sonu<br/><small>(${finalWeight}%)</small></th><th>Ortalama</th><th>Harf Notu</th>`;
+            const tableHeaders = `<th class="col-no">No</th><th class="col-studentId">Öğrenci No</th><th class="col-name">Adı</th><th class="col-surname">Soyadı</th><th class="col-email">E-posta</th><th class="col-group">Grup</th><th class="col-answerKey">Cevap Anahtarı Sırası</th><th class="col-activityName">Etkinlik Adı<br/><small>(Soru/Rubrik)</small></th><th class="col-description">Açıklama</th><th class="col-maxPoints">Etkinlik Max. Puan<br/><small>(Soru/Rubrik)</small></th><th class="col-totalPoints">Toplam Puan<br/><small>(Değerlendirme Oranı: ${getAssessmentWeight(activity.id)}%)</small></th><th class="col-outcomes">ÖÇ</th><th class="col-earnedPoints">Alınan Puan<br/><small>(Etkinlik Puanı)</small></th><th class="col-termGrade">Yarıyıl İçi<br/><small>(${termWeight}%)</small></th><th class="col-finalGrade">Yarıyıl Sonu<br/><small>(${finalWeight}%)</small></th><th class="col-average">Ortalama</th><th class="col-letterGrade">Harf Notu</th>`;
             
             const tableHTML = `
                 <table class="assessment-table">
@@ -7148,22 +7228,26 @@ function createAssessmentActivitySection(activity, container, type) {
                             
                             return `
                             <tr data-student-id="${student.studentId}" data-component-id="${componentId}">
-                                <td>${index + 1}</td>
-                                <td>${student.studentId}</td>
-                                <td>${student.name}</td>
-                                <td>${student.surname}</td>
-                                <td class="email-cell">
+                                <td class="col-no">${index + 1}</td>
+                                <td class="col-studentId">${student.studentId}</td>
+                                <td class="col-name">${student.name}</td>
+                                <td class="col-surname">${student.surname}</td>
+                                <td class="col-email email-cell">
                                     <span class="email-text" title="${student.email || 'E-posta bulunamadı'}">${student.email || '-'}</span>
                                     ${student.email ? `<button class="email-button" title="E-posta gönder" onclick="openEmailModal({studentId: '${student.studentId}', name: '${student.name}', surname: '${student.surname}', email: '${student.email}'})">E-posta</button>` : ''}
                                 </td>
-                                ${groupColumn}
-                                <td class="question-points-cell" data-student-id="${student.studentId}" data-activity-id="${activity.id}">
+                                <td class="col-group">${groupColumn.replace('<td>', '').replace('</td>', '')}</td>
+                                <td class="col-answerKey">-</td>
+                                <td class="col-activityName">${activity.name || activity.id}</td>
+                                <td class="col-description">${activity.description || '-'}</td>
+                                <td class="col-maxPoints question-points-cell" data-student-id="${student.studentId}" data-activity-id="${activity.id}">
                                     ${maxPoints}
                                 </td>
-                                <td class="total-points-cell" data-student-id="${student.studentId}" data-activity-id="${activity.id}">
+                                <td class="col-totalPoints total-points-cell" data-student-id="${student.studentId}" data-activity-id="${activity.id}">
                                     ${getStudentTotalEarnedPointsForComponent(student.studentId, activity.id)}
                                 </td>
-                                <td>
+                                <td class="col-outcomes">-</td>
+                                <td class="col-earnedPoints">
                                                         <input type="number" min="0" max="100"
                         data-student-id="${student.studentId}"
                         data-activity-id="${activity.id}" 
@@ -7173,10 +7257,10 @@ function createAssessmentActivitySection(activity, container, type) {
                                         title="Bu aktivitenin maksimum puanı: ${maxPoints}"
                                     >
                                 </td>
-                                <td class="grade-summary-cell term-grade">${studentGrades.termGrade}</td>
-                                <td class="grade-summary-cell final-grade">${studentGrades.finalGrade}</td>
-                                <td class="grade-summary-cell total-grade">${studentGrades.totalGrade}</td>
-                                <td class="grade-summary-cell letter-grade ${getLetterGradeClass(studentGrades.letterGrade)}">${studentGrades.letterGrade}</td>
+                                <td class="col-termGrade grade-summary-cell term-grade">${studentGrades.termGrade}</td>
+                                <td class="col-finalGrade grade-summary-cell final-grade">${studentGrades.finalGrade}</td>
+                                <td class="col-average grade-summary-cell total-grade">${studentGrades.totalGrade}</td>
+                                <td class="col-letterGrade grade-summary-cell letter-grade ${getLetterGradeClass(studentGrades.letterGrade)}">${studentGrades.letterGrade}</td>
                             </tr>
                             `;
                         }).join('')}
@@ -7268,20 +7352,23 @@ function createTestInputSection(testItem, container) {
         const detailedTableHTML = `
             <thead>
                 <tr>
-                    <th>No</th>
-                    <th>Öğrenci No</th>
-                    <th>Adı</th>
-                    <th>Soyadı</th>
-                    <th>E-posta</th>
-                    <th>Grup</th>
-                    <th>Doğru Sayısı</th>
-                    <th>Yanlış Sayısı</th>
-                    <th>Boş Sayısı</th>
-                    <th>Toplam Puan<br/><small>(Değerlendirme Oranı: ${getAssessmentWeight(testItem.id)}%)</small></th>
-                    <th>Yarıyıl İçi<br/><small>(${getTermWeight()}%)</small></th>
-                    <th>Yarıyıl Sonu<br/><small>(${getFinalWeight()}%)</small></th>
-                    <th>Ortalama</th>
-                    <th>Harf Notu</th>
+                    <th class="col-no">No</th>
+                    <th class="col-studentId">Öğrenci No</th>
+                    <th class="col-name">Adı</th>
+                    <th class="col-surname">Soyadı</th>
+                    <th class="col-email">E-posta</th>
+                    <th class="col-group">Grup</th>
+                    <th class="col-answerKey">Doğru Sayısı</th>
+                    <th class="col-activityName">Yanlış Sayısı</th>
+                    <th class="col-description">Boş Sayısı</th>
+                    <th class="col-maxPoints">Max. Puan</th>
+                    <th class="col-totalPoints">Toplam Puan<br/><small>(Değerlendirme Oranı: ${getAssessmentWeight(testItem.id)}%)</small></th>
+                    <th class="col-outcomes">ÖÇ</th>
+                    <th class="col-earnedPoints">Alınan Puan</th>
+                    <th class="col-termGrade">Yarıyıl İçi<br/><small>(${getTermWeight()}%)</small></th>
+                    <th class="col-finalGrade">Yarıyıl Sonu<br/><small>(${getFinalWeight()}%)</small></th>
+                    <th class="col-average">Ortalama</th>
+                    <th class="col-letterGrade">Harf Notu</th>
                 </tr>
             </thead>
             <tbody>
@@ -7303,20 +7390,20 @@ function createTestInputSection(testItem, container) {
                     
                     return `
                         <tr>
-                            <td>${index + 1}</td>
-                            <td>${student.studentId}</td>
-                            <td>${student.name}</td>
-                            <td>${student.surname}</td>
-                            <td class="email-cell">
+                            <td class="col-no">${index + 1}</td>
+                            <td class="col-studentId">${student.studentId}</td>
+                            <td class="col-name">${student.name}</td>
+                            <td class="col-surname">${student.surname}</td>
+                            <td class="col-email email-cell">
                                 <span class="email-text" title="${student.email || 'E-posta bulunamadı'}">${student.email || '-'}</span>
                                 ${student.email ? `<button class="email-button" title="E-posta gönder" onclick="openEmailModal({studentId: '${student.studentId}', name: '${student.name}', surname: '${student.surname}', email: '${student.email}'})">E-posta</button>` : ''}
                             </td>
-                            <td>
+                            <td class="col-group">
                                 <select class="group-selector compact" data-student-id="${student.studentId}" data-component-id="${componentId}" onchange="updateStudentGroupForComponent(this)">
                                     ${groupOptions}
                                 </select>
                             </td>
-                            <td>
+                            <td class="col-answerKey">
                                 <input type="number" min="0" max="${testItem.testDetails.totalQuestions}" 
                                     data-student-id="${student.studentId}" 
                                     data-test-id="${testItem.id}" 
@@ -7325,7 +7412,7 @@ function createTestInputSection(testItem, container) {
                                     onchange="updateTestScore(this)"
                                 >
                             </td>
-                            <td>
+                            <td class="col-activityName">
                                 <input type="number" min="0" max="${testItem.testDetails.totalQuestions}" 
                                     data-student-id="${student.studentId}" 
                                     data-test-id="${testItem.id}" 
@@ -7334,12 +7421,15 @@ function createTestInputSection(testItem, container) {
                                     onchange="updateTestScore(this)"
                                 >
                             </td>
-                            <td>${empty}</td>
-                            <td class="total-score">${totalScore.toFixed(2)}</td>
-                            <td class="grade-summary-cell term-grade">${studentGrades.termGrade}</td>
-                            <td class="grade-summary-cell final-grade">${studentGrades.finalGrade}</td>
-                            <td class="grade-summary-cell total-grade">${studentGrades.totalGrade}</td>
-                            <td class="grade-summary-cell letter-grade ${getLetterGradeClass(studentGrades.letterGrade)}">${studentGrades.letterGrade}</td>
+                            <td class="col-description">${empty}</td>
+                            <td class="col-maxPoints">${testItem.points}</td>
+                            <td class="col-totalPoints total-score">${totalScore.toFixed(2)}</td>
+                            <td class="col-outcomes">-</td>
+                            <td class="col-earnedPoints">${totalScore.toFixed(2)}</td>
+                            <td class="col-termGrade grade-summary-cell term-grade">${studentGrades.termGrade}</td>
+                            <td class="col-finalGrade grade-summary-cell final-grade">${studentGrades.finalGrade}</td>
+                            <td class="col-average grade-summary-cell total-grade">${studentGrades.totalGrade}</td>
+                            <td class="col-letterGrade grade-summary-cell letter-grade ${getLetterGradeClass(studentGrades.letterGrade)}">${studentGrades.letterGrade}</td>
                         </tr>
                     `;
                 }).join('')}
@@ -7363,17 +7453,23 @@ function createTestInputSection(testItem, container) {
         const simpleTableHTML = `
             <thead>
                 <tr>
-                    <th>No</th>
-                    <th>Öğrenci No</th>
-                    <th>Adı</th>
-                    <th>Soyadı</th>
-                    <th>E-posta</th>
-                    <th>Grup</th>
-                    <th>Toplam Puan (${testItem.points})</th>
-                    <th>Yarıyıl İçi</th>
-                    <th>Yarıyıl Sonu</th>
-                    <th>Ortalama</th>
-                    <th>Harf Notu</th>
+                    <th class="col-no">No</th>
+                    <th class="col-studentId">Öğrenci No</th>
+                    <th class="col-name">Adı</th>
+                    <th class="col-surname">Soyadı</th>
+                    <th class="col-email">E-posta</th>
+                    <th class="col-group">Grup</th>
+                    <th class="col-answerKey">Cevap Anahtarı</th>
+                    <th class="col-activityName">Etkinlik Adı</th>
+                    <th class="col-description">Açıklama</th>
+                    <th class="col-maxPoints">Max. Puan</th>
+                    <th class="col-totalPoints">Toplam Puan</th>
+                    <th class="col-outcomes">ÖÇ</th>
+                    <th class="col-earnedPoints">Alınan Puan (${testItem.points})</th>
+                    <th class="col-termGrade">Yarıyıl İçi</th>
+                    <th class="col-finalGrade">Yarıyıl Sonu</th>
+                    <th class="col-average">Ortalama</th>
+                    <th class="col-letterGrade">Harf Notu</th>
                 </tr>
             </thead>
             <tbody>
@@ -7395,20 +7491,26 @@ function createTestInputSection(testItem, container) {
                     
                     return `
                         <tr>
-                            <td>${index + 1}</td>
-                            <td>${student.studentId}</td>
-                            <td>${student.name}</td>
-                            <td>${student.surname}</td>
-                            <td class="email-cell">
+                            <td class="col-no">${index + 1}</td>
+                            <td class="col-studentId">${student.studentId}</td>
+                            <td class="col-name">${student.name}</td>
+                            <td class="col-surname">${student.surname}</td>
+                            <td class="col-email email-cell">
                                 <span class="email-text" title="${student.email || 'E-posta bulunamadı'}">${student.email || '-'}</span>
                                 ${student.email ? `<button class="email-button" title="E-posta gönder" onclick="openEmailModal({studentId: '${student.studentId}', name: '${student.name}', surname: '${student.surname}', email: '${student.email}'})">E-posta</button>` : ''}
                             </td>
-                            <td>
+                            <td class="col-group">
                                 <select class="group-selector compact" data-student-id="${student.studentId}" data-component-id="${componentId}" onchange="updateStudentGroupForComponent(this)">
                                     ${groupOptions}
                                 </select>
                             </td>
-                            <td>
+                            <td class="col-answerKey">-</td>
+                            <td class="col-activityName">${testItem.name}</td>
+                            <td class="col-description">${testItem.description || '-'}</td>
+                            <td class="col-maxPoints">${testItem.points}</td>
+                            <td class="col-totalPoints">${totalScore.toFixed(2)}</td>
+                            <td class="col-outcomes">-</td>
+                            <td class="col-earnedPoints">
                                 <input type="number" min="0" max="${testItem.points}" 
                                     data-student-id="${student.studentId}" 
                                     data-activity-id="${testItem.id}" 
@@ -7416,10 +7518,10 @@ function createTestInputSection(testItem, container) {
                                     onchange="updateStudentGrade(this)"
                                 >
                             </td>
-                            <td class="grade-summary-cell term-grade">${studentGrades.termGrade}</td>
-                            <td class="grade-summary-cell final-grade">${studentGrades.finalGrade}</td>
-                            <td class="grade-summary-cell total-grade">${studentGrades.totalGrade}</td>
-                            <td class="grade-summary-cell letter-grade ${getLetterGradeClass(studentGrades.letterGrade)}">${studentGrades.letterGrade}</td>
+                            <td class="col-termGrade grade-summary-cell term-grade">${studentGrades.termGrade}</td>
+                            <td class="col-finalGrade grade-summary-cell final-grade">${studentGrades.finalGrade}</td>
+                            <td class="col-average grade-summary-cell total-grade">${studentGrades.totalGrade}</td>
+                            <td class="col-letterGrade grade-summary-cell letter-grade ${getLetterGradeClass(studentGrades.letterGrade)}">${studentGrades.letterGrade}</td>
                         </tr>
                     `;
                 }).join('')}
@@ -7582,23 +7684,23 @@ function createSubItemInputSection(subItem, container) {
             const tableHTML = `
             <thead>
                 <tr>
-                    <th>No</th>
-                    <th>Öğrenci No</th>
-                    <th>Adı</th>
-                    <th>Soyadı</th>
-                    <th>E-posta</th>
-                    ${useGroupSystem ? '<th>Grup</th>' : ''}
-                    ${useGroupSystem ? '<th>Cevap Anahtarı Sırası</th>' : ''}
-                    ${useGroupSystem ? '<th>Etkinlik Adı<br/><small>(Soru/Rubrik)</small></th>' : ''}
-                    ${useGroupSystem ? '<th>Açıklama</th>' : ''}
-                    <th>Etkinlik Max. Puan<br/><small>(Soru/Rubrik)</small></th>
-                        <th>Toplam Puan</th>
-                        ${useGroupSystem ? '<th>ÖÇ</th>' : ''}
-                        <th>Alınan Puan<br/><small>(Etkinlik Puanı)</small></th>
-                        <th>Yarıyıl İçi<br/><small>(${getTermWeight()}%)</small></th>
-                        <th>Yarıyıl Sonu<br/><small>(${getFinalWeight()}%)</small></th>
-                        <th>Ortalama</th>
-                        <th>Harf Notu</th>
+                    <th class="col-no">No</th>
+                    <th class="col-studentId">Öğrenci No</th>
+                    <th class="col-name">Adı</th>
+                    <th class="col-surname">Soyadı</th>
+                    <th class="col-email">E-posta</th>
+                    <th class="col-group">Grup</th>
+                    <th class="col-answerKey">Cevap Anahtarı Sırası</th>
+                    <th class="col-activityName">Etkinlik Adı<br/><small>(Soru/Rubrik)</small></th>
+                    <th class="col-description">Açıklama</th>
+                    <th class="col-maxPoints">Etkinlik Max. Puan<br/><small>(Soru/Rubrik)</small></th>
+                        <th class="col-totalPoints">Toplam Puan</th>
+                        <th class="col-outcomes">ÖÇ</th>
+                        <th class="col-earnedPoints">Alınan Puan<br/><small>(Etkinlik Puanı)</small></th>
+                        <th class="col-termGrade">Yarıyıl İçi<br/><small>(${getTermWeight()}%)</small></th>
+                        <th class="col-finalGrade">Yarıyıl Sonu<br/><small>(${getFinalWeight()}%)</small></th>
+                        <th class="col-average">Ortalama</th>
+                        <th class="col-letterGrade">Harf Notu</th>
                 </tr>
             </thead>
             <tbody>
@@ -7624,45 +7726,40 @@ function createSubItemInputSection(subItem, container) {
                         
                         return `
                             <tr data-student-id="${student.studentId}" data-paper-order="${paperOrder}" data-component-id="${parentComponentId}">
-                        <td>${index + 1}</td>
-                        <td>${student.studentId}</td>
-                        <td>${student.name}</td>
-                        <td>${student.surname}</td>
-                        <td class="email-cell">
+                        <td class="col-no">${index + 1}</td>
+                        <td class="col-studentId">${student.studentId}</td>
+                        <td class="col-name">${student.name}</td>
+                        <td class="col-surname">${student.surname}</td>
+                        <td class="col-email email-cell">
                             <span class="email-text" title="${student.email || 'E-posta bulunamadı'}">${student.email || '-'}</span>
                             ${student.email ? `<button class="email-button" title="E-posta gönder" onclick="openEmailModal({studentId: '${student.studentId}', name: '${student.name}', surname: '${student.surname}', email: '${student.email}'})">E-posta</button>` : ''}
                         </td>
-                        ${useGroupSystem ? `
-                        <td>
+                        <td class="col-group">
                             <select class="group-selector compact" data-student-id="${student.studentId}" data-component-id="${parentComponentId}" onchange="updateStudentGroupForComponent(this)">
                                 ${groupOptions}
                             </select>
-                        </td>` : ''}
-                        ${useGroupSystem ? `
-                        <td class="answer-key-order-cell">
+                        </td>
+                        <td class="col-answerKey answer-key-order-cell">
                             <span class="answer-key-badge" data-answer-key="${answerKeyOrder}" data-question-id="${actualQuestionId}">
                                 ${answerKeyOrder}
                             </span>
-                        </td>` : ''}
-                        ${useGroupSystem ? `
-                        <td class="question-name-cell">
+                        </td>
+                        <td class="col-activityName question-name-cell">
                             <span class="question-name-badge">${activityName}</span>
-                        </td>` : ''}
-                        ${useGroupSystem ? `
-                        <td class="question-description-cell">
+                        </td>
+                        <td class="col-description question-description-cell">
                             <span class="question-desc-badge" title="${questionDescription}">${questionDescription}</span>
-                        </td>` : ''}
-                        <td class="question-points-cell" data-student-id="${student.studentId}" data-activity-id="${actualQuestionId}">
+                        </td>
+                        <td class="col-maxPoints question-points-cell" data-student-id="${student.studentId}" data-activity-id="${actualQuestionId}">
                             ${maxPoints}
                         </td>
-                        <td class="total-points-cell" data-student-id="${student.studentId}" data-component-id="${parentComponentId}">
+                        <td class="col-totalPoints total-points-cell" data-student-id="${student.studentId}" data-component-id="${parentComponentId}">
                             ${getStudentTotalEarnedPointsForComponent(student.studentId, parentComponentId)}
                         </td>
-                        ${useGroupSystem ? `
-                        <td class="outcomes-cell">
+                        <td class="col-outcomes outcomes-cell">
                             <span class="outcomes-badge">${Array.isArray(studentOutcomes) ? studentOutcomes.join(', ') : (studentOutcomes || '-')}</span>
-                        </td>` : ''}
-                        <td>
+                        </td>
+                        <td class="col-earnedPoints">
                             <input type="number" min="0" max="100" 
                                 data-student-id="${student.studentId}" 
                                 data-activity-id="${actualQuestionId}"
@@ -7673,10 +7770,10 @@ function createSubItemInputSection(subItem, container) {
                                 title="${useGroupSystem ? `Kağıt sırası: ${paperOrder}, Cevap anahtarı: ${answerKeyOrder}, Maksimum puan: ${maxPoints}` : `Maksimum puan: ${maxPoints}`}"
                             >
                         </td>
-                        <td class="grade-summary-cell term-grade">${calculateStudentGrades(student.studentId).termGrade}</td>
-                        <td class="grade-summary-cell final-grade">${calculateStudentGrades(student.studentId).finalGrade}</td>
-                        <td class="grade-summary-cell total-grade">${calculateStudentGrades(student.studentId).totalGrade}</td>
-                        <td class="grade-summary-cell letter-grade ${getLetterGradeClass(calculateStudentGrades(student.studentId).letterGrade)}">${calculateStudentGrades(student.studentId).letterGrade}</td>
+                        <td class="col-termGrade grade-summary-cell term-grade">${calculateStudentGrades(student.studentId).termGrade}</td>
+                        <td class="col-finalGrade grade-summary-cell final-grade">${calculateStudentGrades(student.studentId).finalGrade}</td>
+                        <td class="col-average grade-summary-cell total-grade">${calculateStudentGrades(student.studentId).totalGrade}</td>
+                        <td class="col-letterGrade grade-summary-cell letter-grade ${getLetterGradeClass(calculateStudentGrades(student.studentId).letterGrade)}">${calculateStudentGrades(student.studentId).letterGrade}</td>
                     </tr>
                         `;
                     }).join('')}
@@ -20391,23 +20488,23 @@ function createComponentPaperOrderInputSection(activity, container) {
             const tableHTML = `
                 <thead>
                     <tr>
-                                            <th>No</th>
-                    <th>Öğrenci No</th>
-                    <th>Adı</th>
-                    <th>Soyadı</th>
-                    <th>E-posta</th>
-                    ${useGroupSystem ? '<th>Grup</th>' : ''}
-                    ${useGroupSystem ? '<th>Cevap Anahtarı Sırası</th>' : ''}
-                    ${useGroupSystem ? '<th>Etkinlik Adı<br/><small>(Soru/Rubrik)</small></th>' : ''}
-                    ${useGroupSystem ? '<th>Açıklama</th>' : ''}
-                    <th>Etkinlik Max. Puan<br/><small>(Soru/Rubrik)</small></th>
-                    <th>Toplam Puan</th>
-                    ${useGroupSystem ? '<th>ÖÇ</th>' : ''}
-                    <th>Alınan Puan<br/><small>(Etkinlik Puanı)</small></th>
-                    <th>Yarıyıl İçi<br/><small>(${getTermWeight()}%)</small></th>
-                    <th>Yarıyıl Sonu<br/><small>(${getFinalWeight()}%)</small></th>
-                    <th>Ortalama</th>
-                    <th>Harf Notu</th>
+                        <th class="col-no">No</th>
+                        <th class="col-studentId">Öğrenci No</th>
+                        <th class="col-name">Adı</th>
+                        <th class="col-surname">Soyadı</th>
+                        <th class="col-email">E-posta</th>
+                        <th class="col-group">Grup</th>
+                        <th class="col-answerKey">Cevap Anahtarı Sırası</th>
+                        <th class="col-activityName">Etkinlik Adı<br/><small>(Soru/Rubrik)</small></th>
+                        <th class="col-description">Açıklama</th>
+                        <th class="col-maxPoints">Etkinlik Max. Puan<br/><small>(Soru/Rubrik)</small></th>
+                        <th class="col-totalPoints">Toplam Puan</th>
+                        <th class="col-outcomes">ÖÇ</th>
+                        <th class="col-earnedPoints">Alınan Puan<br/><small>(Etkinlik Puanı)</small></th>
+                        <th class="col-termGrade">Yarıyıl İçi<br/><small>(${getTermWeight()}%)</small></th>
+                        <th class="col-finalGrade">Yarıyıl Sonu<br/><small>(${getFinalWeight()}%)</small></th>
+                        <th class="col-average">Ortalama</th>
+                        <th class="col-letterGrade">Harf Notu</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -20442,45 +20539,40 @@ function createComponentPaperOrderInputSection(activity, container) {
                         
                         return `
                             <tr data-student-id="${student.studentId}" data-paper-order="${paperOrder}" data-component-id="${componentId}">
-                                <td>${index + 1}</td>
-                                <td>${student.studentId}</td>
-                                <td>${student.name}</td>
-                                <td>${student.surname}</td>
-                                <td class="email-cell">
+                                <td class="col-no">${index + 1}</td>
+                                <td class="col-studentId">${student.studentId}</td>
+                                <td class="col-name">${student.name}</td>
+                                <td class="col-surname">${student.surname}</td>
+                                <td class="col-email email-cell">
                                     <span class="email-text" title="${student.email || 'E-posta bulunamadı'}">${student.email || '-'}</span>
                                     ${student.email ? `<button class="email-button" title="E-posta gönder" onclick="openEmailModal({studentId: '${student.studentId}', name: '${student.name}', surname: '${student.surname}', email: '${student.email}'})">E-posta</button>` : ''}
                                 </td>
-                                ${useGroupSystem ? `
-                                <td>
+                                <td class="col-group">
                                     <select class="group-selector compact" data-student-id="${student.studentId}" data-component-id="${componentId}" onchange="updateStudentGroupForComponent(this)">
                                         ${groupOptions}
                                     </select>
-                                </td>` : ''}
-                                ${useGroupSystem ? `
-                                <td class="answer-key-order-cell">
+                                </td>
+                                <td class="col-answerKey answer-key-order-cell">
                                     <span class="answer-key-badge" data-answer-key="${answerKeyOrder}" data-question-id="${actualQuestionId}">
                                         ${answerKeyOrder}
                                     </span>
-                                </td>` : ''}
-                                ${useGroupSystem ? `
-                                <td class="question-name-cell">
+                                </td>
+                                <td class="col-activityName question-name-cell">
                                     <span class="question-name-badge">${activityName}</span>
-                                </td>` : ''}
-                                ${useGroupSystem ? `
-                                <td class="question-description-cell">
+                                </td>
+                                <td class="col-description question-description-cell">
                                     <span class="question-desc-badge" title="${questionDescription}">${questionDescription}</span>
-                                </td>` : ''}
-                                <td class="question-points-cell" data-student-id="${student.studentId}" data-activity-id="${actualQuestionId}">
+                                </td>
+                                <td class="col-maxPoints question-points-cell" data-student-id="${student.studentId}" data-activity-id="${actualQuestionId}">
                                     ${maxPoints}
                                 </td>
-                                <td class="total-points-cell" data-student-id="${student.studentId}" data-component-id="${componentId}">
+                                <td class="col-totalPoints total-points-cell" data-student-id="${student.studentId}" data-component-id="${componentId}">
                                     ${getStudentTotalEarnedPointsForComponent(student.studentId, componentId)}
                                 </td>
-                                ${useGroupSystem ? `
-                                <td class="outcomes-cell">
+                                <td class="col-outcomes outcomes-cell">
                                     <span class="outcomes-badge">${Array.isArray(studentOutcomes) ? studentOutcomes.join(', ') : (studentOutcomes || '-')}</span>
-                                </td>` : ''}
-                                <td>
+                                </td>
+                                <td class="col-earnedPoints">
                                     <input type="number" min="0" max="100" 
                                         data-student-id="${student.studentId}" 
                                         data-activity-id="${actualQuestionId}"
@@ -20491,10 +20583,10 @@ function createComponentPaperOrderInputSection(activity, container) {
                                         title="${useGroupSystem ? `Kağıt sırası: ${paperOrder}, Cevap anahtarı: ${answerKeyOrder}, Maksimum puan: ${maxPoints}` : `Maksimum puan: ${maxPoints}`}"
                                     >
                                 </td>
-                                <td class="grade-summary-cell term-grade">${calculateStudentGrades(student.studentId).termGrade}</td>
-                                <td class="grade-summary-cell final-grade">${calculateStudentGrades(student.studentId).finalGrade}</td>
-                                <td class="grade-summary-cell total-grade">${calculateStudentGrades(student.studentId).totalGrade}</td>
-                                <td class="grade-summary-cell letter-grade ${getLetterGradeClass(calculateStudentGrades(student.studentId).letterGrade)}">${calculateStudentGrades(student.studentId).letterGrade}</td>
+                                <td class="col-termGrade grade-summary-cell term-grade">${calculateStudentGrades(student.studentId).termGrade}</td>
+                                <td class="col-finalGrade grade-summary-cell final-grade">${calculateStudentGrades(student.studentId).finalGrade}</td>
+                                <td class="col-average grade-summary-cell total-grade">${calculateStudentGrades(student.studentId).totalGrade}</td>
+                                <td class="col-letterGrade grade-summary-cell letter-grade ${getLetterGradeClass(calculateStudentGrades(student.studentId).letterGrade)}">${calculateStudentGrades(student.studentId).letterGrade}</td>
                             </tr>
                         `;
                     }).join('')}
@@ -31992,6 +32084,17 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupTableViewControls() {
     console.log('🔧 Tablo görünüm kontrolleri ayarlanıyor...');
     
+    // Önce mevcut event listener'ları temizle
+    document.querySelectorAll('.column-toggle').forEach(button => {
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+    });
+    
+    document.querySelectorAll('.mask-toggle').forEach(button => {
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+    });
+    
     // Mevcut sistemle uyumlu toggle butonları
     const toggleButtons = [
         { selector: '[data-column="col-no"]', columnKey: 'no' },
@@ -33320,6 +33423,9 @@ function setupStudentListEventListeners() {
     }
     
     console.log('✅ Öğrenci listesi event listener\'ları başarıyla ayarlandı');
+    
+    // Kolon kontrol butonlarını da ayarla
+    setupTableViewControls();
 }
 
 /**

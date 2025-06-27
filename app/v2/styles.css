@@ -28955,11 +28955,11 @@ input[type="range"].rainbow-slider.final-activity-slider,
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    background: var(--card-bg);
-    padding: 6px;
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
-    box-shadow: var(--shadow-sm);
+    background: linear-gradient(135deg, var(--node-bg) 0%, var(--header-bg) 100%);
+    padding: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--primary-light);
+    box-shadow: var(--shadow-md);
 }
 
 .column-toggle {
@@ -28968,7 +28968,7 @@ input[type="range"].rainbow-slider.final-activity-slider,
     gap: 4px;
     padding: 6px 10px;
     border: 2px solid var(--border-color);
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    background: linear-gradient(135deg, var(--card-bg) 0%, var(--header-bg) 100%);
     color: var(--text-color);
     font-size: 12px;
     font-weight: 600;
@@ -28977,25 +28977,28 @@ input[type="range"].rainbow-slider.final-activity-slider,
     transition: all 0.3s ease;
     white-space: nowrap;
     position: relative;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: var(--shadow-sm);
 }
 
 .column-toggle:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    box-shadow: var(--shadow-md);
+    background: linear-gradient(135deg, var(--hover-bg) 0%, var(--selected-bg) 100%);
+    border-color: var(--primary-light);
 }
 
 .column-toggle.active {
-    background: linear-gradient(135deg, #28a745 0%, #34ce57 100%);
+    background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%);
     color: white;
-    border-color: #1e7e34;
-    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    border-color: var(--primary-dark);
+    box-shadow: 0 4px 12px rgba(75, 163, 168, 0.3);
     transform: translateY(-1px);
 }
 
 .column-toggle.active:hover {
-    background: linear-gradient(135deg, #34ce57 0%, #28a745 100%);
-    box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+    background: linear-gradient(135deg, var(--primary-light) 0%, var(--secondary-color) 100%);
+    box-shadow: 0 6px 16px rgba(75, 163, 168, 0.4);
+    border-color: var(--primary-color);
 }
 
 .column-toggle .toggle-icon {
@@ -29010,16 +29013,18 @@ input[type="range"].rainbow-slider.final-activity-slider,
 }
 
 .column-toggle:not(.active) {
-    background: linear-gradient(135deg, #6c757d 0%, #868e96 100%);
+    background: linear-gradient(135deg, var(--text-light) 0%, #868e96 100%);
     color: white;
-    border-color: #495057;
-    opacity: 0.7;
+    border-color: var(--text-light);
+    opacity: 0.8;
 }
 
 .column-toggle:not(.active):hover {
-    background: linear-gradient(135deg, #868e96 0%, #6c757d 100%);
-    opacity: 0.9;
-    border-color: #343a40;
+    background: linear-gradient(135deg, #868e96 0%, var(--text-light) 100%);
+    opacity: 1;
+    border-color: var(--text-color);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
 }
 
 .mask-toggle {
@@ -29899,5 +29904,50 @@ input[type="range"].rainbow-slider.final-activity-slider,
     .filter-actions-left .btn {
         width: 100%;
         justify-content: center;
+    }
+}
+
+/* =====================================================
+   Değerlendirme Tablosu Kolon Kontrolleri
+   ===================================================== */
+
+/* Assessment Header Düzenlemeleri */
+.assessment-header {
+    align-items: flex-start !important;
+    flex-wrap: wrap !important;
+    gap: var(--spacing-sm) !important;
+}
+
+.assessment-controls {
+    flex-direction: column !important;
+    align-items: flex-end !important;
+}
+
+.assessment-controls .column-controls {
+    margin-bottom: 10px;
+}
+
+/* Değerlendirme Tablosu Kolon Gizleme - Artık Varsayılan Görünür */
+/* Tüm kolonlar varsayılan olarak görünür, sadece JavaScript ile kontrol edilir */
+
+/* Responsive tasarım - Assessment kontrolleri */
+@media (max-width: 768px) {
+    .assessment-header {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    
+    .assessment-controls {
+        align-items: stretch !important;
+    }
+    
+    .column-controls {
+        order: -1;
+        margin-bottom: 15px !important;
+    }
+    
+    .column-toggles {
+        justify-content: center;
+        padding: 10px;
     }
 }
