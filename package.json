@@ -1,0 +1,154 @@
+{
+  "name": "mudek-ders-degerlendirme-formu",
+  "version": "2.0.0",
+  "description": "RTEÜ MUDEK Ders Değerlendirme ve Akreditasyon Sistemi - Masaüstü Uygulaması",
+  "main": "electron-main.js",
+  "homepage": "https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/",
+  "author": {
+    "name": "Dr. Öğr. Üyesi Uğur CORUH",
+    "email": "ugur.coruh@erdogan.edu.tr",
+    "url": "https://www.coruh.com.tr"
+  },
+  "company": "CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ",
+  "copyright": "© 2024 CORUH R&D and TECHNOLOGY. Tüm hakları saklıdır.",
+  "license": "MIT",
+  "scripts": {
+    "setup": "node scripts/build-setup.js",
+    "start": "npm run setup && electron .",
+    "dev": "npm run setup && electron . --dev",
+    "prebuild": "npm run setup",
+    "build": "electron-builder",
+    "build:win": "electron-builder --windows",
+    "build:mac": "electron-builder --mac", 
+    "build:linux": "electron-builder --linux",
+    "build:all": "electron-builder --windows --mac --linux",
+    "dist": "npm run build:all",
+    "pack": "electron-builder --dir",
+    "web": "cd app/v2 && python -m http.server 8080",
+    "serve": "cd app/v2 && npx http-server -p 8080 -c-1",
+    "postinstall": "npm run setup"
+  },
+  "build": {
+    "appId": "com.coruh.mudek-ders-degerlendirme",
+    "productName": "MUDEK Ders Değerlendirme Sistemi",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron-main.js",
+      "electron-preload.js",
+      "app/v2/**/*",
+      "!app/v1/**/*",
+      "!test-json/**/*",
+      "!git-scripts/**/*",
+      "!docs/**/*",
+      "!dist/**/*",
+      "!node_modules/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "app/v2/assets",
+        "to": "assets"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64", "ia32"]
+        }
+      ],
+      "icon": "app/v2/assets/img/app-icon.ico",
+      "requestedExecutionLevel": "asInvoker",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "zip",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "app/v2/assets/img/app-icon.icns",
+      "category": "public.app-category.education",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        },
+        {
+          "target": "rpm",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "app/v2/assets/img/app-icon.png",
+      "category": "Education",
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "app/v2/assets/img/app-icon.ico",
+      "uninstallerIcon": "app/v2/assets/img/app-icon.ico",
+      "installerHeaderIcon": "app/v2/assets/img/app-icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "MUDEK Ders Değerlendirme Sistemi"
+    },
+    "dmg": {
+      "title": "${productName} ${version}",
+      "icon": "app/v2/assets/img/app-icon.icns",
+      "background": "app/v2/assets/img/dmg-background.png",
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.1.7"
+  },
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coruhtech/mudek-ders-degerlendirme-formu.git"
+  },
+  "keywords": [
+    "mudek",
+    "ders",
+    "değerlendirme",
+    "akreditasyon",
+    "rteü",
+    "electron",
+    "desktop",
+    "education",
+    "assessment"
+  ]
+} 

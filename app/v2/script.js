@@ -34361,10 +34361,237 @@ function showSuccessMessage(message) {
     alert(message);
 }
 
+// =====================================================
+// ELECTRON ENTEGRASYONU
+// =====================================================
+
+/**
+ * Electron API'leri için event listener'ları ekle
+ */
+function setupElectronIntegration() {
+    // Electron ortamında mıyız kontrol et
+    if (typeof window.electronAPI !== 'undefined') {
+        console.log('🖥️ Electron ortamı tespit edildi');
+        
+        // Dosya yükleme event'i
+        window.electronAPI.onLoadJsonFile((event, data) => {
+            try {
+                const parsedData = JSON.parse(data.content);
+                // Mevcut importCourseData fonksiyonunu kullan
+                importCourseData(parsedData);
+                APP_STATE.jsonFileName = data.filename;
+                showToast(`✅ ${data.filename} başarıyla yüklendi!`, 'success');
+            } catch (error) {
+                console.error('JSON parse hatası:', error);
+                showToast(`❌ JSON dosyası okunamadı: ${error.message}`, 'error');
+            }
+        });
+        
+        // Dosya kaydetme isteği
+        window.electronAPI.onSaveJsonRequest((event) => {
+            const courseData = exportCourseData();
+            const filename = APP_STATE.jsonFileName || 'ders-tanimi.json';
+            
+            window.electronAPI.saveJsonDialog({
+                content: JSON.stringify(courseData, null, 2),
+                filename: filename
+            }).then(result => {
+                if (result.success) {
+                    showToast(`✅ Dosya kaydedildi: ${result.filePath}`, 'success');
+                } else if (!result.cancelled) {
+                    showToast(`❌ Dosya kaydetme hatası: ${result.error}`, 'error');
+                }
+            });
+        });
+        
+        // Öğrenci listesi yükleme
+        window.electronAPI.onLoadStudentsFile((event, data) => {
+            try {
+                const parsedData = JSON.parse(data.content);
+                // Mevcut öğrenci import fonksiyonunu kullan
+                importStudentData(parsedData);
+                showToast(`✅ ${data.filename} öğrenci listesi yüklendi!`, 'success');
+            } catch (error) {
+                console.error('Öğrenci JSON parse hatası:', error);
+                showToast(`❌ Öğrenci listesi okunamadı: ${error.message}`, 'error');
+            }
+        });
+        
+        // Not dışa aktarma isteği
+        window.electronAPI.onExportGradesRequest((event) => {
+            const gradesData = {
+                courseData: APP_STATE.courseData,
+                studentData: APP_STATE.studentData,
+                gradesData: APP_STATE.gradesData,
+                assessmentTree: APP_STATE.assessmentTree,
+                exportDate: new Date().toISOString()
+            };
+            
+            const filename = `notlar-${APP_STATE.courseData?.courseCode || 'unknown'}-${new Date().toISOString().split('T')[0]}.json`;
+            
+            window.electronAPI.saveGradesDialog({
+                content: JSON.stringify(gradesData, null, 2),
+                filename: filename
+            }).then(result => {
+                if (result.success) {
+                    showToast(`✅ Notlar kaydedildi: ${result.filePath}`, 'success');
+                } else if (!result.cancelled) {
+                    showToast(`❌ Not kaydetme hatası: ${result.error}`, 'error');
+                }
+            });
+        });
+        
+        // Electron menü kısayolları için ek fonksiyonlar
+        setupElectronMenuHandlers();
+        
+        // Electron sürüm bilgilerini göster
+        if (window.versions) {
+            console.log('📱 Uygulama Sürümleri:', window.versions);
+            
+            // Sürüm bilgilerini footer'a ekle (varsa)
+            const footer = document.querySelector('.footer, .version-info');
+            if (footer) {
+                const versionInfo = document.createElement('div');
+                versionInfo.className = 'electron-version-info';
+                versionInfo.innerHTML = `
+                    <small>
+                        Electron ${window.versions.electron} | 
+                        Node.js ${window.versions.node} | 
+                        App ${window.versions.app}
+                    </small>
+                `;
+                footer.appendChild(versionInfo);
+            }
+        }
+        
+    } else {
+        console.log('🌐 Web tarayıcı ortamı tespit edildi');
+        // Web ortamı için özel ayarlar
+        setupWebIntegration();
+    }
+}
+
+/**
+ * Electron menü işleyicilerini ayarla
+ */
+function setupElectronMenuHandlers() {
+    // Ctrl+O - Dosya Aç
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+            e.preventDefault();
+            // Electron menüsü zaten bu işlemi yapacak
+        }
+    });
+    
+    // Ctrl+S - Dosya Kaydet
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            // Electron menüsü zaten bu işlemi yapacak
+        }
+    });
+    
+    // Ctrl+Shift+O - Öğrenci Listesi Yükle
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'O') {
+            e.preventDefault();
+            // Electron menüsü zaten bu işlemi yapacak
+        }
+    });
+    
+    // Ctrl+E - Notları Dışa Aktar
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'e') {
+            e.preventDefault();
+            // Electron menüsü zaten bu işlemi yapacak
+        }
+    });
+}
+
+/**
+ * Web ortamı için ayarlar
+ */
+function setupWebIntegration() {
+    // Web ortamında özel ayarlar
+    // Örneğin: localStorage'dan otomatik veri yükleme
+    const savedData = localStorage.getItem('mudek-course-data');
+    if (savedData) {
+        try {
+            const parsedData = JSON.parse(savedData);
+            importCourseData(parsedData);
+            console.log('💾 localStorage\'dan veri yüklendi');
+        } catch (error) {
+            console.error('localStorage veri yükleme hatası:', error);
+        }
+    }
+    
+    // Periyodik otomatik kaydetme
+    setInterval(() => {
+        if (APP_STATE.courseData) {
+            const courseData = exportCourseData();
+            try {
+                localStorage.setItem('mudek-course-data', JSON.stringify(courseData));
+                console.log('💾 Otomatik localStorage kaydı yapıldı');
+            } catch (error) {
+                console.error('localStorage kaydetme hatası:', error);
+            }
+        }
+    }, 30000); // 30 saniyede bir kaydet
+}
+
+/**
+ * Electron'da toast mesajları göster (memory'deki kurala uygun)
+ */
+if (typeof window.electronAPI !== 'undefined') {
+    // Electron ortamında showToast'ı override et
+    const originalShowToast = window.showToast;
+    window.showToast = function(message, type = 'info', duration = 3000) {
+        // Önce mevcut toast sistemini kullanmaya çalış
+        if (originalShowToast) {
+            originalShowToast(message, type, duration);
+        } else {
+            // Fallback - basit bir toast sistemi
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            // Basit bir toast elementi oluştur
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+                color: white;
+                padding: 12px 24px;
+                border-radius: 4px;
+                z-index: 10000;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                animation: slideInRight 0.3s ease;
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOutRight 0.3s ease';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, duration);
+        }
+    };
+}
+
 // DOM yüklendiğinde uygulamayı başlat
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeApp);
+    document.addEventListener('DOMContentLoaded', () => {
+        initializeApp();
+        setupElectronIntegration();
+    });
 } else {
     // DOM zaten yüklenmiş
     initializeApp();
+    setupElectronIntegration();
 }

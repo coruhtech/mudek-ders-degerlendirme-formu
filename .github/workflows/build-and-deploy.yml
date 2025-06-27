@@ -1,0 +1,196 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  web-deploy:
+    name: Deploy Web App
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Pages
+      uses: actions/configure-pages@v3
+      
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v2
+      with:
+        path: './app/v2'
+        
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@v2
+
+  build-electron:
+    name: Build Desktop App
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Create app icons
+      run: |
+        mkdir -p app/v2/assets/img
+        # Windows için ico dosyası oluştur
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          # Windows'ta icon converter kullanılabilir
+          echo "Windows icon creation placeholder"
+        fi
+        # macOS için icns dosyası oluştur  
+        if [ "${{ matrix.os }}" == "macos-latest" ]; then
+          # macOS'ta iconutil kullanılabilir
+          echo "macOS icon creation placeholder"
+        fi
+        # Linux için png dosyası zaten mevcut
+        if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+          cp app/v2/assets/img/coruh-logo.png app/v2/assets/img/app-icon.png
+        fi
+      shell: bash
+      
+    - name: Build Electron App (Windows)
+      if: matrix.os == 'windows-latest'
+      run: npm run build:win
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Build Electron App (macOS)
+      if: matrix.os == 'macos-latest'
+      run: npm run build:mac
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        CSC_IDENTITY_AUTO_DISCOVERY: false
+        
+    - name: Build Electron App (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: npm run build:linux
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Upload Windows Artifacts
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v3
+      with:
+        name: mudek-windows
+        path: |
+          dist/*.exe
+          dist/*.msi
+          dist/*.appx
+          
+    - name: Upload macOS Artifacts  
+      if: matrix.os == 'macos-latest'
+      uses: actions/upload-artifact@v3
+      with:
+        name: mudek-macos
+        path: |
+          dist/*.dmg
+          dist/*.zip
+          dist/*.pkg
+          
+    - name: Upload Linux Artifacts
+      if: matrix.os == 'ubuntu-latest'  
+      uses: actions/upload-artifact@v3
+      with:
+        name: mudek-linux
+        path: |
+          dist/*.AppImage
+          dist/*.deb
+          dist/*.rpm
+          dist/*.tar.gz
+
+  release:
+    name: Create Release
+    needs: [web-deploy, build-electron]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      
+    - name: Download Windows Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: mudek-windows
+        path: ./release-assets/windows/
+        
+    - name: Download macOS Artifacts
+      uses: actions/download-artifact@v3  
+      with:
+        name: mudek-macos
+        path: ./release-assets/macos/
+        
+    - name: Download Linux Artifacts
+      uses: actions/download-artifact@v3
+      with:
+        name: mudek-linux
+        path: ./release-assets/linux/
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
+        body: |
+          ## MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
+          
+          ### 🎓 Özellikler
+          - RTEÜ MUDEK ders değerlendirme kriterleri yönetimi
+          - Öğrenci notları giriş ve hesaplama sistemi
+          - Web ve masaüstü uygulaması desteği
+          - Multi-platform support (Windows, macOS, Linux)
+          
+          ### 📥 İndirme Seçenekleri
+          
+          #### 🌐 Web Uygulaması
+          [Web Uygulamasını Kullan](https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/)
+          
+          #### 💻 Masaüstü Uygulaması
+          - **Windows**: `.exe` (Portable) veya `.msi` (Installer)
+          - **macOS**: `.dmg` (Disk Image) veya `.zip` (Archive)  
+          - **Linux**: `.AppImage` (Portable), `.deb` (Debian/Ubuntu), `.rpm` (Red Hat/CentOS)
+          
+          ### 👨‍💻 Geliştirici
+          **Dr. Öğr. Üyesi Uğur CORUH**  
+          CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ  
+          🌐 [www.coruh.com.tr](https://www.coruh.com.tr)  
+          📍 Fener Mah. Atatürk Cad. No:28/2 İç Kapı No:3 Merkez/Rize
+          
+          ---
+          © 2024 CORUH R&D and TECHNOLOGY. Tüm hakları saklıdır.
+        files: |
+          release-assets/windows/*
+          release-assets/macos/*
+          release-assets/linux/*
+        draft: false
+        prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+# GitHub Pages için permissions
+permissions:
+  contents: read
+  pages: write
+  id-token: write 
