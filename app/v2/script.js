@@ -7756,17 +7756,19 @@ function getStudentGrade(studentId, activityId) {
     const studentGrades = APP_STATE.gradesData[studentId];
     const activity = findNodeById(activityId);
     
-    // v5 FORMAT ÖNCELİĞİ: Pozisyon bazlı notları kontrol et
+    // Kağıt sırası bazlı erişim
     const parts = activityId.split('.');
     if (parts.length > 1) {
         const parentId = parts[0]; // A1.1 -> A1
         
-        if (studentGrades[parentId] && typeof studentGrades[parentId] === 'object') {
-            // v5 Format: Pozisyon bazlı erişim (1, 2, 3, 4, 5...)
-            for (const position of Object.keys(studentGrades[parentId])) {
+        // Kağıt pozisyonunu bul
+        const activity_parent = findNodeById(parentId);
+        if (activity_parent && activity_parent.children && studentGrades[parentId]) {
+            const questionIndex = activity_parent.children.findIndex(child => child.id === activityId);
+            if (questionIndex !== -1) {
+                const position = (questionIndex + 1).toString();
                 const gradeInfo = studentGrades[parentId][position];
-                if (gradeInfo && typeof gradeInfo === 'object' && 
-                    gradeInfo.soruId === activityId && gradeInfo.puan !== undefined) {
+                if (gradeInfo && gradeInfo.puan !== undefined) {
                     return gradeInfo.puan;
                 }
             }
@@ -8236,13 +8238,12 @@ function updateCourseDataGrades(studentId, activityId, value) {
                         APP_STATE.courseData.ogrenciNotlari[studentId][parentId] = {};
                     }
                     
-                    // Pozisyon bazlı güncelleme (export formatına uygun)
+                    // Kağıt sırasına göre puan kaydet (soruId dinamik hesaplanacak)
                     APP_STATE.courseData.ogrenciNotlari[studentId][parentId][position] = {
-                        puan: parseFloat(value) || 0,
-                        soruId: activityId
+                        puan: parseFloat(value) || 0
                     };
                     
-                    console.log(`courseData güncellendi: Öğrenci ${studentId}, Aktivite ${parentId}, Pozisyon ${position}, Soru ${activityId} = ${value} puan`);
+                    console.log(`Puan güncellendi: ${studentId} - ${parentId} pozisyon ${position} = ${value} puan`);
                 }
             }
         }
@@ -8306,30 +8307,24 @@ function updateStudentGrade(input) {
         const parts = activityId.split('.');
         if (parts.length > 1) {
             const parentId = parts[0]; // A1.1 -> A1
-            const componentId = getParentComponentId(activityId);
             
-            // Öğrencinin bu bileşendeki grubunu al
-            const studentGroup = getStudentGroupForComponent(studentId, componentId);
-            
-            // v5 format yapısını oluştur
-            if (!APP_STATE.gradesData[studentId][parentId]) {
-                APP_STATE.gradesData[studentId][parentId] = {};
-            }
-            
-            // Kağıt pozisyonunu bul
+            // Kağıt pozisyonunu bul ve puanı kaydet
             const activity_parent = findNodeById(parentId);
             if (activity_parent && activity_parent.children) {
                 const questionIndex = activity_parent.children.findIndex(child => child.id === activityId);
                 if (questionIndex !== -1) {
                     const position = (questionIndex + 1).toString();
                     
-                    // v5 format: pozisyon bazlı kayıt
+                    if (!APP_STATE.gradesData[studentId][parentId]) {
+                        APP_STATE.gradesData[studentId][parentId] = {};
+                    }
+                    
+                    // Kağıt sırasına göre puanı kaydet
                     APP_STATE.gradesData[studentId][parentId][position] = {
-                        puan: value,
-                        soruId: activityId
+                        puan: value
                     };
                     
-                    console.log(`v5 format not kaydedildi: Öğrenci ${studentId}, Pozisyon ${position}, Soru ${activityId} = ${value} puan`);
+                    console.log(`Puan kaydedildi: ${studentId} - ${parentId} pozisyon ${position} = ${value} puan`);
                 }
             }
         }
@@ -8337,7 +8332,7 @@ function updateStudentGrade(input) {
         // Geriye uyumluluk için doğrudan erişim de sağla
         APP_STATE.gradesData[studentId][activityId] = value;
         
-        // ✅ FIX: courseData.ogrenciNotlari yapısını da güncelle (export için gerekli)
+        // courseData'yı da güncelle
         updateCourseDataGrades(studentId, activityId, value);
         
         // Test mi kontrol et
@@ -8375,27 +8370,13 @@ function updateStudentGrade(input) {
             if (studentViewTotalElement) studentViewTotalElement.textContent = value.toFixed(2);
             
         } else {
-            // Normal not için
+            // Normal not kaydı
             APP_STATE.gradesData[studentId][activityId] = value;
             
-            // Alt düğüm yapısını oluştur (A1.1 -> A1 altında storlama)
+            // Toplama hesapla (eğer parent varsa)
             const parts = activityId.split('.');
             if (parts.length > 1) {
                 const parentId = parts[0]; // A1
-                const shortId = parts[parts.length - 1]; // 1
-                
-                // Eğer üst aktivite yoksa oluştur
-                if (!APP_STATE.gradesData[studentId][parentId]) {
-                    APP_STATE.gradesData[studentId][parentId] = {
-                        toplam: 0
-                    };
-                }
-                
-                // Not değerini ekle - hem tam ID, hem kısa ID olarak
-                APP_STATE.gradesData[studentId][parentId][activityId] = value;
-                APP_STATE.gradesData[studentId][parentId][shortId] = value;
-                
-                // Toplama hesapla
                 updateParentActivityTotal(studentId, parentId);
             }
             
@@ -9876,18 +9857,13 @@ function createExportData() {
             activity.children.forEach((child, index) => {
                 const questionOrder = (index + 1).toString();
                 
-                // ✅ FIX: Doğrudan child.id'den not al - grup haritalama karmaşıklığı olmadan
-                // Not girişi zaten doğru soru ID'si ile yapılıyor, export sırasında da aynısını kullan
-                const grade = getStudentGrade(studentId, child.id) || 0;
+                // Kağıt sırasındaki puanı al
+                const grade = (APP_STATE.gradesData[studentId]?.[activity.id]?.[questionOrder]?.puan) || 0;
                 
-                // Export için soru ID'sini belirle (grup haritalama varsa kullan, yoksa orijinal)
+                // Soru ID'sini haritadan hesapla
                 const studentGroup = getStudentGroupForComponent(studentId, activity.id) || 'A';
                 const groupMapping = APP_STATE.courseData?.grupHaritalari?.[activity.id]?.haritalar?.[studentGroup];
-                let exportQuestionId = child.id;
-                
-                if (groupMapping && groupMapping[questionOrder]) {
-                    exportQuestionId = groupMapping[questionOrder];
-                }
+                const exportQuestionId = groupMapping?.[questionOrder] || child.id;
                 
                 activityGrades[questionOrder] = {
                     puan: parseFloat(grade.toFixed(2)),
@@ -10045,7 +10021,7 @@ function createGradesExportData() {
                             questionId = groupMapping[questionOrder];
                         }
                         
-                        // ✅ FIX: Doğru soru ID'sinden puanı al - grup haritalama sonrası
+                        // Kağıt sırasına göre puanı al
                         const grade = getStudentGrade(studentId, questionId) || 0;
                         
                         activityGrades[questionOrder] = {
@@ -14965,15 +14941,9 @@ function updateQuestionInfoForComponent(studentId, groupId, componentId) {
                         input.style.backgroundColor = '';
                     }
                     
-                    // GRUP BAZLI NOT YÜKLEME: Yeni gruba geçince o grubun notunu yükle
-                    const studentGroup = getStudentGroupForComponent(studentId, componentId);
-                    if (APP_STATE.gradesData[studentId]?.grupBazliNotlar?.[studentGroup]?.[questionId] !== undefined) {
-                        const savedGrade = APP_STATE.gradesData[studentId].grupBazliNotlar[studentGroup][questionId];
-                        if (input.value !== savedGrade.toString()) {
-                            input.value = savedGrade;
-                            console.log(`📚 Grup bazlı not yüklendi: ${studentId} (${studentGroup} grubu) → Soru ${questionId} = ${savedGrade} puan`);
-                        }
-                    }
+                    // ✅ FIX: GRUP BAZLI NOT YÜKLEME KALDIRILDI
+                    // updateQuestionInfoForComponent sadece UI güncellemesi yapar, puanları değiştirmez
+                    // Puanlar import sırasında kağıt sırasına göre doğru şekilde yüklenir
                 }
             }
             
@@ -29502,15 +29472,11 @@ function loadStudentGradesNewFormat(jsonData) {
                     
                     Object.keys(activityGrades).forEach(questionOrder => {
                         const gradeInfo = activityGrades[questionOrder];
-                        if (gradeInfo && typeof gradeInfo === 'object' && gradeInfo.soruId && gradeInfo.puan !== undefined) {
-                            // v5 Format: Pozisyon bazlı yapıyı koru
+                        if (gradeInfo && typeof gradeInfo === 'object' && gradeInfo.puan !== undefined) {
+                            // Kağıt sırasına göre puanı kaydet (soruId'yi görmezden gel)
                             APP_STATE.gradesData[studentId][activityId][questionOrder] = {
-                                puan: gradeInfo.puan,
-                                soruId: gradeInfo.soruId
+                                puan: gradeInfo.puan
                             };
-                            
-                            // Geriye uyumluluk için soru ID'si ile de kaydet
-                            APP_STATE.gradesData[studentId][gradeInfo.soruId] = gradeInfo.puan;
                         }
                     });
                 }
@@ -29531,7 +29497,7 @@ function loadStudentGradesNewFormat(jsonData) {
             }
         });
         
-                        console.log("✅ Öğrenci notları Tam Dosya formatında tam olarak yüklendi");
+                        console.log("✅ Öğrenci notları kağıt sırası bazlı yüklendi");
         console.log("📊 Yüklenen öğrenci sayısı:", Object.keys(APP_STATE.gradesData).length);
     } catch (error) {
         console.error("Öğrenci notları yüklenirken hata oluştu:", error);
