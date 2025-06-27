@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [ main ]
 
+env:
+  # Otomatik build versioning
+  BUILD_DATE: ${{ github.run_number }}
+  BUILD_TIME: ${{ github.run_id }}
+
 jobs:
   web-deploy:
     name: Deploy Web App
@@ -23,13 +28,13 @@ jobs:
       uses: actions/configure-pages@v3
       
     - name: Upload artifact
-      uses: actions/upload-pages-artifact@v2
+      uses: actions/upload-pages-artifact@v3
       with:
         path: './app/v2'
         
     - name: Deploy to GitHub Pages
       id: deployment
-      uses: actions/deploy-pages@v2
+      uses: actions/deploy-pages@v4
 
   build-electron:
     name: Build Desktop App
@@ -51,6 +56,9 @@ jobs:
         
     - name: Install dependencies
       run: npm ci
+      
+    - name: Update Version
+      run: node update-version.js
       
     - name: Create app icons
       run: |
@@ -92,7 +100,7 @@ jobs:
         
     - name: Upload Windows Artifacts
       if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mudek-windows
         path: |
@@ -102,7 +110,7 @@ jobs:
           
     - name: Upload macOS Artifacts  
       if: matrix.os == 'macos-latest'
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mudek-macos
         path: |
@@ -112,7 +120,7 @@ jobs:
           
     - name: Upload Linux Artifacts
       if: matrix.os == 'ubuntu-latest'  
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mudek-linux
         path: |
@@ -121,30 +129,51 @@ jobs:
           dist/*.rpm
           dist/*.tar.gz
 
-  release:
-    name: Create Release
+  auto-release:
+    name: Auto Release 
     needs: [web-deploy, build-electron]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
     - name: Checkout
       uses: actions/checkout@v4
       
+    - name: Generate Version Tag
+      id: version
+      run: |
+        # Tarih saat formatında version oluştur
+        BUILD_DATE=$(date +'%Y.%m.%d')
+        BUILD_TIME=$(date +'%H%M')
+        BUILD_NUM=$(printf "%04d" ${{ github.run_number }})
+        VERSION_TAG="v${BUILD_DATE}.${BUILD_TIME}.${BUILD_NUM}"
+        echo "version=${VERSION_TAG}" >> $GITHUB_OUTPUT
+        echo "date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+        echo "time=${BUILD_TIME}" >> $GITHUB_OUTPUT
+        echo "build=${BUILD_NUM}" >> $GITHUB_OUTPUT
+        echo "Generated version: ${VERSION_TAG}"
+        
+    - name: Create and Push Tag
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git tag ${{ steps.version.outputs.version }}
+        git push origin ${{ steps.version.outputs.version }}
+      
     - name: Download Windows Artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mudek-windows
         path: ./release-assets/windows/
         
     - name: Download macOS Artifacts
-      uses: actions/download-artifact@v3  
+      uses: actions/download-artifact@v4  
       with:
         name: mudek-macos
         path: ./release-assets/macos/
         
     - name: Download Linux Artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mudek-linux
         path: ./release-assets/linux/
@@ -152,9 +181,97 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: MUDEK Ders Değerlendirme Sistemi ${{ steps.version.outputs.version }}
+        body: |
+          ## 🚀 MUDEK Ders Değerlendirme Sistemi ${{ steps.version.outputs.version }}
+          
+          ### 📅 Build Bilgileri
+          - **Build Tarihi:** ${{ steps.version.outputs.date }}
+          - **Build Saati:** ${{ steps.version.outputs.time }}
+          - **Build Numarası:** ${{ steps.version.outputs.build }}
+          - **Commit:** ${{ github.sha }}
+          - **Branch:** ${{ github.ref_name }}
+          
+          ### 📋 Değişiklikler
+          Bu sürüm aşağıdaki commit'leri içerir:
+          ${{ github.event.head_commit.message }}
+          
+          ### 🎓 MUDEK Ders Değerlendirme Sistemi ${{ steps.version.outputs.version }}
+          
+          ### 🎓 Özellikler
+          - RTEÜ MUDEK ders değerlendirme kriterleri yönetimi
+          - Öğrenci notları giriş ve hesaplama sistemi
+          - Web ve masaüstü uygulaması desteği
+          - Multi-platform support (Windows, macOS, Linux)
+          
+          ### 📥 İndirme Seçenekleri
+          
+          #### 🌐 Web Uygulaması
+          [Web Uygulamasını Kullan](https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/)
+          
+          #### 💻 Masaüstü Uygulaması
+          - **Windows**: `.exe` (Portable) veya `.msi` (Installer)
+          - **macOS**: `.dmg` (Disk Image) veya `.zip` (Archive)  
+          - **Linux**: `.AppImage` (Portable), `.deb` (Debian/Ubuntu), `.rpm` (Red Hat/CentOS)
+          
+          ### 👨‍💻 Geliştirici
+          **Dr. Öğr. Üyesi Uğur CORUH**  
+          CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ  
+          🌐 [www.coruh.com.tr](https://www.coruh.com.tr)  
+          📍 Fener Mah. Atatürk Cad. No:28/2 İç Kapı No:3 Merkez/Rize
+          
+          ---
+          © 2024 CORUH R&D and TECHNOLOGY. Tüm hakları saklıdır.
+        files: |
+          release-assets/windows/*
+          release-assets/macos/*
+          release-assets/linux/*
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  manual-release:
+    name: Manual Tagged Release
+    needs: [web-deploy, build-electron]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+        
+    - name: Download Windows Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mudek-windows
+        path: ./release-assets/windows/
+        
+    - name: Download macOS Artifacts
+      uses: actions/download-artifact@v4  
+      with:
+        name: mudek-macos
+        path: ./release-assets/macos/
+        
+    - name: Download Linux Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mudek-linux
+        path: ./release-assets/linux/
+        
+    - name: Create Manual Release
+      uses: softprops/action-gh-release@v1
+      with:
         name: MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
         body: |
-          ## MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
+          ## 🎓 MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
+          
+          ### 📋 Manuel Release
+          Bu sürüm manuel olarak tag ile oluşturulmuştur.
+          - **Tag:** ${{ github.ref_name }}
+          - **Commit:** ${{ github.sha }}
           
           ### 🎓 Özellikler
           - RTEÜ MUDEK ders değerlendirme kriterleri yönetimi
@@ -186,6 +303,7 @@ jobs:
           release-assets/linux/*
         draft: false
         prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
