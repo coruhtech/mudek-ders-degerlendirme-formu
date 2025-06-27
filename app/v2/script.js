@@ -354,6 +354,13 @@ function updateAssessmentColumnVisibility() {
             console.log(`🔄 ${columnKey}: ${isVisible ? 'Göster' : 'Gizle'} (${headerCells.length} header, ${bodyCells.length} body)`);
         });
     });
+    
+    // Kolon görünürlük güncellemesi sonrasında butonları kontrol et
+    setTimeout(() => {
+        if (typeof addAutoDistributeButtonsToTables === 'function') {
+            addAutoDistributeButtonsToTables();
+        }
+    }, 50);
 }
 
 // Bu fonksiyon setupTableViewControls() ile birleştirildi ve kaldırıldı
@@ -6740,6 +6747,12 @@ function updateAssessmentView() {
         setTimeout(() => {
             initializeAssessmentControls();
             console.log('✅ Değerlendirme kolon kontrolleri başlatıldı');
+            
+            // Otomatik dağıtım butonlarını ayarla
+            setupAutoDistributeButtons();
+            
+            // Butonları tablolara ekle (eğer yoksa)
+            addAutoDistributeButtonsToTables();
         }, 200);
         
     } catch (error) {
@@ -7244,7 +7257,15 @@ function createAssessmentActivitySection(activity, container, type) {
                                     ${maxPoints}
                                 </td>
                                 <td class="col-totalPoints total-points-cell" data-student-id="${student.studentId}" data-activity-id="${activity.id}">
-                                    ${getStudentTotalEarnedPointsForComponent(student.studentId, activity.id)}
+                                    <div class="total-points-container">
+                                        <span class="total-points-value">${getStudentTotalEarnedPointsForComponent(student.studentId, activity.id)}</span>
+                                        <button class="auto-distribute-btn" type="button" 
+                                                data-student-id="${student.studentId}" 
+                                                data-activity-id="${activity.id}"
+                                                title="Otomatik puan dağıt">
+                                            🎯
+                                        </button>
+                                    </div>
                                 </td>
                                 <td class="col-outcomes">-</td>
                                 <td class="col-earnedPoints">
@@ -7754,7 +7775,15 @@ function createSubItemInputSection(subItem, container) {
                             ${maxPoints}
                         </td>
                         <td class="col-totalPoints total-points-cell" data-student-id="${student.studentId}" data-component-id="${parentComponentId}">
-                            ${getStudentTotalEarnedPointsForComponent(student.studentId, parentComponentId)}
+                            <div class="total-points-container">
+                                <span class="total-points-value">${getStudentTotalEarnedPointsForComponent(student.studentId, parentComponentId)}</span>
+                                <button class="auto-distribute-btn" type="button" 
+                                        data-student-id="${student.studentId}" 
+                                        data-activity-id="${parentComponentId}"
+                                        title="Otomatik puan dağıt">
+                                    🎯
+                                </button>
+                            </div>
                         </td>
                         <td class="col-outcomes outcomes-cell">
                             <span class="outcomes-badge">${Array.isArray(studentOutcomes) ? studentOutcomes.join(', ') : (studentOutcomes || '-')}</span>
@@ -20567,7 +20596,15 @@ function createComponentPaperOrderInputSection(activity, container) {
                                     ${maxPoints}
                                 </td>
                                 <td class="col-totalPoints total-points-cell" data-student-id="${student.studentId}" data-component-id="${componentId}">
-                                    ${getStudentTotalEarnedPointsForComponent(student.studentId, componentId)}
+                                    <div class="total-points-container">
+                                        <span class="total-points-value">${getStudentTotalEarnedPointsForComponent(student.studentId, componentId)}</span>
+                                        <button class="auto-distribute-btn" type="button" 
+                                                data-student-id="${student.studentId}" 
+                                                data-activity-id="${componentId}"
+                                                title="Otomatik puan dağıt">
+                                            🎯
+                                        </button>
+                                    </div>
                                 </td>
                                 <td class="col-outcomes outcomes-cell">
                                     <span class="outcomes-badge">${Array.isArray(studentOutcomes) ? studentOutcomes.join(', ') : (studentOutcomes || '-')}</span>
@@ -28647,6 +28684,17 @@ function instantAssessmentRefresh(reason = "Değişiklik") {
         
         console.log(`⚡ Anında güncelleme: ${reason}`);
         updateAssessmentView();
+        
+        // Tablo güncellendikten sonra butonları yeniden ekle
+        setTimeout(() => {
+            console.log(`🔧 ${reason} sonrası butonları kontrol ediliyor...`);
+            const existingButtons = document.querySelectorAll('.auto-distribute-btn');
+            if (existingButtons.length === 0) {
+                console.log('⚠️ Butonlar kaybolmuş, yeniden ekleniyor...');
+                addAutoDistributeButtonsToTables();
+            }
+        }, 300);
+        
         return true;
     }
     return false;
@@ -28666,7 +28714,25 @@ function attachInstantUpdateListeners() {
     // Tüm form değişiklikleri
     document.addEventListener('change', function(e) {
         if (e.target.closest('#treeContainer')) {
-            setTimeout(() => instantAssessmentRefresh("Form değişikliği"), 100);
+            // Eğer değişiklik puan input'ından geliyorsa (inline dağıtım sonrası olabilir)
+            const isPuanInput = e.target.type === 'number' && 
+                               (e.target.dataset.studentId || e.target.dataset.activityId);
+            
+            setTimeout(() => {
+                instantAssessmentRefresh("Form değişikliği");
+                
+                // Puan input değişikliği ise butonları hemen kontrol et
+                if (isPuanInput) {
+                    setTimeout(() => {
+                        console.log('🔧 Puan input değişikliği sonrası buton kontrolü...');
+                        const existingButtons = document.querySelectorAll('.auto-distribute-btn');
+                        if (existingButtons.length === 0) {
+                            console.log('⚠️ Puan input sonrası butonlar kaybolmuş, acil ekleniyor...');
+                            addAutoDistributeButtonsToTables();
+                        }
+                    }, 100);
+                }
+            }, 100);
         }
     });
     
@@ -33465,6 +33531,834 @@ function initializeApp() {
     } catch (error) {
         console.error('❌ Uygulama başlatma hatası:', error);
     }
+}
+
+// =====================================================
+// OTOMATIK PUAN DAĞITIM SİSTEMİ
+// =====================================================
+
+/**
+ * Otomatik puan dağıtım butonları için event listener'ları ekle
+ * Event delegation kullanarak kalıcı çözüm sağlar
+ */
+function setupAutoDistributeButtons() {
+    // Event delegation ile container'a listener ekle
+    const assessmentContainer = document.getElementById('assessmentContainer');
+    if (!assessmentContainer) {
+        console.error('❌ assessmentContainer bulunamadı');
+        return;
+    }
+    
+    // Mevcut event listener'ı kaldır (eğer varsa)
+    assessmentContainer.removeEventListener('click', handleAutoDistributeClick);
+    
+    // Yeni event listener ekle
+    assessmentContainer.addEventListener('click', handleAutoDistributeClick);
+    
+    // Mevcut butonları say
+    const autoDistributeButtons = document.querySelectorAll('.auto-distribute-btn');
+    console.log(`✅ ${autoDistributeButtons.length} otomatik dağıtım butonu için event delegation ayarlandı`);
+}
+
+/**
+ * Otomatik dağıtım buton click handler'ı
+ */
+function handleAutoDistributeClick(e) {
+    // Sadece auto-distribute-btn butonları için çalış
+    if (!e.target.classList.contains('auto-distribute-btn')) {
+        return;
+    }
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const button = e.target;
+    const studentId = button.dataset.studentId;
+    const activityId = button.dataset.activityId;
+    
+    console.log(`🎯 Inline dağıtım başlatılıyor: ${studentId} - ${activityId}`);
+    openInlineDistributeForm(studentId, activityId);
+}
+
+/**
+ * Tablolara otomatik dağıtım butonlarını ekle (eğer yoksa)
+ */
+function addAutoDistributeButtonsToTables() {
+    console.log('🔧 Tablolara otomatik dağıtım butonları ekleniyor...');
+    
+    // Tüm toplam puan hücrelerini bul
+    const totalPointsCells = document.querySelectorAll('.total-points-cell');
+    
+    totalPointsCells.forEach(cell => {
+        // Eğer bu hücrede zaten buton varsa, atla
+        if (cell.querySelector('.auto-distribute-btn')) {
+            return;
+        }
+        
+        const studentId = cell.dataset.studentId;
+        const activityId = cell.dataset.activityId || cell.dataset.componentId;
+        
+        if (!studentId || !activityId) {
+            return;
+        }
+        
+        // Hücrenin içeriğini container ile sar
+        const existingContent = cell.innerHTML;
+        const container = document.createElement('div');
+        container.className = 'total-points-container';
+        
+        // Mevcut içeriği value span'ine sar
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'total-points-value';
+        valueSpan.innerHTML = existingContent;
+        
+        // Butonu oluştur
+        const button = document.createElement('button');
+        button.className = 'auto-distribute-btn';
+        button.type = 'button';
+        button.dataset.studentId = studentId;
+        button.dataset.activityId = activityId;
+        button.title = 'Otomatik puan dağıt';
+        button.innerHTML = '🎯';
+        
+        // Container'a ekle
+        container.appendChild(valueSpan);
+        container.appendChild(button);
+        
+        // Hücreyi güncelle
+        cell.innerHTML = '';
+        cell.appendChild(container);
+    });
+    
+    const addedButtons = document.querySelectorAll('.auto-distribute-btn').length;
+    console.log(`✅ ${addedButtons} otomatik dağıtım butonu eklendi/kontrol edildi`);
+}
+
+/**
+ * Inline puan dağıtım formunu aç
+ */
+function openInlineDistributeForm(studentId, activityId) {
+    console.log(`🔍 Inline form açılıyor: studentId=${studentId}, activityId=${activityId}`);
+    
+    const form = document.getElementById('inlineDistributeForm');
+    if (!form) {
+        console.error('❌ Inline dağıtım formu bulunamadı!');
+        return;
+    }
+
+    // Öğrenci bilgilerini al
+    const student = APP_STATE.studentData.find(s => s.studentId === studentId);
+    if (!student) {
+        console.error('❌ Öğrenci bulunamadı:', studentId);
+        return;
+    }
+
+    // Etkinlik bilgilerini al
+    const activity = findNodeById(activityId);
+    if (!activity) {
+        console.error('❌ Etkinlik bulunamadı:', activityId);
+        return;
+    }
+
+    // Toplam soru sayısını hesapla
+    const totalQuestions = activity.children ? activity.children.length : 0;
+    console.log(`📊 Toplam soru sayısı: ${totalQuestions}`);
+
+    // Form bilgilerini doldur
+    const inlineStudentName = document.getElementById('inlineStudentName');
+    const inlineActivityName = document.getElementById('inlineActivityName');
+    const totalQuestionsInline = document.getElementById('totalQuestionsInline');
+    
+    if (inlineStudentName) inlineStudentName.textContent = `${student.name} ${student.surname}`;
+    if (inlineActivityName) inlineActivityName.textContent = `${activity.name || activity.id} (${totalQuestions} soru)`;
+    if (totalQuestionsInline) totalQuestionsInline.textContent = totalQuestions;
+
+    // Saklı verileri ayarla
+    form.dataset.studentId = studentId;
+    form.dataset.activityId = activityId;
+
+    // Form'u sıfırla
+    resetInlineDistributeForm();
+
+    // Method tab event listener'larını ayarla
+    setupInlineMethodTabs();
+
+    // Form'u göster
+    form.style.display = 'block';
+    
+    // İlk input'a odaklan
+    setTimeout(() => {
+        const firstInput = document.getElementById('totalPointsInline');
+        if (firstInput) firstInput.focus();
+    }, 100);
+    
+    console.log(`✅ Inline form açıldı`);
+}
+
+/**
+ * Inline form'u sıfırla
+ */
+function resetInlineDistributeForm() {
+    // Input'ları temizle
+    const totalPointsInline = document.getElementById('totalPointsInline');
+    const correctCountInline = document.getElementById('correctCountInline');
+    
+    if (totalPointsInline) totalPointsInline.value = '';
+    if (correctCountInline) correctCountInline.value = '';
+    
+    // Önizlemeyi gizle
+    const inlinePreview = document.getElementById('inlinePreview');
+    if (inlinePreview) inlinePreview.style.display = 'none';
+    
+    // İlk tab'ı aktif yap
+    const firstTab = document.querySelector('.method-tab[data-method="total"]');
+    const firstSection = document.getElementById('totalSectionInline');
+    
+    document.querySelectorAll('.method-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.input-section-inline').forEach(section => section.classList.remove('active'));
+    
+    if (firstTab) firstTab.classList.add('active');
+    if (firstSection) firstSection.classList.add('active');
+}
+
+/**
+ * Method tab'larını ayarla
+ */
+function setupInlineMethodTabs() {
+    const tabs = document.querySelectorAll('.method-tab');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const method = tab.dataset.method;
+            
+            // Tüm tab'ları deaktif et
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.input-section-inline').forEach(s => s.classList.remove('active'));
+            
+            // Seçilen tab'ı aktif et
+            tab.classList.add('active');
+            const targetSection = document.getElementById(`${method}SectionInline`);
+            if (targetSection) targetSection.classList.add('active');
+            
+            // Önizlemeyi gizle
+            const inlinePreview = document.getElementById('inlinePreview');
+            if (inlinePreview) inlinePreview.style.display = 'none';
+        });
+    });
+}
+
+/**
+ * Inline form'u sıfırla
+ */
+function resetInlineDistributeForm() {
+    // Input'ları temizle
+    const totalPointsInline = document.getElementById('totalPointsInline');
+    const correctCountInline = document.getElementById('correctCountInline');
+    
+    if (totalPointsInline) totalPointsInline.value = '';
+    if (correctCountInline) correctCountInline.value = '';
+    
+    // Önizlemeyi gizle
+    const inlinePreview = document.getElementById('inlinePreview');
+    if (inlinePreview) inlinePreview.style.display = 'none';
+    
+    // İlk tab'ı aktif yap
+    const firstTab = document.querySelector('.method-tab[data-method="total"]');
+    const firstSection = document.getElementById('totalSectionInline');
+    
+    document.querySelectorAll('.method-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.input-section-inline').forEach(section => section.classList.remove('active'));
+    
+    if (firstTab) firstTab.classList.add('active');
+    if (firstSection) firstSection.classList.add('active');
+}
+
+/**
+ * Method tab'larını ayarla
+ */
+function setupInlineMethodTabs() {
+    const tabs = document.querySelectorAll('.method-tab');
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const method = tab.dataset.method;
+            
+            // Tüm tab'ları deaktif et
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.input-section-inline').forEach(s => s.classList.remove('active'));
+            
+            // Seçilen tab'ı aktif et
+            tab.classList.add('active');
+            const targetSection = document.getElementById(`${method}SectionInline`);
+            if (targetSection) targetSection.classList.add('active');
+            
+            // Önizlemeyi gizle
+            const inlinePreview = document.getElementById('inlinePreview');
+            if (inlinePreview) inlinePreview.style.display = 'none';
+        });
+    });
+}
+
+/**
+ * Inline formu kapat
+ */
+function closeInlineDistributeForm() {
+    const form = document.getElementById('inlineDistributeForm');
+    if (form) {
+        form.style.display = 'none';
+        resetInlineDistributeForm();
+        
+        // Form kapandıktan sonra butonları kontrol et ve gerekirse yeniden ekle
+        setTimeout(() => {
+            console.log('🔧 Form kapatıldı, butonları kontrol ediliyor...');
+            const existingButtons = document.querySelectorAll('.auto-distribute-btn');
+            console.log(`📊 Mevcut buton sayısı: ${existingButtons.length}`);
+            
+            if (existingButtons.length === 0) {
+                console.log('⚠️ Hiç buton bulunamadı, yeniden ekleniyor...');
+                addAutoDistributeButtonsToTables();
+            } else {
+                console.log('✅ Butonlar mevcut');
+            }
+        }, 100);
+    }
+}
+
+/**
+ * Hızlı toplam puan dağıtımı
+ */
+function quickApplyTotal() {
+    const form = document.getElementById('inlineDistributeForm');
+    const totalInput = document.getElementById('totalPointsInline');
+    
+    if (!form || !totalInput) return;
+    
+    const totalScore = parseFloat(totalInput.value);
+    if (!totalScore || totalScore <= 0) {
+        showInlineMessage('⚠️ Lütfen geçerli bir puan girin!', 'warning');
+        return;
+    }
+    
+    const studentId = form.dataset.studentId;
+    const activityId = form.dataset.activityId;
+    
+    // Önizleme göster
+    const distribution = calculateInlineDistribution(activityId, totalScore, 'total');
+    if (distribution) {
+        showInlinePreview(distribution);
+    }
+}
+
+/**
+ * Hızlı doğru/yanlış dağıtımı
+ */
+function quickApplyCorrectWrong() {
+    const form = document.getElementById('inlineDistributeForm');
+    const correctInput = document.getElementById('correctCountInline');
+    const totalQuestionsSpan = document.getElementById('totalQuestionsInline');
+    
+    if (!form || !correctInput || !totalQuestionsSpan) return;
+    
+    const correct = parseInt(correctInput.value);
+    const total = parseInt(totalQuestionsSpan.textContent);
+    
+    if (isNaN(correct) || correct < 0 || correct > total) {
+        showInlineMessage('⚠️ Lütfen geçerli bir doğru sayısı girin!', 'warning');
+        return;
+    }
+    
+    const totalScore = total > 0 ? (correct / total) * 100 : 0;
+    const activityId = form.dataset.activityId;
+    
+    // Önizleme göster
+    const distribution = calculateInlineDistribution(activityId, totalScore, 'correctWrong');
+    if (distribution) {
+        showInlinePreview(distribution);
+    }
+}
+
+/**
+ * Inline dağıtım hesapla
+ */
+function calculateInlineDistribution(activityId, totalScore, method) {
+    const activity = findNodeById(activityId);
+    if (!activity || !activity.children || activity.children.length === 0) {
+        showInlineMessage('⚠️ Bu etkinliğin alt bileşenleri bulunamadı!', 'error');
+        return null;
+    }
+
+    return calculateOptimalDistribution(activity.children, totalScore);
+}
+
+/**
+ * Inline önizleme göster
+ */
+function showInlinePreview(distribution) {
+    const preview = document.getElementById('inlinePreview');
+    const componentsList = document.getElementById('inlineComponentsList');
+    
+    if (!preview || !componentsList) return;
+    
+    const previewHTML = distribution.map(comp => `
+        <div class="inline-component-item">
+            <span class="component-name-inline">${comp.name} (ÖÇ: ${comp.weight})</span>
+            <span class="component-score-inline">${comp.score.toFixed(1)}/${comp.maxPoints}</span>
+        </div>
+    `).join('');
+    
+    componentsList.innerHTML = previewHTML;
+    preview.style.display = 'block';
+    
+    // Saklı dağıtım verisi
+    preview.dataset.distribution = JSON.stringify(distribution);
+}
+
+/**
+ * Inline dağıtımı onayla
+ */
+function confirmInlineDistribution() {
+    const form = document.getElementById('inlineDistributeForm');
+    const preview = document.getElementById('inlinePreview');
+    
+    if (!form || !preview) return;
+    
+    const distributionData = preview.dataset.distribution;
+    if (!distributionData) return;
+    
+    const distribution = JSON.parse(distributionData);
+    const studentId = form.dataset.studentId;
+    
+    // Puanları input'lara yaz
+    distribution.forEach(comp => {
+        const input = document.querySelector(`input[data-student-id="${studentId}"][data-activity-id="${comp.id}"]`);
+        if (input) {
+            input.value = comp.score.toFixed(1);
+            // Change event'ini tetikle
+            const event = new Event('change', { bubbles: true });
+            input.dispatchEvent(event);
+        }
+    });
+    
+    showInlineMessage('✅ Puanlar başarıyla dağıtıldı!', 'success');
+    
+    // Form'u kapat
+    setTimeout(() => {
+        closeInlineDistributeForm();
+        
+        // Butonları yeniden ekle (tablo güncellemesi sonrası)
+        setTimeout(() => {
+            console.log('🔧 Inline dağıtım sonrası butonları yeniden ekleniyor...');
+            addAutoDistributeButtonsToTables();
+        }, 500);
+    }, 1000);
+}
+
+/**
+ * Inline önizlemeyi iptal et
+ */
+function cancelInlinePreview() {
+    const preview = document.getElementById('inlinePreview');
+    if (preview) {
+        preview.style.display = 'none';
+    }
+}
+
+/**
+ * Inline mesaj göster
+ */
+function showInlineMessage(message, type = 'info') {
+    // Basit alert yerine inline mesaj sistemi
+    const existingAlert = document.querySelector('.inline-alert');
+    if (existingAlert) existingAlert.remove();
+    
+    const alert = document.createElement('div');
+    alert.className = `inline-alert inline-alert-${type}`;
+    alert.textContent = message;
+    alert.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 6px;
+        color: white;
+        font-weight: 500;
+        z-index: 2000;
+        animation: slideIn 0.3s ease;
+    `;
+    
+    if (type === 'success') alert.style.background = '#28a745';
+    else if (type === 'warning') alert.style.background = '#ffc107';
+    else if (type === 'error') alert.style.background = '#dc3545';
+    else alert.style.background = '#17a2b8';
+    
+    document.body.appendChild(alert);
+    
+    setTimeout(() => {
+        alert.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => alert.remove(), 300);
+    }, 3000);
+}
+
+/**
+ * Eski modal form'u sıfırla (geriye uyumluluk için)
+ */
+function resetAutoDistributeForm() {
+    console.log(`🔍 Form sıfırlanıyor...`);
+    
+    // Radio butonları sıfırla
+    const methodTotal = document.getElementById('methodTotal');
+    const methodCorrectWrong = document.getElementById('methodCorrectWrong');
+    
+    if (methodTotal) methodTotal.checked = true;
+    if (methodCorrectWrong) methodCorrectWrong.checked = false;
+    
+    // Input'ları temizle (totalQuestionsInput hariç - otomatik doldurulur)
+    const inputs = [
+        'totalPointsInput',
+        'correctCountInput', 
+        'wrongCountInput'
+    ];
+    
+    inputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.value = '';
+        } else {
+            console.warn(`⚠️ Input bulunamadı: ${inputId}`);
+        }
+    });
+    
+    // Toplam soru sayısı input'unu read-only yap (modal açılırken otomatik doldurulacak)
+    const totalQuestionsInput = document.getElementById('totalQuestionsInput');
+    if (totalQuestionsInput) {
+        totalQuestionsInput.readOnly = true;
+        totalQuestionsInput.placeholder = 'Otomatik doldurulacak';
+    }
+    
+    // Bölümleri göster/gizle
+    const sections = [
+        { id: 'totalPointsSection', display: 'block' },
+        { id: 'correctWrongSection', display: 'none' },
+        { id: 'calculatedScore', display: 'none' },
+        { id: 'componentsPreview', display: 'none' }
+    ];
+    
+    sections.forEach(section => {
+        const element = document.getElementById(section.id);
+        if (element) {
+            element.style.display = section.display;
+        } else {
+            console.warn(`⚠️ Section bulunamadı: ${section.id}`);
+        }
+    });
+    
+    console.log(`✅ Form sıfırlandı`);
+}
+
+/**
+ * Method değişiklik event listener'larını ayarla
+ */
+function setupMethodChangeListeners() {
+    console.log('🔧 Method change listeners ayarlanıyor...');
+    
+    // Önce mevcut listener'ları temizle
+    const methodRadios = document.querySelectorAll('input[name="distributionMethod"]');
+    methodRadios.forEach(radio => {
+        // Mevcut listener'ları kaldır
+        const newRadio = radio.cloneNode(true);
+        radio.parentNode.replaceChild(newRadio, radio);
+    });
+    
+    // Yeni listener'ları ekle
+    const newMethodRadios = document.querySelectorAll('input[name="distributionMethod"]');
+    newMethodRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            console.log(`📻 Method değişti: ${this.value}`);
+            
+            const totalSection = document.getElementById('totalPointsSection');
+            const correctWrongSection = document.getElementById('correctWrongSection');
+            const componentsPreview = document.getElementById('componentsPreview');
+            
+            if (this.value === 'total') {
+                if (totalSection) totalSection.style.display = 'block';
+                if (correctWrongSection) correctWrongSection.style.display = 'none';
+                console.log('✅ Toplam puan bölümü gösterildi');
+            } else if (this.value === 'correctWrong') {
+                if (totalSection) totalSection.style.display = 'none';
+                if (correctWrongSection) correctWrongSection.style.display = 'block';
+                console.log('✅ Doğru/yanlış bölümü gösterildi');
+            }
+            
+            if (componentsPreview) componentsPreview.style.display = 'none';
+        });
+    });
+
+    // Doğru/yanlış input'ları için hesaplama
+    const correctInput = document.getElementById('correctCountInput');
+    const wrongInput = document.getElementById('wrongCountInput');
+    const totalQuestionsInput = document.getElementById('totalQuestionsInput');
+
+    [correctInput, wrongInput, totalQuestionsInput].forEach(input => {
+        if (input) {
+            // Mevcut listener'ları temizle
+            const newInput = input.cloneNode(true);
+            input.parentNode.replaceChild(newInput, input);
+            
+            // Yeni listener ekle
+            newInput.addEventListener('input', calculateScoreFromCorrectWrong);
+        }
+    });
+    
+    console.log('✅ Method change listeners ayarlandı');
+}
+
+/**
+ * Doğru/yanlış sayısından puan hesapla
+ */
+function calculateScoreFromCorrectWrong() {
+    const correct = parseInt(document.getElementById('correctCountInput').value) || 0;
+    const wrong = parseInt(document.getElementById('wrongCountInput').value) || 0;
+    const total = parseInt(document.getElementById('totalQuestionsInput').value) || 0;
+
+    if (total > 0 && (correct + wrong) <= total) {
+        // Basit hesaplama: Doğru oranı * 100
+        const score = (correct / total) * 100;
+        
+        document.getElementById('calculatedScoreValue').textContent = score.toFixed(1);
+        document.getElementById('calculatedScore').style.display = 'block';
+    } else {
+        document.getElementById('calculatedScore').style.display = 'none';
+    }
+}
+
+/**
+ * Dağıtım önizlemesi oluştur
+ */
+function previewDistribution() {
+    console.log('🔍 Önizleme başlatılıyor...');
+    
+    const modal = document.getElementById('autoDistributeModal');
+    const studentId = modal.dataset.studentId;
+    const activityId = modal.dataset.activityId;
+    
+    console.log(`📊 Önizleme veriler: studentId=${studentId}, activityId=${activityId}`);
+    
+    // Toplam puanı al
+    let totalScore = 0;
+    const methodRadio = document.querySelector('input[name="distributionMethod"]:checked');
+    
+    if (!methodRadio) {
+        alert('⚠️ Lütfen bir puan giriş yöntemi seçin!');
+        return;
+    }
+    
+    const method = methodRadio.value;
+    console.log(`📊 Seçilen method: ${method}`);
+    
+    if (method === 'total') {
+        const totalInput = document.getElementById('totalPointsInput');
+        totalScore = parseFloat(totalInput?.value) || 0;
+        console.log(`📊 Toplam puan girişi: ${totalScore}`);
+    } else if (method === 'correctWrong') {
+        const correct = parseInt(document.getElementById('correctCountInput')?.value) || 0;
+        const total = parseInt(document.getElementById('totalQuestionsInput')?.value) || 0;
+        console.log(`📊 Doğru/yanlış girişi: ${correct}/${total}`);
+        
+        if (total > 0) {
+            totalScore = (correct / total) * 100;
+            console.log(`📊 Hesaplanan puan: ${totalScore}`);
+        }
+    }
+
+    if (totalScore <= 0) {
+        alert('⚠️ Lütfen geçerli bir puan girin!');
+        return;
+    }
+
+    // Alt bileşenleri al
+    const activity = findNodeById(activityId);
+    console.log(`📊 Bulunan etkinlik:`, activity);
+    
+    if (!activity || !activity.children || activity.children.length === 0) {
+        alert('⚠️ Bu etkinliğin alt bileşenleri bulunamadı!');
+        console.log(`❌ Alt bileşen sorunu: activity=${!!activity}, children=${activity?.children?.length}`);
+        return;
+    }
+
+    console.log(`📊 Alt bileşen sayısı: ${activity.children.length}`);
+
+    // Puan dağıtımını hesapla
+    const distribution = calculateOptimalDistribution(activity.children, totalScore);
+    console.log(`📊 Hesaplanan dağıtım:`, distribution);
+    
+    // Önizleme göster
+    displayDistributionPreview(distribution);
+    const previewSection = document.getElementById('componentsPreview');
+    if (previewSection) {
+        previewSection.style.display = 'block';
+        console.log('✅ Önizleme gösterildi');
+    } else {
+        console.error('❌ Önizleme section bulunamadı');
+    }
+}
+
+/**
+ * Optimal puan dağıtımını hesapla (ÖÇ'lere göre)
+ */
+function calculateOptimalDistribution(components, totalScore) {
+    const distribution = [];
+    
+    // Her bileşen için ÖÇ sayısını hesapla
+    const componentWeights = components.map(comp => {
+        const outcomeCount = comp.ogrenmeÇiktilari ? comp.ogrenmeÇiktilari.length : 1;
+        return {
+            id: comp.id,
+            name: comp.name || comp.id,
+            weight: outcomeCount,
+            maxPoints: comp.points || 10
+        };
+    });
+    
+    // Toplam ağırlık
+    const totalWeight = componentWeights.reduce((sum, comp) => sum + comp.weight, 0);
+    
+    // Puanları dağıt
+    let remainingScore = totalScore;
+    
+    componentWeights.forEach((comp, index) => {
+        let assignedScore;
+        
+        if (index === componentWeights.length - 1) {
+            // Son bileşen: kalan puanı ver
+            assignedScore = remainingScore;
+        } else {
+            // Ağırlığa göre puan hesapla
+            assignedScore = (totalScore * comp.weight) / totalWeight;
+            assignedScore = Math.round(assignedScore * 100) / 100; // 2 ondalık
+        }
+        
+        // Maksimum puanı aşmasın
+        assignedScore = Math.min(assignedScore, comp.maxPoints);
+        remainingScore -= assignedScore;
+        
+        distribution.push({
+            id: comp.id,
+            name: comp.name,
+            score: assignedScore,
+            maxPoints: comp.maxPoints,
+            weight: comp.weight
+        });
+    });
+    
+    return distribution;
+}
+
+/**
+ * Dağıtım önizlemesini göster
+ */
+function displayDistributionPreview(distribution) {
+    console.log('🎨 Önizleme gösteriliyor:', distribution);
+    
+    const componentsList = document.getElementById('componentsList');
+    
+    if (!componentsList) {
+        console.error('❌ componentsList elementi bulunamadı');
+        return;
+    }
+    
+    if (!distribution || distribution.length === 0) {
+        componentsList.innerHTML = '<div class="no-components">Alt bileşen bulunamadı</div>';
+        return;
+    }
+    
+    const previewHTML = distribution.map(comp => `
+        <div class="component-preview-item">
+            <span class="component-name">${comp.name} (ÖÇ: ${comp.weight})</span>
+            <span class="component-score">${comp.score.toFixed(1)}/${comp.maxPoints}</span>
+        </div>
+    `).join('');
+    
+    componentsList.innerHTML = previewHTML;
+    console.log(`✅ ${distribution.length} bileşen önizlemesi oluşturuldu`);
+}
+
+/**
+ * Otomatik dağıtımı uygula
+ */
+function applyAutoDistribution() {
+    const modal = document.getElementById('autoDistributeModal');
+    const studentId = modal.dataset.studentId;
+    const activityId = modal.dataset.activityId;
+    
+    // Toplam puanı al
+    let totalScore = 0;
+    const method = document.querySelector('input[name="distributionMethod"]:checked').value;
+    
+    if (method === 'total') {
+        totalScore = parseFloat(document.getElementById('totalPointsInput').value) || 0;
+    } else if (method === 'correctWrong') {
+        const correct = parseInt(document.getElementById('correctCountInput').value) || 0;
+        const total = parseInt(document.getElementById('totalQuestionsInput').value) || 0;
+        if (total > 0) {
+            totalScore = (correct / total) * 100;
+        }
+    }
+
+    if (totalScore <= 0) {
+        alert('⚠️ Lütfen geçerli bir puan girin!');
+        return;
+    }
+
+    // Alt bileşenleri al
+    const activity = findNodeById(activityId);
+    if (!activity || !activity.children || activity.children.length === 0) {
+        alert('⚠️ Bu etkinliğin alt bileşenleri bulunamadı!');
+        return;
+    }
+
+    // Puan dağıtımını hesapla
+    const distribution = calculateOptimalDistribution(activity.children, totalScore);
+    
+    // Puanları input'lara yaz (mevcut input'ları simule et)
+    distribution.forEach(comp => {
+        // Alt bileşen input'unu bul ve değeri yaz
+        const input = document.querySelector(`input[data-student-id="${studentId}"][data-activity-id="${comp.id}"]`);
+        if (input) {
+            input.value = comp.score.toFixed(1);
+            // Change event'ini tetikle
+            const event = new Event('change', { bubbles: true });
+            input.dispatchEvent(event);
+        }
+    });
+
+    // Modal'ı kapat
+    closeAutoDistributeModal();
+    
+    // Başarı mesajı
+    showSuccessMessage(`✅ ${distribution.length} alt bileşene puan dağıtıldı!`);
+    
+    console.log('✅ Otomatik puan dağıtımı tamamlandı:', distribution);
+}
+
+/**
+ * Modal'ı kapat
+ */
+function closeAutoDistributeModal() {
+    const modal = document.getElementById('autoDistributeModal');
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300); // CSS transition süresi
+    }
+}
+
+/**
+ * Başarı mesajı göster
+ */
+function showSuccessMessage(message) {
+    // Basit alert yerine daha güzel bir notification sistemi eklenebilir
+    alert(message);
 }
 
 // DOM yüklendiğinde uygulamayı başlat

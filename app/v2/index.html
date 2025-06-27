@@ -2641,6 +2641,51 @@
         </div>
     </div>
 
+    <!-- Inline Puan Dağıtım Formu -->
+    <div id="inlineDistributeForm" class="inline-distribute-form" style="display: none;">
+        <div class="inline-form-content">
+            <div class="inline-header">
+                <span class="inline-title">🎯 Hızlı Puan Dağıtımı</span>
+                <span class="inline-info">
+                    <span id="inlineStudentName">-</span> - <span id="inlineActivityName">-</span>
+                </span>
+                <button type="button" class="inline-close" onclick="closeInlineDistributeForm()">×</button>
+            </div>
+            
+            <div class="inline-body">
+                <div class="method-tabs">
+                    <button type="button" class="method-tab active" data-method="total">💯 Toplam Puan</button>
+                    <button type="button" class="method-tab" data-method="correctWrong">✅ Doğru/Yanlış</button>
+                </div>
+
+                <div class="input-sections-inline">
+                    <div id="totalSectionInline" class="input-section-inline active">
+                        <input type="number" id="totalPointsInline" class="form-control-inline" step="0.1" placeholder="Toplam puan (örn: 85.5)">
+                        <button type="button" class="btn-inline-action" onclick="quickApplyTotal()">⚡ Hızlı Dağıt</button>
+                    </div>
+
+                    <div id="correctWrongSectionInline" class="input-section-inline">
+                        <div class="correct-wrong-inputs-inline">
+                            <input type="number" id="correctCountInline" class="form-control-inline small" min="0" placeholder="Doğru">
+                            <span class="separator">/</span>
+                            <span id="totalQuestionsInline" class="total-questions">5</span>
+                            <button type="button" class="btn-inline-action" onclick="quickApplyCorrectWrong()">⚡ Hızlı Dağıt</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="inline-preview" id="inlinePreview" style="display: none;">
+                    <div class="preview-header">📊 Dağıtım Önizlemesi</div>
+                    <div id="inlineComponentsList" class="inline-components-list"></div>
+                    <div class="preview-actions">
+                        <button type="button" class="btn-inline-confirm" onclick="confirmInlineDistribution()">✅ Onayla</button>
+                        <button type="button" class="btn-inline-cancel" onclick="cancelInlinePreview()">❌ İptal</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
 
