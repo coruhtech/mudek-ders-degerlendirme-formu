@@ -1,6 +1,6 @@
 {
   "name": "mudek-ders-degerlendirme-formu",
-  "version": "2025.0627.0829.2179",
+  "version": "2.0.0",
   "description": "RTEÜ MUDEK Ders Değerlendirme ve Akreditasyon Sistemi - Masaüstü Uygulaması",
   "main": "electron-main.js",
   "homepage": "https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/",
@@ -15,8 +15,7 @@
   "scripts": {
     "setup": "node scripts/build-setup.js",
     "start": "npm run setup && electron .",
-    "dev": "npm run setup && electron . --dev",
-    "update-version": "node update-version.js",
+    "dev": "npm run setup && electron . --dev", 
     "prebuild": "npm run setup",
     "build": "electron-builder",
     "build:win": "electron-builder --windows",

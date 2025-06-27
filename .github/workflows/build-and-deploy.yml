@@ -8,9 +8,9 @@ on:
     branches: [ main ]
 
 env:
-  # Otomatik build versioning
-  BUILD_DATE: ${{ github.run_number }}
-  BUILD_TIME: ${{ github.run_id }}
+  # GitHub Actions optimizasyon
+  NODE_OPTIONS: '--max-old-space-size=4096'
+  CI: true
 
 jobs:
   web-deploy:
@@ -51,14 +51,43 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
+        registry-url: 'https://registry.npmjs.org'
         
+    - name: Configure npm
+      run: |
+        npm config set fund false
+        npm config set audit false
+        npm config set progress false
+        
+    - name: Cache node modules
+      uses: actions/cache@v3
+      with:
+        path: ~/.npm
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+          
     - name: Install dependencies
-      run: npm ci
+      run: |
+        npm ci --no-audit --no-fund --prefer-offline --no-optional
+      timeout-minutes: 15
       
     - name: Update Version
-      run: node update-version.js
+      id: update-version
+      run: |
+        # Tarih saat formatında version oluştur
+        BUILD_DATE=$(date +'%Y.%m%d')
+        BUILD_TIME=$(date +'%H%M')
+        BUILD_NUM=$(printf "%04d" ${{ github.run_number }})
+        VERSION_TAG="${BUILD_DATE}.${BUILD_TIME}.${BUILD_NUM}"
+        
+        # Package.json version güncelle
+        npm version $VERSION_TAG --no-git-tag-version
+        
+        echo "version=${VERSION_TAG}" >> $GITHUB_OUTPUT
+        echo "Generated version: ${VERSION_TAG}"
       
     - name: Create app icons
       run: |
@@ -82,21 +111,27 @@ jobs:
     - name: Build Electron App (Windows)
       if: matrix.os == 'windows-latest'
       run: npm run build:win
+      timeout-minutes: 30
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NODE_OPTIONS: '--max-old-space-size=4096'
         
     - name: Build Electron App (macOS)
       if: matrix.os == 'macos-latest'
       run: npm run build:mac
+      timeout-minutes: 30
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         CSC_IDENTITY_AUTO_DISCOVERY: false
+        NODE_OPTIONS: '--max-old-space-size=4096'
         
     - name: Build Electron App (Linux)
       if: matrix.os == 'ubuntu-latest'
       run: npm run build:linux
+      timeout-minutes: 30
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        NODE_OPTIONS: '--max-old-space-size=4096'
         
     - name: Upload Windows Artifacts
       if: matrix.os == 'windows-latest'
@@ -143,7 +178,7 @@ jobs:
       id: version
       run: |
         # Tarih saat formatında version oluştur
-        BUILD_DATE=$(date +'%Y.%m.%d')
+        BUILD_DATE=$(date +'%Y.%m%d')
         BUILD_TIME=$(date +'%H%M')
         BUILD_NUM=$(printf "%04d" ${{ github.run_number }})
         VERSION_TAG="v${BUILD_DATE}.${BUILD_TIME}.${BUILD_NUM}"
