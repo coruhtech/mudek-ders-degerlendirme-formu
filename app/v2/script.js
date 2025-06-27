@@ -211,7 +211,9 @@ const STUDENT_VIEW_SETTINGS = {
     maskPhone: true,  // Default maskeleme açık
     maskTCKN: true,   // Default maskeleme açık
     currentSearch: '',
-    currentStatusFilter: ''
+    currentStatusFilter: '',
+    currentDirectSelect: '',
+    currentGroupFilter: ''
 };
 
 /**
@@ -428,11 +430,21 @@ function setupStudentActionButtons() {
     const studentCSVInput = document.getElementById('studentCSVInput');
     
     if (studentFileInput) {
-        studentFileInput.addEventListener('change', handleStudentJSONImport);
+        studentFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processStudentJSONFile(file);
+            }
+        });
     }
     
     if (studentCSVInput) {
-        studentCSVInput.addEventListener('change', handleStudentCSVImport);
+        studentCSVInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processStudentCSVFile(file);
+            }
+        });
     }
 }
 
@@ -441,6 +453,9 @@ function setupStudentActionButtons() {
  */
 function updateStudentTableEnhanced() {
     try {
+        // Tüm öğrenci dropdown'larını güncelle
+        updateAllStudentDropdowns();
+        
         const studentTable = document.getElementById('studentTable');
         if (!studentTable) return;
         
@@ -537,10 +552,15 @@ function filterStudents() {
     }
     
     return APP_STATE.studentData.filter(student => {
+        // Doğrudan seçim filtresi (en yüksek öncelik)
+        if (STUDENT_VIEW_SETTINGS.currentDirectSelect) {
+            return student.studentId === STUDENT_VIEW_SETTINGS.currentDirectSelect;
+        }
+        
         // Arama filtresi
         if (STUDENT_VIEW_SETTINGS.currentSearch) {
             const searchTerm = STUDENT_VIEW_SETTINGS.currentSearch.toLowerCase();
-            const searchableText = `${student.name} ${student.surname} ${student.studentId} ${student.email}`.toLowerCase();
+            const searchableText = `${student.name} ${student.surname} ${student.studentId} ${student.email || ''}`.toLowerCase();
             if (!searchableText.includes(searchTerm)) {
                 return false;
             }
@@ -554,7 +574,20 @@ function filterStudents() {
             }
         }
         
-
+        // Grup filtresi
+        if (STUDENT_VIEW_SETTINGS.currentGroupFilter) {
+            let studentGroup = 'A'; // Varsayılan grup
+            if (APP_STATE.courseData?.ogrenciNotlari?.[student.studentId]?.grupBilgileri) {
+                // İlk etkinliğin grup bilgisini al
+                const firstActivity = Object.keys(APP_STATE.courseData.ogrenciNotlari[student.studentId].grupBilgileri)[0];
+                if (firstActivity) {
+                    studentGroup = APP_STATE.courseData.ogrenciNotlari[student.studentId].grupBilgileri[firstActivity];
+                }
+            }
+            if (studentGroup !== STUDENT_VIEW_SETTINGS.currentGroupFilter) {
+                return false;
+            }
+        }
         
         return true;
     });
@@ -615,26 +648,820 @@ function exportStudentsToCSV() {
     }
 }
 
-// Placeholder fonksiyonlar - gelecekte implement edilecek
-function handleStudentJSONImport(event) {
-    // Mevcut JSON import fonksiyonunu çağır
-    if (typeof btnApplyStudentJson === 'function') {
-        btnApplyStudentJson();
+// =====================================================
+// ÖĞRENCİ YÖNETİMİ İŞLEMLERİ - BUTON FONKSİYONLARI
+// =====================================================
+
+/**
+ * JSON dosyasından öğrenci verilerini yükle
+ */
+function handleStudentJSONImport() {
+    console.log("📥 JSON öğrenci import başlatıldı");
+    
+    const fileInput = document.getElementById('studentFileInput');
+    fileInput.click();
+}
+
+/**
+ * CSV dosyasından öğrenci verilerini yükle
+ */
+function handleStudentCSVImport() {
+    console.log("📥 CSV öğrenci import başlatıldı");
+    
+    const fileInput = document.getElementById('studentCSVInput');
+    fileInput.click();
+}
+
+/**
+ * JSON dosyasını işle
+ */
+function processStudentJSONFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const jsonData = JSON.parse(e.target.result);
+            const studentData = parseJSONToStudents(jsonData);
+            
+            if (studentData.length > 0) {
+                APP_STATE.studentData = studentData;
+                
+                // Tüm GUI bileşenlerini güncelle
+                updateStudentTableEnhanced(); // Bu artık tüm dropdown'ları güncelliyor
+                updateStudentGroupInfo();
+                updateAssessmentStudentFilter();
+                updateAssessmentView();
+                
+                showModernToast(`${studentData.length} öğrenci JSON'dan A grubuna yüklendi!`, "success");
+                console.log(`✅ ${studentData.length} öğrenci JSON'dan A grubuna yüklendi`);
+            } else {
+                showModernToast("JSON dosyasında geçerli öğrenci verisi bulunamadı!", "warning");
+            }
+        } catch (error) {
+            console.error("JSON işleme hatası:", error);
+            showModernToast("JSON dosyası işlenirken hata oluştu!", "error");
+        }
+    };
+    reader.readAsText(file);
+}
+
+/**
+ * JSON verisini öğrenci verilerine dönüştür
+ */
+function parseJSONToStudents(jsonData) {
+    const students = [];
+    
+    try {
+        let dataArray = [];
+        
+        // Farklı JSON formatlarını destekle
+        if (Array.isArray(jsonData)) {
+            dataArray = jsonData;
+        } else if (jsonData.ogrenciNotlari) {
+            // MUDEK formatı
+            dataArray = Object.keys(jsonData.ogrenciNotlari).map(studentId => {
+                const studentInfo = jsonData.ogrenciNotlari[studentId];
+                return {
+                    studentId: studentId,
+                    name: studentInfo.ad || '',
+                    surname: studentInfo.soyad || '',
+                    email: studentInfo.email || '',
+                    telefon: studentInfo.telefon || '',
+                    tcKimlik: studentInfo.tcKimlik || '',
+                    status: studentInfo.durum || 'Aktif'
+                };
+            });
+        } else if (jsonData.students) {
+            dataArray = jsonData.students;
+        } else if (jsonData.ogrenciler) {
+            dataArray = jsonData.ogrenciler;
+        } else {
+            // Tek öğrenci objesi
+            dataArray = [jsonData];
+        }
+        
+        // Her öğrenciyi normalize et
+        dataArray.forEach(item => {
+            const student = {
+                studentId: item.studentId || item.ogrenciNo || item.no || item.id || '',
+                name: item.name || item.ad || item.adi || item.firstName || '',
+                surname: item.surname || item.soyad || item.soyadi || item.lastName || '',
+                email: item.email || item.eposta || item.mail || '',
+                telefon: item.telefon || item.phone || item.tel || item.gsm || '',
+                tcKimlik: item.tcKimlik || item.tc || item.tckn || '',
+                status: item.status || item.durum || 'Aktif',
+                grupId: 'A' // JSON'dan yüklenen tüm öğrenciler A grubuna atanır
+            };
+            
+            // En az öğrenci no ve ad olmalı
+            if (student.studentId && student.name) {
+                students.push(student);
+            }
+        });
+        
+    } catch (error) {
+        console.error("JSON parsing hatası:", error);
+        throw error;
+    }
+    
+    return students;
+}
+
+/**
+ * CSV dosyasını işle
+ */
+function processStudentCSVFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const csvText = e.target.result;
+            const studentData = parseCSVToStudents(csvText);
+            
+            if (studentData.length > 0) {
+                APP_STATE.studentData = studentData;
+                
+                // Tüm GUI bileşenlerini güncelle
+                updateStudentTableEnhanced(); // Bu artık tüm dropdown'ları güncelliyor
+                updateStudentGroupInfo();
+                updateAssessmentStudentFilter();
+                updateAssessmentView();
+                
+                showModernToast(`${studentData.length} öğrenci CSV'den A grubuna yüklendi!`, "success");
+                console.log(`✅ ${studentData.length} öğrenci CSV'den A grubuna yüklendi`);
+            } else {
+                showModernToast("CSV dosyasında geçerli öğrenci verisi bulunamadı!", "warning");
+            }
+        } catch (error) {
+            console.error("CSV işleme hatası:", error);
+            showModernToast("CSV dosyası işlenirken hata oluştu!", "error");
+        }
+    };
+    reader.readAsText(file);
+}
+
+/**
+ * CSV metnini öğrenci verilerine dönüştür
+ */
+function parseCSVToStudents(csvText) {
+    const lines = csvText.trim().split('\n');
+    if (lines.length < 2) {
+        throw new Error("CSV dosyası çok kısa");
+    }
+    
+    // İlk satırı başlık olarak al
+    const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+    const students = [];
+    
+    // Başlık eşleştirmesi
+    const headerMap = {
+        studentId: findHeaderIndex(headers, ['öğrenci no', 'student id', 'numara', 'no', 'öğrenci_no']),
+        name: findHeaderIndex(headers, ['ad', 'adı', 'name', 'first name', 'isim']),
+        surname: findHeaderIndex(headers, ['soyad', 'soyadı', 'surname', 'last name', 'soyisim']),
+        email: findHeaderIndex(headers, ['e-posta', 'email', 'e-mail', 'eposta', 'mail']),
+        telefon: findHeaderIndex(headers, ['telefon', 'phone', 'tel', 'gsm', 'cep']),
+        tcKimlik: findHeaderIndex(headers, ['tc', 'tckn', 'tc kimlik', 'tc no', 'kimlik no']),
+        status: findHeaderIndex(headers, ['durum', 'status', 'state', 'aktif'])
+    };
+    
+    console.log("📋 CSV başlık eşleştirmesi:", headerMap);
+    
+    // Veri satırlarını işle
+    for (let i = 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        const values = parseCSVLine(line);
+        
+        const student = {
+            studentId: getValue(values, headerMap.studentId),
+            name: getValue(values, headerMap.name),
+            surname: getValue(values, headerMap.surname),
+            email: getValue(values, headerMap.email),
+            telefon: getValue(values, headerMap.telefon),
+            tcKimlik: getValue(values, headerMap.tcKimlik),
+            status: getValue(values, headerMap.status) || 'Aktif',
+            grupId: 'A' // CSV'den yüklenen tüm öğrenciler A grubuna atanır
+        };
+        
+        // En az öğrenci no ve ad olmalı
+        if (student.studentId && student.name) {
+            students.push(student);
+        }
+    }
+    
+    return students;
+}
+
+/**
+ * CSV satırını ayrıştır (virgül ve tırnak işaretlerini dikkate alarak)
+ */
+function parseCSVLine(line) {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    
+    values.push(current.trim());
+    return values;
+}
+
+/**
+ * Başlık indeksini bul
+ */
+function findHeaderIndex(headers, possibleNames) {
+    for (let i = 0; i < headers.length; i++) {
+        const header = headers[i].toLowerCase();
+        if (possibleNames.some(name => header.includes(name.toLowerCase()))) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * Değer al
+ */
+function getValue(values, index) {
+    if (index >= 0 && index < values.length) {
+        return values[index].replace(/"/g, '').trim();
+    }
+    return '';
+}
+
+/**
+ * Öğrencileri CSV olarak dışa aktar (sadece görünen kolonlar)
+ */
+function exportStudentsToCSV() {
+    try {
+        const filteredStudents = filterStudents();
+        if (filteredStudents.length === 0) {
+            showModernToast("Dışa aktarılacak öğrenci bulunamadı!", "warning");
+            return;
+        }
+        
+        // Görünen kolonları belirle
+        const visibleColumns = getVisibleColumns();
+        const headers = [];
+        const columnKeys = [];
+        
+        // Başlıkları oluştur
+        if (visibleColumns.includes('col-no')) {
+            headers.push('No');
+            columnKeys.push('no');
+        }
+        if (visibleColumns.includes('col-studentId')) {
+            headers.push('Öğrenci No');
+            columnKeys.push('studentId');
+        }
+        if (visibleColumns.includes('col-name')) {
+            headers.push('Adı');
+            columnKeys.push('name');
+        }
+        if (visibleColumns.includes('col-surname')) {
+            headers.push('Soyadı');
+            columnKeys.push('surname');
+        }
+        if (visibleColumns.includes('col-email')) {
+            headers.push('E-Posta');
+            columnKeys.push('email');
+        }
+        if (visibleColumns.includes('col-phone')) {
+            headers.push('Telefon');
+            columnKeys.push('phone');
+        }
+        if (visibleColumns.includes('col-tckn')) {
+            headers.push('TCKN');
+            columnKeys.push('tckn');
+        }
+        if (visibleColumns.includes('col-status')) {
+            headers.push('Durum');
+            columnKeys.push('status');
+        }
+        if (visibleColumns.includes('col-groups')) {
+            headers.push('Gruplar');
+            columnKeys.push('groups');
+        }
+        
+        // CSV içeriğini oluştur
+        const csvRows = [headers.join(',')];
+        
+        filteredStudents.forEach((student, index) => {
+            const row = [];
+            
+            columnKeys.forEach(key => {
+                let value = '';
+                
+                switch (key) {
+                    case 'no':
+                        value = index + 1;
+                        break;
+                    case 'studentId':
+                        value = student.studentId || '';
+                        break;
+                    case 'name':
+                        value = student.name || '';
+                        break;
+                    case 'surname':
+                        value = student.surname || '';
+                        break;
+                    case 'email':
+                        value = student.email || '';
+                        break;
+                    case 'phone':
+                        // Maskeleme durumuna göre telefon formatla
+                        value = formatPhoneNumber(student.telefon);
+                        break;
+                    case 'tckn':
+                        // Maskeleme durumuna göre TCKN formatla
+                        value = formatTCKN(student.tcKimlik);
+                        break;
+                    case 'status':
+                        value = student.status || 'Aktif';
+                        break;
+                    case 'groups':
+                        value = formatStudentGroups(student.studentId);
+                        break;
+                }
+                
+                // CSV için değeri temizle
+                if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                    value = `"${value.replace(/"/g, '""')}"`;
+                }
+                
+                row.push(value);
+            });
+            
+            csvRows.push(row.join(','));
+        });
+        
+        const csvContent = csvRows.join('\n');
+        
+        // Dosyayı indir
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `ogrenci-listesi-${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showModernToast(`${filteredStudents.length} öğrenci CSV olarak dışa aktarıldı!`, "success");
+        console.log(`📤 ${filteredStudents.length} öğrenci CSV olarak dışa aktarıldı`);
+        
+    } catch (error) {
+        console.error("CSV dışa aktarım hatası:", error);
+        showModernToast("CSV dışa aktarımı başarısız!", "error");
     }
 }
 
-function handleStudentCSVImport(event) {
-    showModernToast("CSV import fonksiyonu henüz geliştirilmedi!", "info");
+/**
+ * Görünen kolonları al
+ */
+function getVisibleColumns() {
+    const visibleColumns = [];
+    const columnToggles = document.querySelectorAll('.column-toggle.active');
+    
+    columnToggles.forEach(toggle => {
+        const column = toggle.getAttribute('data-column');
+        if (column) {
+            visibleColumns.push(column);
+        }
+    });
+    
+    return visibleColumns;
 }
 
+/**
+ * Yeni öğrenci ekleme modalını göster
+ */
 function showAddStudentModal() {
-    showModernToast("Yeni öğrenci ekleme fonksiyonu henüz geliştirilmedi!", "info");
+    console.log("➕ Yeni öğrenci ekleme modalı açılıyor");
+    
+    // Yeni öğrenci modalını oluştur
+    const modal = createAddStudentModal();
+    document.body.appendChild(modal);
+    
+    // Modalı göster
+    modal.style.display = 'flex';
+    modal.classList.add('active');
+    
+    // Form submit event listener'ı ekle
+    const form = document.getElementById('addStudentForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            addNewStudent();
+        });
+    }
+}
+
+/**
+ * Rastgele öğrenci verisi oluşturma fonksiyonları
+ */
+const RANDOM_STUDENT_DATA = {
+    names: [
+        'Ahmet', 'Mehmet', 'Ali', 'Mustafa', 'Hasan', 'Hüseyin', 'İbrahim', 'İsmail', 'Yusuf', 'Süleyman',
+        'Fatma', 'Ayşe', 'Emine', 'Hatice', 'Zeynep', 'Elif', 'Meryem', 'Esra', 'Büşra', 'Seda',
+        'Emre', 'Serkan', 'Murat', 'Kemal', 'Özgür', 'Burak', 'Cem', 'Deniz', 'Onur', 'Barış',
+        'Cansu', 'Gizem', 'Merve', 'Özlem', 'Pınar', 'Sibel', 'Tülay', 'Yeliz', 'Didem', 'Burcu'
+    ],
+    surnames: [
+        'Yılmaz', 'Kaya', 'Demir', 'Şahin', 'Çelik', 'Aydın', 'Öztürk', 'Arslan', 'Doğan', 'Kılıç',
+        'Aslan', 'Çetin', 'Kara', 'Koç', 'Kurt', 'Özkan', 'Şimşek', 'Güneş', 'Erdoğan', 'Yıldız',
+        'Polat', 'Bulut', 'Demirtaş', 'Kaplan', 'Çakır', 'Özer', 'Turan', 'Sönmez', 'Korkmaz', 'Taş'
+    ],
+    domains: ['gmail.com', 'hotmail.com', 'yahoo.com', 'outlook.com', 'rteu.edu.tr', 'student.rteu.edu.tr']
+};
+
+/**
+ * Rastgele öğrenci verisi oluştur
+ */
+function generateRandomStudentData() {
+    const names = RANDOM_STUDENT_DATA.names;
+    const surnames = RANDOM_STUDENT_DATA.surnames;
+    const domains = RANDOM_STUDENT_DATA.domains;
+    
+    const name = names[Math.floor(Math.random() * names.length)];
+    const surname = surnames[Math.floor(Math.random() * surnames.length)];
+    
+    // Benzersiz öğrenci numarası oluştur
+    let studentId;
+    do {
+        studentId = Math.floor(Math.random() * 900000) + 100000; // 6 haneli numara
+    } while (APP_STATE.studentData && APP_STATE.studentData.find(s => s.studentId === studentId.toString()));
+    
+    // E-posta oluştur
+    const domain = domains[Math.floor(Math.random() * domains.length)];
+    const email = `${name.toLowerCase()}.${surname.toLowerCase()}@${domain}`;
+    
+    // Telefon numarası oluştur (05XX XXX XX XX formatında)
+    const phonePrefix = ['50', '51', '52', '53', '54', '55', '56', '57', '58', '59'];
+    const prefix = phonePrefix[Math.floor(Math.random() * phonePrefix.length)];
+    const phone = `0${prefix}${Math.floor(Math.random() * 9000000) + 1000000}`;
+    
+    // TCKN oluştur (11 haneli, basit algoritma)
+    const tckn = generateRandomTCKN();
+    
+    return {
+        studentId: studentId.toString(),
+        name: name,
+        surname: surname,
+        email: email,
+        phone: phone,
+        tckn: tckn,
+        status: 'Aktif'
+    };
+}
+
+/**
+ * Rastgele TCKN oluştur (basit algoritma)
+ */
+function generateRandomTCKN() {
+    // İlk 9 haneli rastgele oluştur
+    let tckn = '';
+    for (let i = 0; i < 9; i++) {
+        tckn += Math.floor(Math.random() * 10);
+    }
+    
+    // 10. haneyi hesapla
+    let oddSum = 0, evenSum = 0;
+    for (let i = 0; i < 9; i++) {
+        if (i % 2 === 0) {
+            oddSum += parseInt(tckn[i]);
+        } else {
+            evenSum += parseInt(tckn[i]);
+        }
+    }
+    
+    const tenthDigit = ((oddSum * 7) - evenSum) % 10;
+    tckn += tenthDigit;
+    
+    // 11. haneyi hesapla
+    let totalSum = 0;
+    for (let i = 0; i < 10; i++) {
+        totalSum += parseInt(tckn[i]);
+    }
+    const eleventhDigit = totalSum % 10;
+    tckn += eleventhDigit;
+    
+    return tckn;
+}
+
+/**
+ * Form alanlarını rastgele verilerle doldur
+ */
+function fillRandomStudentData() {
+    const randomData = generateRandomStudentData();
+    
+    document.getElementById('addStudentId').value = randomData.studentId;
+    document.getElementById('addStudentName').value = randomData.name;
+    document.getElementById('addStudentSurname').value = randomData.surname;
+    document.getElementById('addStudentEmail').value = randomData.email;
+    document.getElementById('addStudentPhone').value = randomData.phone;
+    document.getElementById('addStudentTCKN').value = randomData.tckn;
+    document.getElementById('addStudentStatus').value = randomData.status;
+    
+    showModernToast('Rastgele öğrenci verisi oluşturuldu!', 'info');
+    console.log('🎲 Rastgele öğrenci verisi:', randomData);
+}
+
+/**
+ * Yeni öğrenci ekleme modalını oluştur
+ */
+function createAddStudentModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modern-modal';
+    modal.id = 'addStudentModal';
+    
+    modal.innerHTML = `
+        <div class="modern-modal-content">
+            <div class="modern-modal-header success-action">
+                <h2>➕ Yeni Öğrenci Ekle</h2>
+                <button class="modern-close" onclick="closeAddStudentModal()">×</button>
+            </div>
+            <div class="modern-modal-body">
+                <div class="random-data-section">
+                    <button type="button" class="btn btn-info btn-sm" onclick="fillRandomStudentData()" title="Test için rastgele öğrenci verisi oluştur">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                            <path d="M2 17l10 5 10-5"></path>
+                            <path d="M2 12l10 5 10-5"></path>
+                        </svg>
+                        🎲 Rastgele Veri Oluştur
+                    </button>
+                    <small class="text-muted">Test için hızlıca rastgele öğrenci verisi oluşturur</small>
+                </div>
+                
+                <form id="addStudentForm">
+                    <div class="form-group">
+                        <label for="addStudentId">Öğrenci No: *</label>
+                        <input type="text" id="addStudentId" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="addStudentName">Adı: *</label>
+                        <input type="text" id="addStudentName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="addStudentSurname">Soyadı: *</label>
+                        <input type="text" id="addStudentSurname" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="addStudentEmail">E-Posta:</label>
+                        <input type="email" id="addStudentEmail">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="addStudentPhone">Telefon:</label>
+                        <input type="tel" id="addStudentPhone">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="addStudentTCKN">TCKN:</label>
+                        <input type="text" id="addStudentTCKN" maxlength="11">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="addStudentStatus">Durum:</label>
+                        <select id="addStudentStatus">
+                            <option value="Aktif">Aktif</option>
+                            <option value="İlişiği Kesilmiş">İlişiği Kesilmiş</option>
+                        </select>
+                    </div>
+                    
+                    <div class="info-message" style="background: linear-gradient(135deg, #e3f2fd, #bbdefb); border-color: #2196f3; color: #0d47a1; margin-top: 1rem;">
+                        <p><strong>ℹ️ Not:</strong> Yeni öğrenciler otomatik olarak <strong>A grubuna</strong> atanır.</p>
+                    </div>
+                </form>
+            </div>
+            <div class="modern-modal-footer">
+                <button type="button" class="modern-confirm-btn btn-primary" onclick="addNewStudent()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="16"></line>
+                        <line x1="8" y1="12" x2="16" y2="12"></line>
+                    </svg>
+                    Öğrenci Ekle (A Grubuna)
+                </button>
+                <button type="button" class="modern-confirm-btn btn-secondary" onclick="closeAddStudentModal()">İptal</button>
+            </div>
+        </div>
+    `;
+    
+    return modal;
+}
+
+/**
+ * Yeni öğrenci ekle
+ */
+function addNewStudent() {
+    console.log("💾 Yeni öğrenci ekleniyor");
+    
+    try {
+        const studentId = document.getElementById('addStudentId').value.trim();
+        const name = document.getElementById('addStudentName').value.trim();
+        const surname = document.getElementById('addStudentSurname').value.trim();
+        const email = document.getElementById('addStudentEmail').value.trim();
+        const phone = document.getElementById('addStudentPhone').value.trim();
+        const tckn = document.getElementById('addStudentTCKN').value.trim();
+        const status = document.getElementById('addStudentStatus').value;
+        
+        // Validasyon
+        if (!studentId || !name || !surname) {
+            showModernToast("Öğrenci No, Ad ve Soyad alanları zorunludur!", "error");
+            return;
+        }
+        
+        // Aynı ID ile öğrenci var mı kontrol et
+        const existingStudent = APP_STATE.studentData.find(s => s.studentId === studentId);
+        if (existingStudent) {
+            showModernToast("Bu öğrenci numarası zaten kullanılıyor!", "error");
+            return;
+        }
+        
+        // E-posta validasyonu
+        if (email && !isValidEmail(email)) {
+            showModernToast("Geçerli bir e-posta adresi girin!", "error");
+            return;
+        }
+        
+        // TCKN validasyonu
+        if (tckn && (tckn.length !== 11 || !/^\d{11}$/.test(tckn))) {
+            showModernToast("TCKN 11 haneli sayı olmalıdır!", "error");
+            return;
+        }
+        
+        // Yeni öğrenci oluştur - Her zaman A grubuna ata
+        const newStudent = {
+            studentId: studentId,
+            name: name,
+            surname: surname,
+            email: email,
+            telefon: phone,
+            tcKimlik: tckn,
+            status: status,
+            grupId: 'A' // Varsayılan olarak A grubuna ata
+        };
+        
+        // Öğrenciyi listeye ekle
+        if (!APP_STATE.studentData) {
+            APP_STATE.studentData = [];
+        }
+        APP_STATE.studentData.push(newStudent);
+        
+        // Grup bilgilerini de güncelle (courseData formatında)
+        if (APP_STATE.courseData && APP_STATE.courseData.ogrenciNotlari) {
+            if (!APP_STATE.courseData.ogrenciNotlari[studentId]) {
+                APP_STATE.courseData.ogrenciNotlari[studentId] = {
+                    grupBilgileri: {}
+                };
+            }
+            
+            // Tüm ana aktiviteler için A grubuna ata
+            if (APP_STATE.assessmentTree) {
+                APP_STATE.assessmentTree.forEach(activity => {
+                    if (activity.id.startsWith('A') || activity.id.startsWith('F')) {
+                        APP_STATE.courseData.ogrenciNotlari[studentId].grupBilgileri[activity.id] = 'A';
+                    }
+                });
+            }
+        }
+        
+        // Tüm GUI bileşenlerini güncelle
+        updateStudentTableEnhanced(); // Bu artık tüm dropdown'ları güncelliyor
+        updateStudentGroupInfo();
+        updateAssessmentStudentFilter();
+        updateAssessmentView();
+        
+        // Modalı kapat
+        closeAddStudentModal();
+        
+        showModernToast(`Öğrenci "${name} ${surname}" A grubuna eklendi!`, "success");
+        console.log(`✅ Yeni öğrenci A grubuna eklendi: ${studentId}`);
+        
+    } catch (error) {
+        console.error("Öğrenci ekleme hatası:", error);
+        showModernToast("Öğrenci eklenemedi!", "error");
+    }
+}
+
+/**
+ * Yeni öğrenci ekleme modalını kapat
+ */
+function closeAddStudentModal() {
+    const modal = document.getElementById('addStudentModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('active');
+        document.body.removeChild(modal);
+    }
+}
+
+
+
+/**
+ * Öğrencileri gruplarına göre organize et
+ */
+function organizeStudentsByGroups() {
+    const groupData = {};
+    
+    if (!APP_STATE.studentData) return groupData;
+    
+    APP_STATE.studentData.forEach(student => {
+        const groupId = student.grupId || 'A'; // Varsayılan A grubu
+        
+        if (!groupData[groupId]) {
+            groupData[groupId] = [];
+        }
+        
+        groupData[groupId].push(student);
+    });
+    
+    return groupData;
+}
+
+/**
+ * Değerlendirme sekmesindeki öğrenci filtresini güncelle
+ */
+function updateAssessmentStudentFilter() {
+    try {
+        const filterSelect = document.getElementById('assessmentStudentFilter');
+        if (!filterSelect) return;
+        
+        // Mevcut seçimi sakla
+        const currentValue = filterSelect.value;
+        
+        // Filtreyi temizle
+        filterSelect.innerHTML = '<option value="">Tüm Öğrenciler</option>';
+        
+        if (!APP_STATE.studentData || APP_STATE.studentData.length === 0) {
+            return;
+        }
+        
+        // Öğrencileri sırala ve ekle
+        const sortedStudents = [...APP_STATE.studentData].sort((a, b) => {
+            return a.studentId.localeCompare(b.studentId);
+        });
+        
+        sortedStudents.forEach(student => {
+            const option = document.createElement('option');
+            option.value = student.studentId;
+            option.textContent = `${student.studentId} - ${student.name} ${student.surname}`;
+            
+            // Durum göstergesi ekle
+            if (student.status !== 'Aktif') {
+                option.textContent += ' (İlişiği Kesilmiş)';
+                option.style.color = '#6c757d';
+            }
+            
+            filterSelect.appendChild(option);
+        });
+        
+        // Önceki seçimi geri yükle
+        if (currentValue && filterSelect.querySelector(`option[value="${currentValue}"]`)) {
+            filterSelect.value = currentValue;
+        }
+        
+        console.log('✅ Değerlendirme öğrenci filtresi güncellendi');
+        
+    } catch (error) {
+        console.error('Değerlendirme öğrenci filtresi güncellenirken hata:', error);
+    }
+}
+
+/**
+ * DEPRECATED: Eski updateAssessmentView fonksiyonu - Artık kullanılmıyor
+ * Yeni kompleks versiyon (satır 6301) kullanılmalı
+ */
+function updateAssessmentViewLegacy() {
+    console.warn('⚠️ DEPRECATED: updateAssessmentViewLegacy çağrıldı, yeni updateAssessmentView kullanın');
+    // Yeni kompleks versiyonu çağır
+    if (typeof updateAssessmentView === 'function') {
+        return updateAssessmentView();
+    }
 }
 
 /**
  * Öğrenci düzenleme modalını aç
  */
 function editStudent(studentId) {
+    console.log(`🔵 editStudent çağırıldı: ${studentId}`);
+    
     const student = APP_STATE.studentData.find(s => s.studentId === studentId);
     if (!student) {
         showModernToast("Öğrenci bulunamadı!", "error");
@@ -660,9 +1487,20 @@ function editStudent(studentId) {
     // Öğrenci ID'sini modal'a data attribute olarak sakla
     modal.setAttribute('data-original-student-id', studentId);
     
+    // Form submit event listener'ını ekle (yalnızca bir kez)
+    const form = document.getElementById('editStudentForm');
+    if (form && !form.hasAttribute('data-listener-added')) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveStudentChanges();
+        });
+        form.setAttribute('data-listener-added', 'true');
+        console.log(`🔗 Form event listener eklendi`);
+    }
+    
     // Modalı göster
     modal.style.display = 'flex';
-    modal.classList.add('show');
+    modal.classList.add('active');
     
     // Input formatlamaları ayarla
     setupEditStudentInputs();
@@ -723,7 +1561,7 @@ function closeEditStudentModal() {
     const modal = document.getElementById('editStudentModal');
     if (modal) {
         modal.style.display = 'none';
-        modal.classList.remove('show');
+        modal.classList.remove('active');
         modal.removeAttribute('data-original-student-id');
         
         // Form'u temizle
@@ -745,9 +1583,13 @@ function closeEditStudentModal() {
  * Öğrenci değişikliklerini kaydet
  */
 function saveStudentChanges() {
+    console.log(`💾 saveStudentChanges çağırıldı`);
+    
     try {
         const modal = document.getElementById('editStudentModal');
         const originalStudentId = modal.getAttribute('data-original-student-id');
+        
+        console.log(`📋 Orijinal öğrenci ID: ${originalStudentId}`);
         
         if (!originalStudentId) {
             showModernToast("Özgün öğrenci ID bulunamadı!", "error");
@@ -834,9 +1676,11 @@ function saveStudentChanges() {
             }
         }
         
-        // Tabloyu güncelle
-        updateStudentTableEnhanced();
+        // Tüm GUI bileşenlerini güncelle
+        updateStudentTableEnhanced(); // Bu artık tüm dropdown'ları güncelliyor
         updateStudentGroupInfo();
+        updateAssessmentStudentFilter();
+        updateAssessmentView();
         
         // Modalı kapat
         closeEditStudentModal();
@@ -977,11 +1821,11 @@ async function deleteStudent(studentId) {
                 });
             }
             
-            // Tabloları güncelle
-            updateStudentTableEnhanced();
-            
-            // Grup bilgilerini güncelle
+            // Tüm GUI bileşenlerini güncelle
+            updateStudentTableEnhanced(); // Bu artık tüm dropdown'ları güncelliyor
             updateStudentGroupInfo();
+            updateAssessmentStudentFilter();
+            updateAssessmentView();
             
             showModernToast("Öğrenci başarıyla silindi!", "success");
             
@@ -1478,6 +2322,39 @@ function randomizeStudentsForActivity(activityId) {
 function updateStudentGroupInfo() {
     try {
         console.log('🔄 updateStudentGroupInfo başladı');
+        
+        // Filtreleme sistemi başlatılmamışsa başlat
+        if (!document.getElementById('groupSearchInput')?.hasAttribute('data-initialized')) {
+            console.log('🔧 Grup filtreleme sistemi başlatılıyor...');
+            setTimeout(() => {
+                initializeGroupFiltering();
+                document.getElementById('groupSearchInput')?.setAttribute('data-initialized', 'true');
+            }, 100);
+        }
+        
+        // Etkinlik filtresini güncelle
+        populateGroupActivityFilter();
+        
+        // Filtreli görünümü güncelle
+        updateStudentGroupInfoWithFilters();
+        
+        // Filtre bilgisini güncelle
+        updateGroupFilterInfo();
+        
+        console.log('✅ updateStudentGroupInfo tamamlandı (filtreleme ile)');
+        
+    } catch (error) {
+        console.error("❌ Öğrenci grup bilgileri güncellenirken hata:", error);
+        console.error(error);
+    }
+}
+
+/**
+ * Eski grup bilgilerini güncelle (yedek)
+ */
+function updateStudentGroupInfoOld() {
+    try {
+        console.log('🔄 updateStudentGroupInfoOld başladı');
         const container = document.getElementById('studentGroupInfoContainer');
         const card = document.getElementById('studentGroupInfoCard');
         
@@ -1486,7 +2363,7 @@ function updateStudentGroupInfo() {
         console.log('📋 Student data:', APP_STATE.studentData?.length || 0, 'öğrenci');
         
         if (!container || !APP_STATE.studentData || APP_STATE.studentData.length === 0) {
-            console.log('❌ updateStudentGroupInfo: Gerekli veriler eksik, card gizleniyor');
+            console.log('❌ updateStudentGroupInfoOld: Gerekli veriler eksik, card gizleniyor');
             if (card) card.style.display = 'none';
             return;
         }
@@ -1549,7 +2426,7 @@ function updateStudentGroupInfo() {
             html += `
                 <div class="activity-group-section" data-activity-id="${activity.id}">
                     <div class="activity-group-title">
-                        <span>${activity.adi} (${typeLabel})</span>
+                        <span>${activity.id} - ${activity.adi} (${typeLabel})</span>
                         <button class="btn btn-sm btn-info" onclick="randomizeStudentsForActivity('${activity.id}')" title="Rastgele Dağıt">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M16 3h5v5"></path>
@@ -2460,20 +3337,98 @@ function findNodeById(id) {
 }
 
 /**
- * Harf notunu hesaplama
+ * Harf notu hesaplama - RTEU Yönetmeliği MADDE 30'a göre
  * @param {number} totalGrade - Toplam not
  * @returns {string} - Harf notu
  */
 function getLetterGrade(totalGrade) {
-    if (totalGrade >= 90) return 'AA';
-    if (totalGrade >= 85) return 'BA';
-    if (totalGrade >= 80) return 'BB';
-    if (totalGrade >= 75) return 'CB';
-    if (totalGrade >= 70) return 'CC';
-    if (totalGrade >= 60) return 'DC';
-    if (totalGrade >= 50) return 'DD';
-    if (totalGrade >= 40) return 'FD';
-    return 'FF';
+    if (totalGrade >= 90) return 'AA';      // 90-100: Mükemmel (4.0)
+    if (totalGrade >= 81) return 'BA';      // 81-89: Çok İyi (3.5)
+    if (totalGrade >= 73) return 'BB';      // 73-80: İyi (3.0)
+    if (totalGrade >= 66) return 'CB';      // 66-72: Orta (2.5)
+    if (totalGrade >= 60) return 'CC';      // 60-65: Yeterli (2.0)
+    if (totalGrade >= 50) return 'DC';      // 50-59: Şartlı Başarılı (1.5)
+    if (totalGrade >= 40) return 'DD';      // 40-49: Başarısız (1.0)
+    if (totalGrade >= 30) return 'FD';      // 30-39: Başarısız (0.5)
+    return 'FF';                            // 0-29: Başarısız (0.0)
+}
+
+/**
+ * Harf notunun katsayısını getir - RTEU Yönetmeliği MADDE 30'a göre
+ * @param {string} letterGrade - Harf notu
+ * @returns {number} - Katsayı değeri
+ */
+function getLetterGradeCoefficient(letterGrade) {
+    const coefficients = {
+        'AA': 4.0,  // Mükemmel
+        'BA': 3.5,  // Çok İyi
+        'BB': 3.0,  // İyi
+        'CB': 2.5,  // Orta
+        'CC': 2.0,  // Yeterli
+        'DC': 1.5,  // Şartlı Başarılı
+        'DD': 1.0,  // Başarısız
+        'FD': 0.5,  // Başarısız
+        'FF': 0.0,  // Başarısız
+        'D': 0.0    // Devamsız
+    };
+    return coefficients[letterGrade] || 0.0;
+}
+
+/**
+ * Başarı durumunu kontrol et - RTEU Yönetmeliği MADDE 30'a göre
+ * @param {string} letterGrade - Harf notu
+ * @param {number} yano - Yarıyıl Akademik Not Ortalaması (isteğe bağlı)
+ * @returns {object} - Başarı durumu bilgileri
+ */
+function getGradeSuccessStatus(letterGrade, yano = null) {
+    const directSuccess = ['AA', 'BA', 'BB', 'CB', 'CC'];
+    const directFail = ['DD', 'FD', 'FF', 'D'];
+    
+    if (directSuccess.includes(letterGrade)) {
+        return {
+            isSuccessful: true,
+            status: 'Başarılı',
+            description: 'Doğrudan başarılı'
+        };
+    }
+    
+    if (letterGrade === 'DC') {
+        if (yano !== null) {
+            if (yano >= 2.00) {
+                return {
+                    isSuccessful: true,
+                    status: 'Başarılı',
+                    description: 'Şartlı başarılı (YANO ≥ 2.00)'
+                };
+            } else {
+                return {
+                    isSuccessful: false,
+                    status: 'Başarısız',
+                    description: 'Şartlı başarısız (YANO < 2.00)'
+                };
+            }
+        } else {
+            return {
+                isSuccessful: null,
+                status: 'Şartlı',
+                description: 'YANO\'ya bağlı başarı durumu'
+            };
+        }
+    }
+    
+    if (directFail.includes(letterGrade)) {
+        return {
+            isSuccessful: false,
+            status: 'Başarısız',
+            description: 'Doğrudan başarısız'
+        };
+    }
+    
+    return {
+        isSuccessful: false,
+        status: 'Bilinmeyen',
+        description: 'Geçersiz harf notu'
+    };
 }
 
 /**
@@ -2715,32 +3670,60 @@ function addRubric() {
  * Düğüm silme
  */
 function removeNode() {
+    console.log("🔴 [DEBUG] removeNode() fonksiyonu çağrıldı");
+    
     if (!APP_STATE.selectedNode) {
+        console.log("🔴 [DEBUG] Seçili düğüm bulunamadı");
         showModernToast("Lütfen önce bir etkinlik seçin.", "warning");
         return;
     }
     
+    console.log("🔴 [DEBUG] Seçili düğüm:", APP_STATE.selectedNode);
+    console.log("🔴 [DEBUG] Silme onay modalı açılıyor...");
+    
     showDeleteConfirmModal(
         function() {
+            console.log("🔴 [DEBUG] Silme onayı verildi! Silme işlemi başlıyor...");
+            
             try {
+                const nodeId = APP_STATE.selectedNode.id;
+                const nodeName = APP_STATE.selectedNode.name;
+                console.log("🔴 [DEBUG] Silinecek düğüm ID:", nodeId);
+                console.log("🔴 [DEBUG] Silinecek düğüm adı:", nodeName);
+                
                 // Kök düğüm mü kontrol et
-                const isRoot = !APP_STATE.selectedNode.id.includes('.');
+                const isRoot = !nodeId.includes('.');
+                console.log("🔴 [DEBUG] Kök düğüm mü?", isRoot);
+                
+                let deletionSuccessful = false;
+                let parentNode = null;
                 
                 if (isRoot) {
+                    console.log("🔴 [DEBUG] Kök düğüm silme işlemi başlıyor...");
                     // Kök düğümü sil
-                    const index = APP_STATE.assessmentTree.findIndex(node => node.id === APP_STATE.selectedNode.id);
+                    const index = APP_STATE.assessmentTree.findIndex(node => node.id === nodeId);
+                    console.log("🔴 [DEBUG] Kök düğüm indeksi:", index);
+                    
                     if (index !== -1) {
                         APP_STATE.assessmentTree.splice(index, 1);
+                        deletionSuccessful = true;
+                        console.log("🔴 [DEBUG] Kök düğüm başarıyla silindi");
+                    } else {
+                        console.log("🔴 [DEBUG] HATA: Kök düğüm bulunamadı!");
                     }
                 } else {
+                    console.log("🔴 [DEBUG] Alt düğüm silme işlemi başlıyor...");
                     // Alt düğümü sil
-                    const parentId = APP_STATE.selectedNode.id.substring(0, APP_STATE.selectedNode.id.lastIndexOf('.'));
+                    const parentId = nodeId.substring(0, nodeId.lastIndexOf('.'));
+                    console.log("🔴 [DEBUG] Parent ID:", parentId);
+                    
                     const findParentAndRemoveChild = (nodes, id) => {
                         for (let i = 0; i < nodes.length; i++) {
                             const node = nodes[i];
                             if (node.id === parentId && node.children) {
                                 const childIndex = node.children.findIndex(child => child.id === id);
                                 if (childIndex !== -1) {
+                                    console.log("🔴 [DEBUG] Alt düğüm bulundu, siliniyor. Child index:", childIndex);
                                     node.children.splice(childIndex, 1);
                                     return true;
                                 }
@@ -2755,23 +3738,98 @@ function removeNode() {
                         return false;
                     };
                     
-                    findParentAndRemoveChild(APP_STATE.assessmentTree, APP_STATE.selectedNode.id);
+                    const deleted = findParentAndRemoveChild(APP_STATE.assessmentTree, nodeId);
+                    console.log("🔴 [DEBUG] Alt düğüm silme sonucu:", deleted);
+                    
+                    // DÜZELTME: Alt düğüm silindikten sonra ID yeniden düzenleme yap
+                    if (deleted) {
+                        deletionSuccessful = true;
+                        parentNode = findNodeById(parentId);
+                        console.log("🔴 [DEBUG] Parent düğüm bulundu:", parentNode);
+                        
+                        if (parentNode) {
+                            console.log("🔴 [DEBUG] ID yeniden sıralama başlıyor...");
+                            // ID'leri yeniden sırala
+                            reorderChildNodeIds(parentNode);
+                            console.log("🔴 [DEBUG] ID yeniden sıralama tamamlandı");
+                        }
+                        
+                        console.log("🔴 [DEBUG] Grup haritalamalarını temizleme başlıyor...");
+                        // Grup haritalamalarını temizle
+                        cleanupGroupMappingsForDeletedNode(nodeId);
+                        console.log("🔴 [DEBUG] Grup haritalamalarını temizleme tamamlandı");
+                    } else {
+                        console.log("🔴 [DEBUG] HATA: Alt düğüm silinemedi!");
+                    }
                 }
                 
-                APP_STATE.selectedNode = null;
-                renderTree();
+                if (deletionSuccessful) {
+                    console.log("🔴 [DEBUG] Silme başarılı! Post-processing başlıyor...");
+                    
+                    // Tüm ID'leri yeniden düzenle (kök düğüm silindiğinde)
+                    if (isRoot) {
+                        console.log("🔴 [DEBUG] Tüm ID'leri yeniden düzenleme başlıyor...");
+                        reorganizeAllIds();
+                        console.log("🔴 [DEBUG] Tüm ID'leri yeniden düzenleme tamamlandı");
+                    }
+                    
+                    APP_STATE.selectedNode = null;
+                    console.log("🔴 [DEBUG] Seçili düğüm temizlendi");
+                    
+                    console.log("🔴 [DEBUG] Ağacı yeniden render etme başlıyor...");
+                    renderTree();
+                    console.log("🔴 [DEBUG] Ağacı yeniden render etme tamamlandı");
+                    
+                    console.log("🔴 [DEBUG] Kategori ağırlıklarını güncelleme başlıyor...");
+                    // Kategori ağırlıklarını güncelle
+                    updateCategoryWeights();
+                    console.log("🔴 [DEBUG] Kategori ağırlıklarını güncelleme tamamlandı");
+                    
+                    console.log("🔴 [DEBUG] Değerlendirme sekmesini güncelleme başlıyor...");
+                    // Değerlendirme sekmesini güncelle
+                    updateAssessmentView();
+                    console.log("🔴 [DEBUG] Değerlendirme sekmesini güncelleme tamamlandı");
+                    
+                    console.log("🔴 [DEBUG] Öğrenci grup bilgilerini güncelleme başlıyor...");
+                    // Öğrenci grup bilgilerini güncelle
+                    updateStudentGroupInfoDisplay();
+                    console.log("🔴 [DEBUG] Öğrenci grup bilgilerini güncelleme tamamlandı");
+                    
+                    // Alt düğüm silindiyse ve parent'ı varsa puanını ayarlama modalını aç
+                    if (!isRoot && parentNode) {
+                        console.log("🔴 [DEBUG] Alt düğüm silindi, puanını ayarlama modalı kontrol ediliyor...");
+                        console.log("🔴 [DEBUG] Parent düğüm children sayısı:", parentNode.children ? parentNode.children.length : 0);
+                        
+                        // Puanını ayarlama modalını otomatik aç
+                        setTimeout(() => {
+                            console.log("🔴 [DEBUG] Puanını ayarlama modalı açılıyor...");
+                            // checkAndOfferRedistribution fonksiyonu varsa çağır
+                            if (typeof checkAndOfferRedistribution === 'function') {
+                                checkAndOfferRedistribution(parentNode);
+                            } else {
+                                console.log("🔴 [DEBUG] checkAndOfferRedistribution fonksiyonu bulunamadı");
+                            }
+                        }, 500);
+                    }
+                    
+                    console.log("🔴 [DEBUG] Başarı mesajı gösteriliyor...");
+                    showModernToast(`"${nodeName}" etkinliği başarıyla silindi.`);
+                    console.log("🔴 [DEBUG] removeNode işlemi başarıyla tamamlandı");
+                } else {
+                    console.log("🔴 [DEBUG] HATA: Silme işlemi başarısız!");
+                    showModernToast("Etkinlik silinemedi!", "error");
+                }
                 
-                // Değerlendirme sekmesini güncelle
-                updateAssessmentView();
-                
-                showModernToast("Etkinlik başarıyla silindi.");
             } catch (error) {
-                console.error("Düğüm silinirken hata oluştu:", error);
+                console.error("🔴 [DEBUG] Düğüm silinirken hata oluştu:", error);
+                console.error("🔴 [DEBUG] Hata stack trace:", error.stack);
                 showModernToast("Etkinlik silinemedi!", "error");
             }
         },
         `"${APP_STATE.selectedNode.name}" etkinliğini ve tüm alt öğelerini silmek istediğinizden emin misiniz?`
     );
+    
+    console.log("🔴 [DEBUG] showDeleteConfirmModal çağrısı tamamlandı");
 }
 
 /**
@@ -3806,13 +4864,28 @@ function updateNodeClassesAfterTypeChange(nodeElement, oldType, newType) {
     // Tip bilgisini veri özniteliğinde güncelle
     nodeElement.dataset.nodetype = newType;
 }
+// Debounced render için timer
+let renderTreeTimer = null;
+
 /**
- * Ağacı render etme
- */
-/**
- * Ağacı render etme
+ * Ağacı render etme - Debounced versiyon (Performans optimizasyonu)
  */
 function renderTree() {
+    // Debounce: 100ms içinde tekrar çağrılırsa önceki render'ı iptal et
+    if (renderTreeTimer) {
+        clearTimeout(renderTreeTimer);
+    }
+    
+    renderTreeTimer = setTimeout(() => {
+        renderTreeImmediate();
+        renderTreeTimer = null;
+    }, 100);
+}
+
+/**
+ * Ağacı hemen render etme - Gerçek render işlemi
+ */
+function renderTreeImmediate() {
     try {
         treeContainer.innerHTML = '';
         
@@ -4651,93 +5724,200 @@ function deleteNodeSilently(nodeId) {
 /**
  * Düğüm silme - ID'ye göre silme yapan versiyon
  * @param {string} nodeId - Silinecek düğüm ID'si
+ * @param {boolean} skipConfirmation - Onay modalını atla (varsayılan: false)
  */
-function deleteNode(nodeId) {
-    if (!nodeId) return;
+function deleteNode(nodeId, skipConfirmation = false) {
+    console.log("🟢 [DEBUG] deleteNode() fonksiyonu çağrıldı, nodeId:", nodeId, "skipConfirmation:", skipConfirmation);
+    
+    if (!nodeId) {
+        console.log("🟢 [DEBUG] NodeId boş, işlem durduruldu");
+        return;
+    }
     
     // Silme onayı iste
     const node = findNodeById(nodeId);
-    if (!node) return;
+    if (!node) {
+        console.log("🟢 [DEBUG] Düğüm bulunamadı:", nodeId);
+        return;
+    }
     
-    // Modern silme onay modalını göster
-    showDeleteConfirmModal(
-        // Onay verildiğinde çalışacak fonksiyon
-        function() {
-            try {
-                // Seçili düğüm siliniyorsa seçimi kaldır
-                if (APP_STATE.selectedNode && APP_STATE.selectedNode.id === nodeId) {
-                    APP_STATE.selectedNode = null;
+    console.log("🟢 [DEBUG] Silinecek düğüm bulundu:", node);
+    
+    // Eğer onay atlama yapılmadıysa, öğrenci notları kontrolü yap
+    if (!skipConfirmation) {
+        const hasGrades = checkIfNodeHasGrades && checkIfNodeHasGrades(nodeId);
+        console.log("🟢 [DEBUG] Öğrenci notları var mı?", hasGrades);
+        
+        if (hasGrades) {
+            console.log("🟢 [DEBUG] Notlı soru/rubrik için özel modal gösteriliyor...");
+            // Notlı soru/rubrik için özel onay
+            showModernConfirm(
+                "⚠️ DİKKAT! Notlı Soru/Rubrik Silme",
+                "Bu soru/rubrik için öğrenci notları girilmiş.\n\nSilme işlemi yapılırsa:\n• Bu soruya ait notlar kalıcı olarak silinecek\n• Diğer soruların notları korunacak\n• ID'ler yeniden düzenlenecek\n\nDevam etmek istediğinizden emin misiniz?",
+                {
+                    confirmText: 'Evet, Sil',
+                    cancelText: 'İptal',
+                    headerClass: 'danger-action',
+                    iconClass: 'danger'
                 }
-                
-                // Kök düğüm mü kontrol et
-                const isRoot = !nodeId.includes('.');
-                
-                if (isRoot) {
-                    // Kök düğümü sil
-                    const index = APP_STATE.assessmentTree.findIndex(node => node.id === nodeId);
-                    if (index !== -1) {
-                        APP_STATE.assessmentTree.splice(index, 1);
-                    }
+            ).then(confirmed => {
+                console.log("🟢 [DEBUG] Notlı silme modalı cevabı:", confirmed);
+                if (confirmed) {
+                    console.log("🟢 [DEBUG] Notlı silme modalı onaylandı, skipConfirmation=true ile tekrar çağrılıyor...");
+                    // Onay alındığı için skipConfirmation=true ile tekrar çağır
+                    deleteNode(nodeId, true);
                 } else {
-                    // Alt düğümü sil
-                    const parentId = nodeId.substring(0, nodeId.lastIndexOf('.'));
-                    const findParentAndRemoveChild = (nodes, id) => {
-                        for (let i = 0; i < nodes.length; i++) {
-                            const node = nodes[i];
-                            if (node.id === parentId && node.children) {
-                                const childIndex = node.children.findIndex(child => child.id === id);
-                                if (childIndex !== -1) {
-                                    node.children.splice(childIndex, 1);
-                                    return true;
-                                }
-                            }
-                            
-                            if (node.children && node.children.length > 0) {
-                                if (findParentAndRemoveChild(node.children, id)) {
-                                    return true;
-                                }
+                    console.log("🟢 [DEBUG] Kullanıcı notlı silme işlemini iptal etti");
+                }
+            }).catch(error => {
+                console.error("🟢 [DEBUG] Notlı silme modalı hata verdi:", error);
+            });
+            return;
+        }
+    }
+    
+    // Silme işlemi fonksiyonu
+    const performDeletion = function() {
+        console.log("🟢 [DEBUG] CALLBACK: Silme onayı verildi, silme işlemi başlıyor...");
+        console.log("🟢 [DEBUG] CALLBACK: Silinecek nodeId:", nodeId);
+        
+        try {
+            // Seçili düğüm siliniyorsa seçimi kaldır
+            if (APP_STATE.selectedNode && APP_STATE.selectedNode.id === nodeId) {
+                APP_STATE.selectedNode = null;
+                console.log("🟢 [DEBUG] CALLBACK: Seçili düğüm temizlendi");
+            }
+            
+            // Kök düğüm mü kontrol et
+            const isRoot = !nodeId.includes('.');
+            console.log("🟢 [DEBUG] CALLBACK: Kök düğüm mü?", isRoot);
+            
+            let deletionSuccessful = false;
+            let parentNode = null;
+            
+            if (isRoot) {
+                console.log("🟢 [DEBUG] CALLBACK: Kök düğüm silme işlemi başlıyor...");
+                // Kök düğümü sil
+                const index = APP_STATE.assessmentTree.findIndex(node => node.id === nodeId);
+                console.log("🟢 [DEBUG] CALLBACK: Kök düğüm indeksi:", index);
+                
+                if (index !== -1) {
+                    APP_STATE.assessmentTree.splice(index, 1);
+                    deletionSuccessful = true;
+                    console.log("🟢 [DEBUG] CALLBACK: Kök düğüm başarıyla silindi");
+                } else {
+                    console.log("🟢 [DEBUG] CALLBACK: HATA: Kök düğüm bulunamadı!");
+                }
+            } else {
+                console.log("🟢 [DEBUG] CALLBACK: Alt düğüm silme işlemi başlıyor...");
+                // Alt düğümü sil
+                const parentId = nodeId.substring(0, nodeId.lastIndexOf('.'));
+                console.log("🟢 [DEBUG] CALLBACK: Parent ID:", parentId);
+                
+                const findParentAndRemoveChild = (nodes, id) => {
+                    for (let i = 0; i < nodes.length; i++) {
+                        const node = nodes[i];
+                        if (node.id === parentId && node.children) {
+                            const childIndex = node.children.findIndex(child => child.id === id);
+                            if (childIndex !== -1) {
+                                console.log("🟢 [DEBUG] CALLBACK: Alt düğüm bulundu, siliniyor. Child index:", childIndex);
+                                node.children.splice(childIndex, 1);
+                                return true;
                             }
                         }
-                        return false;
-                    };
-                    
-                    findParentAndRemoveChild(APP_STATE.assessmentTree, nodeId);
-                }
+                        
+                        if (node.children && node.children.length > 0) {
+                            if (findParentAndRemoveChild(node.children, id)) {
+                                return true;
+                            }
+                        }
+                    }
+                    return false;
+                };
                 
+                const deleted = findParentAndRemoveChild(APP_STATE.assessmentTree, nodeId);
+                console.log("🟢 [DEBUG] CALLBACK: Alt düğüm silme sonucu:", deleted);
+                
+                if (deleted) {
+                    deletionSuccessful = true;
+                    parentNode = findNodeById(parentId);
+                    console.log("🟢 [DEBUG] CALLBACK: Parent düğüm bulundu:", parentNode);
+                } else {
+                    console.log("🟢 [DEBUG] CALLBACK: HATA: Alt düğüm silinemedi!");
+                }
+            }
+            
+            if (deletionSuccessful) {
+                console.log("🟢 [DEBUG] CALLBACK: Silme başarılı! Post-processing başlıyor...");
+                
+                console.log("🟢 [DEBUG] CALLBACK: Grup haritalamalarını temizleme başlıyor...");
                 // DÜZELTME: Önce grup haritalamalarını temizle (ID değişmeden önce)
                 cleanupGroupMappingsForDeletedNode(nodeId);
+                console.log("🟢 [DEBUG] CALLBACK: Grup haritalamalarını temizleme tamamlandı");
                 
                 // YENİ KOD: Eğer bir alt düğüm silindiyse, üst düğümün ağırlıklarını kontrol et
-                if (!isRoot) {
-                    const parentId = nodeId.substring(0, nodeId.lastIndexOf('.'));
-                    const parentNode = findNodeById(parentId);
-                    if (parentNode) {
-                        // ID'leri yeniden sırala
-                        reorderChildNodeIds(parentNode);
-                        checkAndOfferRedistribution(parentNode);
-                    }
+                if (!isRoot && parentNode) {
+                    console.log("🟢 [DEBUG] CALLBACK: Alt düğüm silindi, ID yeniden sıralama ve puan dağıtımı kontrolleri başlıyor...");
+                    
+                    console.log("🟢 [DEBUG] CALLBACK: ID yeniden sıralama başlıyor...");
+                    // ID'leri yeniden sırala
+                    reorderChildNodeIds(parentNode);
+                    console.log("🟢 [DEBUG] CALLBACK: ID yeniden sıralama tamamlandı");
+                    
+                    console.log("🟢 [DEBUG] CALLBACK: Puan dağıtım kontrolü başlıyor...");
+                    checkAndOfferRedistribution(parentNode);
+                    console.log("🟢 [DEBUG] CALLBACK: Puan dağıtım kontrolü tamamlandı");
                 }
                 
+                console.log("🟢 [DEBUG] CALLBACK: Ağacı yeniden render etme başlıyor...");
                 // Ağacı yeniden render et
                 renderTree();
+                console.log("🟢 [DEBUG] CALLBACK: Ağacı yeniden render etme tamamlandı");
                 
+                console.log("🟢 [DEBUG] CALLBACK: Değerlendirme sekmesini güncelleme başlıyor...");
                 // Değerlendirme sekmesini güncelle
                 console.log('🔄 Soru silindi, değerlendirme sekmesi güncelleniyor...');
                 updateAssessmentView();
                 console.log('✅ Değerlendirme sekmesi güncelleme tamamlandı');
+                console.log("🟢 [DEBUG] CALLBACK: Değerlendirme sekmesini güncelleme tamamlandı");
                 
+                console.log("🟢 [DEBUG] CALLBACK: Öğrenci grup bilgilerini güncelleme başlıyor...");
                 // Öğrenci grup bilgilerini güncelle
                 updateStudentGroupInfoDisplay();
+                console.log("🟢 [DEBUG] CALLBACK: Öğrenci grup bilgilerini güncelleme tamamlandı");
                 
+                console.log("🟢 [DEBUG] CALLBACK: Başarı mesajı gösteriliyor...");
                 showModernToast("Etkinlik başarıyla silindi.");
-            } catch (error) {
-                console.error("Düğüm silinirken hata oluştu:", error);
+                console.log("🟢 [DEBUG] CALLBACK: deleteNode işlemi başarıyla tamamlandı!");
+            } else {
+                console.log("🟢 [DEBUG] CALLBACK: HATA: Silme işlemi başarısız!");
                 showModernToast("Etkinlik silinemedi!", "error");
             }
-        },
-        // Silme onay mesajı
-        `"${node.name}" etkinliğini ve tüm alt öğelerini silmek istediğinizden emin misiniz?`
-    );
+            
+        } catch (error) {
+            console.error("🟢 [DEBUG] CALLBACK: Düğüm silinirken hata oluştu:", error);
+            console.error("🟢 [DEBUG] CALLBACK: Hata stack trace:", error.stack);
+            showModernToast("Etkinlik silinemedi!", "error");
+        }
+    };
+    
+    // Onay modalını atla veya göster
+    if (skipConfirmation) {
+        console.log("🟢 [DEBUG] Onay modalı atlanıyor, direkt silme işlemi yapılıyor...");
+        performDeletion();
+    } else {
+        console.log("🟢 [DEBUG] showDeleteConfirmModal çağrılıyor...");
+        
+        // Modern silme onay modalını göster
+        showDeleteConfirmModal(
+            // Onay verildiğinde çalışacak fonksiyon
+            performDeletion,
+            // Silme onay mesajı
+            `"${node.name}" etkinliğini ve tüm alt öğelerini silmek istediğinizden emin misiniz?`
+        );
+        
+        console.log("🟢 [DEBUG] showDeleteConfirmModal çağrısı tamamlandı");
+    }
 }
 
 /**
@@ -5332,6 +6512,9 @@ function updateCourseInfo() {
 function updateAssessmentView() {
     console.log('🎯 updateAssessmentView çağrıldı - mevcut ağaç:', APP_STATE.assessmentTree);
     
+    // Filtrelenmiş öğrenci listesini önce al (scope için)
+    let filteredStudents = [];
+    
     try {
         // Konteyner kontrolü
         if (!assessmentContainer) {
@@ -5339,7 +6522,15 @@ function updateAssessmentView() {
             return;
         }
         
-        // Veri kontrolü
+        // Veri kontrolü ve assessmentTree oluşturma
+        if (!APP_STATE.assessmentTree?.length) {
+            // Eğer assessmentTree boşsa ama dersDegerlendirme verisi varsa, ağacı oluştur
+            if (APP_STATE.courseData?.dersDegerlendirme) {
+                console.log('🔧 assessmentTree boş, dersDegerlendirme verilerinden oluşturuluyor...');
+                createAssessmentTreeFromCourseData();
+            }
+        }
+        
         if (!APP_STATE.assessmentTree?.length || !APP_STATE.studentData?.length) {
             assessmentContainer.innerHTML = `
                 <p class="empty-message">Değerlendirme girişi yapabilmek için hem ders tanımlama hem de öğrenci listesi sekmelerinden gerekli bilgileri yüklemeniz gerekmektedir.</p>
@@ -5353,7 +6544,7 @@ function updateAssessmentView() {
         
         try {
         // Filtrelenmiş öğrenci listesini al
-        const filteredStudents = getFilteredStudentsForAssessment();
+        filteredStudents = getFilteredAssessmentStudents();
         
         // Geçici olarak APP_STATE.studentData'yı değiştir
         APP_STATE.studentData = filteredStudents;
@@ -5362,8 +6553,20 @@ function updateAssessmentView() {
         assessmentContainer.innerHTML = '';
         
             // Etkinlikleri kategorilere ayır
-        const termActivities = APP_STATE.assessmentTree.filter(node => node.id.startsWith('A'));
-            const finalActivities = APP_STATE.assessmentTree.filter(node => node.id.startsWith('F'));
+        let termActivities = APP_STATE.assessmentTree.filter(node => node.id.startsWith('A'));
+            let finalActivities = APP_STATE.assessmentTree.filter(node => node.id.startsWith('F'));
+            
+            // Etkinlik filtresi varsa sadece seçilen etkinliği göster
+            if (ASSESSMENT_FILTER_SETTINGS.currentActivity) {
+                const selectedActivity = ASSESSMENT_FILTER_SETTINGS.currentActivity;
+                if (selectedActivity.startsWith('A')) {
+                    termActivities = termActivities.filter(activity => activity.id === selectedActivity);
+                    finalActivities = []; // Yarıyıl sonu etkinliklerini gizle
+                } else if (selectedActivity.startsWith('F')) {
+                    finalActivities = finalActivities.filter(activity => activity.id === selectedActivity);
+                    termActivities = []; // Yarıyıl içi etkinlikleri gizle
+                }
+            }
             
             // Yarıyıl içi etkinlikleri render et
             if (termActivities.length > 0) {
@@ -5390,6 +6593,9 @@ function updateAssessmentView() {
         
         // Filtre bilgisini güncelle
         updateAssessmentFilterInfo();
+        
+        // Etkinlik filtresini güncelle
+        populateAssessmentActivityFilter();
         
         // ÖÇ tooltip sistemini başlat
         setTimeout(() => {
@@ -5443,7 +6649,8 @@ function updateAssessmentView() {
             });
             
             componentIds.forEach(componentId => {
-                APP_STATE.studentData.forEach(student => {
+                // Sadece filtrelenmiş (görüntülenen) öğrenciler için güncelle
+                filteredStudents.forEach(student => {
                     const studentCurrentGroup = getStudentGroupForComponent(student.studentId, componentId);
                     // Her öğrenci için grup bazlı soru bilgilerini güncelle
                     updateQuestionInfoForComponent(student.studentId, studentCurrentGroup, componentId);
@@ -5541,6 +6748,13 @@ function getFilteredStudentsForAssessment() {
  * Değerlendirme filtresi bilgisini güncelle
  */
 function updateAssessmentFilterInfo() {
+    // Yeni filtreleme sistemi varsa onu kullan
+    if (typeof updateAssessmentFilterStats === 'function') {
+        updateAssessmentFilterStats();
+        return;
+    }
+    
+    // Eski sistem için geri uyumluluk
     try {
     const filterInfo = document.getElementById('assessmentFilterInfo');
     const filterSelect = document.getElementById('assessmentStudentFilter');
@@ -5551,7 +6765,7 @@ function updateAssessmentFilterInfo() {
         }
     
         const totalStudents = APP_STATE.studentData?.length || 0;
-    const filteredStudents = getFilteredStudentsForAssessment();
+    const filteredStudents = getFilteredAssessmentStudents();
     const filteredCount = filteredStudents.length;
     
     if (!filterSelect || !filterSelect.value) {
@@ -5759,9 +6973,16 @@ function calculateStudentGrades(studentId) {
             });
         }
         
-        // Toplam ve harf notu
-        const totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
-        const letterGrade = getLetterGrade(totalGrade);
+        // Toplam ve harf notu - RTEU Yönetmeliği MADDE 26'ya göre
+        // Yarıyıl sonu sınavından en az 50 puan alma zorunluluğu kontrolü
+        let totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
+        let letterGrade = getLetterGrade(totalGrade);
+        
+        // Yarıyıl sonu sınavı 50'nin altındaysa FF verilir
+        if (finalGrade < 50) {
+            letterGrade = 'FF';
+            // Not: Toplam notu değiştirmiyoruz, sadece harf notunu FF yapıyoruz
+        }
         
         return {
             termGrade: parseFloat(termGrade.toFixed(2)),
@@ -5782,19 +7003,21 @@ function calculateStudentGrades(studentId) {
 }
 
 /**
- * Harf notuna göre CSS sınıfı getirme
+ * Harf notuna göre CSS sınıfı getirme - RTEU Yönetmeliği'ne göre
  * @param {string} letterGrade - Harf notu
  * @returns {string} - CSS sınıfı
  */
 function getLetterGradeClass(letterGrade) {
-    if (['AA', 'BA', 'BB'].includes(letterGrade)) {
-        return 'grade-excellent';
-    } else if (['CB', 'CC'].includes(letterGrade)) {
-        return 'grade-good';
-    } else if (['DC', 'DD'].includes(letterGrade)) {
-        return 'grade-pass';
+    if (['AA', 'BA'].includes(letterGrade)) {
+        return 'grade-excellent';  // Mükemmel ve Çok İyi
+    } else if (['BB', 'CB', 'CC'].includes(letterGrade)) {
+        return 'grade-good';       // İyi, Orta ve Yeterli (Başarılı)
+    } else if (['DC'].includes(letterGrade)) {
+        return 'grade-conditional'; // Şartlı Başarılı
+    } else if (['DD', 'FD', 'FF', 'D'].includes(letterGrade)) {
+        return 'grade-fail';       // Başarısız
     } else {
-        return 'grade-fail';
+        return 'grade-unknown';    // Bilinmeyen
     }
 }
 
@@ -5831,7 +7054,7 @@ function updateAssessmentGradeSummary(studentId) {
             
             if (letterGradeCell) {
                 // Eski CSS sınıflarını kaldır
-                letterGradeCell.classList.remove('grade-excellent', 'grade-good', 'grade-pass', 'grade-fail');
+                letterGradeCell.classList.remove('grade-excellent', 'grade-good', 'grade-conditional', 'grade-fail', 'grade-unknown');
                 // Yeni CSS sınıfını ekle
                 letterGradeCell.classList.add(getLetterGradeClass(studentGrades.letterGrade));
                 letterGradeCell.textContent = studentGrades.letterGrade;
@@ -6972,6 +8195,77 @@ function getStudentTestScore(studentId, testId) {
 }
 
 /**
+ * courseData.ogrenciNotlari yapısını güncelle (export için gerekli)
+ */
+function updateCourseDataGrades(studentId, activityId, value) {
+    try {
+        // courseData yapısını kontrol et
+        if (!APP_STATE.courseData) {
+            APP_STATE.courseData = {};
+        }
+        if (!APP_STATE.courseData.ogrenciNotlari) {
+            APP_STATE.courseData.ogrenciNotlari = {};
+        }
+        if (!APP_STATE.courseData.ogrenciNotlari[studentId]) {
+            APP_STATE.courseData.ogrenciNotlari[studentId] = {
+                grupBilgileri: {}
+            };
+        }
+        
+        // Aktiviteyi bul
+        const activity = findNodeById(activityId);
+        if (!activity) {
+            console.warn(`updateCourseDataGrades: Aktivite bulunamadı: ${activityId}`);
+            return;
+        }
+        
+        // Alt aktivite (A1.1 gibi) ise üst aktivite altında pozisyon bazlı güncelle
+        const parts = activityId.split('.');
+        if (parts.length > 1) {
+            const parentId = parts[0]; // A1
+            const parentActivity = findNodeById(parentId);
+            
+            if (parentActivity && parentActivity.children) {
+                // Alt aktivitenin pozisyonunu bul
+                const questionIndex = parentActivity.children.findIndex(child => child.id === activityId);
+                if (questionIndex !== -1) {
+                    const position = (questionIndex + 1).toString(); // 1, 2, 3, ...
+                    
+                    // courseData'da üst aktivite yapısını oluştur
+                    if (!APP_STATE.courseData.ogrenciNotlari[studentId][parentId]) {
+                        APP_STATE.courseData.ogrenciNotlari[studentId][parentId] = {};
+                    }
+                    
+                    // Pozisyon bazlı güncelleme (export formatına uygun)
+                    APP_STATE.courseData.ogrenciNotlari[studentId][parentId][position] = {
+                        puan: parseFloat(value) || 0,
+                        soruId: activityId
+                    };
+                    
+                    console.log(`courseData güncellendi: Öğrenci ${studentId}, Aktivite ${parentId}, Pozisyon ${position}, Soru ${activityId} = ${value} puan`);
+                }
+            }
+        }
+        
+        // Grup bilgilerini güncelle (gerekirse)
+        const componentId = getParentComponentId(activityId);
+        if (componentId) {
+            if (!APP_STATE.courseData.ogrenciNotlari[studentId].grupBilgileri) {
+                APP_STATE.courseData.ogrenciNotlari[studentId].grupBilgileri = {};
+            }
+            
+            // Eğer grup bilgisi yoksa varsayılan 'A' grubunu ata
+            if (!APP_STATE.courseData.ogrenciNotlari[studentId].grupBilgileri[componentId]) {
+                APP_STATE.courseData.ogrenciNotlari[studentId].grupBilgileri[componentId] = 'A';
+            }
+        }
+        
+    } catch (error) {
+        console.error("courseData.ogrenciNotlari güncellenirken hata:", error);
+    }
+}
+
+/**
  * Öğrenci notunu güncelleme - Ham puan saklama sistemi
  * @param {HTMLInputElement} input - Not input elementi
  */
@@ -7043,6 +8337,9 @@ function updateStudentGrade(input) {
         // Geriye uyumluluk için doğrudan erişim de sağla
         APP_STATE.gradesData[studentId][activityId] = value;
         
+        // ✅ FIX: courseData.ogrenciNotlari yapısını da güncelle (export için gerekli)
+        updateCourseDataGrades(studentId, activityId, value);
+        
         // Test mi kontrol et
         if (activity && activity.type === 'Test') {
             // Test skorları için özel işlem
@@ -7057,6 +8354,9 @@ function updateStudentGrade(input) {
                 dogru: correctEstimate,
                 yanlis: 0
             };
+            
+            // Test için de courseData güncelle
+            updateCourseDataGrades(studentId, activityId, value);
             
             // Detaylı formdaki değerleri güncelle (varsa)
             const correctInput = document.querySelector(`input[data-student-id="${studentId}"][data-test-id="${activityId}"][data-field="correct"]`);
@@ -7213,9 +8513,14 @@ function calculateFinalGrades() {
                 });
             }
             
-            // Toplam ve harf notu
-            const totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
-            const letterGrade = getLetterGrade(totalGrade);
+            // Toplam ve harf notu - RTEU Yönetmeliği MADDE 26'ya göre
+            let totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
+            let letterGrade = getLetterGrade(totalGrade);
+            
+            // Yarıyıl sonu sınavı 50'nin altındaysa FF verilir
+            if (finalGrade < 50) {
+                letterGrade = 'FF';
+            }
             
             // Notları kaydet
             APP_STATE.gradesData[studentId].yariyilIciNotu = parseFloat(termGrade.toFixed(2));
@@ -7311,9 +8616,14 @@ function updateStudentCalculatedGrade(studentId) {
             });
         }
         
-        // Toplam ve harf notu
-        const totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
-        const letterGrade = getLetterGrade(totalGrade);
+        // Toplam ve harf notu - RTEU Yönetmeliği MADDE 26'ya göre
+        let totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
+        let letterGrade = getLetterGrade(totalGrade);
+        
+        // Yarıyıl sonu sınavı 50'nin altındaysa FF verilir
+        if (finalGrade < 50) {
+            letterGrade = 'FF';
+        }
         
         // Hesaplanmış not bilgilerini ekle
         APP_STATE.gradesData[studentId].yariyilIciNotu = parseFloat(termGrade.toFixed(2));
@@ -8566,21 +9876,22 @@ function createExportData() {
             activity.children.forEach((child, index) => {
                 const questionOrder = (index + 1).toString();
                 
-                // Öğrencinin grup bilgisine göre hangi soru ID'sine denk geldiğini bul
+                // ✅ FIX: Doğrudan child.id'den not al - grup haritalama karmaşıklığı olmadan
+                // Not girişi zaten doğru soru ID'si ile yapılıyor, export sırasında da aynısını kullan
+                const grade = getStudentGrade(studentId, child.id) || 0;
+                
+                // Export için soru ID'sini belirle (grup haritalama varsa kullan, yoksa orijinal)
                 const studentGroup = getStudentGroupForComponent(studentId, activity.id) || 'A';
                 const groupMapping = APP_STATE.courseData?.grupHaritalari?.[activity.id]?.haritalar?.[studentGroup];
-                let questionId = child.id;
+                let exportQuestionId = child.id;
                 
                 if (groupMapping && groupMapping[questionOrder]) {
-                    questionId = groupMapping[questionOrder];
+                    exportQuestionId = groupMapping[questionOrder];
                 }
-                
-                // ✅ FIX: Doğru soru ID'sinden puanı al - grup haritalama sonrası
-                const grade = getStudentGrade(studentId, questionId) || 0;
                 
                 activityGrades[questionOrder] = {
                     puan: parseFloat(grade.toFixed(2)),
-                    soruId: questionId
+                    soruId: exportQuestionId
                 };
             });
                             
@@ -8852,9 +10163,14 @@ function createGradesCSV() {
                 finalGrade += activityGrade * activityWeight;
             });
             
-            // Toplam ve harf notu
-            const totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
-            const letterGrade = getLetterGrade(totalGrade);
+            // Toplam ve harf notu - RTEU Yönetmeliği MADDE 26'ya göre
+            let totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
+            let letterGrade = getLetterGrade(totalGrade);
+            
+            // Yarıyıl sonu sınavı 50'nin altındaysa FF verilir
+            if (finalGrade < 50) {
+                letterGrade = 'FF';
+            }
             
             finalGrades[studentId] = {
                 termGrade: termGrade.toFixed(2),
@@ -9474,6 +10790,13 @@ function switchTab(tabId) {
             setTimeout(() => {
                 updateStudentGroupInfo();
                 setupTableViewControls(); // Tablo görünüm kontrollerini yeniden ayarla
+            }, 100);
+        }
+        
+        // Değerlendirme girişi sekmesi açıldığında güncelle
+        if (tabId === 'assessment') {
+            setTimeout(() => {
+                updateAssessmentView();
             }, 100);
         }
         
@@ -10108,9 +11431,14 @@ function updateCalculatedGrades() {
                 });
             }
             
-            // Toplam ve harf notu
-            const totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
-            const letterGrade = getLetterGrade(totalGrade);
+            // Toplam ve harf notu - RTEU Yönetmeliği MADDE 26'ya göre
+            let totalGrade = (termGrade * APP_STATE.termWeight / 100) + (finalGrade * APP_STATE.finalWeight / 100);
+            let letterGrade = getLetterGrade(totalGrade);
+            
+            // Yarıyıl sonu sınavı 50'nin altındaysa FF verilir
+            if (finalGrade < 50) {
+                letterGrade = 'FF';
+            }
             
             // Öğrenci notları nesnesini oluştur
             if (!APP_STATE.gradesData[studentId]) {
@@ -10525,6 +11853,9 @@ function updateStudentGradeFromStudentView(input) {
             };
             
             // Değerlendirme sekmesindeki form elementlerini bul ve güncelle
+            // Test için de courseData güncelle
+            updateCourseDataGrades(studentId, activityId, value);
+            
             const assessmentCorrectInput = document.querySelector(`#assessment-content input[data-student-id="${studentId}"][data-test-id="${activityId}"][data-field="correct"]`);
             const assessmentWrongInput = document.querySelector(`#assessment-content input[data-student-id="${studentId}"][data-test-id="${activityId}"][data-field="wrong"]`);
             
@@ -10540,6 +11871,9 @@ function updateStudentGradeFromStudentView(input) {
         } else {
             // Normal not için
             APP_STATE.gradesData[studentId][activityId] = value;
+            
+            // ✅ Normal not için de courseData güncelle
+            updateCourseDataGrades(studentId, activityId, value);
             
             // Alt düğüm yapısını oluştur (A1.1 -> A1 altında storlama)
             const parts = activityId.split('.');
@@ -11583,20 +12917,34 @@ function closeModernModal(modalId) {
  * @param {string} message - Gösterilecek mesaj
  */
 function showDeleteConfirmModal(confirmCallback, message = 'Bu öğeyi silmek istediğinizden emin misiniz?') {
+    console.log("🔴 [DEBUG] showDeleteConfirmModal çağrıldı");
+    console.log("🔴 [DEBUG] Callback fonksiyonu tipi:", typeof confirmCallback);
+    console.log("🔴 [DEBUG] Mesaj:", message);
+    
     // Modern confirm sistemini kullan
     showModernConfirm(
         'Etkinlik Silme Onayı',
         message,
         {
-            confirmText: 'Evet, Sil',
+            confirmText: 'Evet, Sil',  
             cancelText: 'İptal',
             headerClass: 'danger-action',
             iconClass: 'danger'
         }
     ).then(confirmed => {
+        console.log("🔴 [DEBUG] Modal cevabı alındı, confirmed:", confirmed);
+        console.log("🔴 [DEBUG] Callback fonksiyonu mevcut mu?", typeof confirmCallback === 'function');
+        
         if (confirmed && typeof confirmCallback === 'function') {
+            console.log("🔴 [DEBUG] Callback fonksiyonu çağrılıyor...");
             confirmCallback();
+        } else if (confirmed) {
+            console.log("🔴 [DEBUG] HATA: Onay verildi ama callback fonksiyonu bulunamadı!");
+        } else {
+            console.log("🔴 [DEBUG] Kullanıcı silme işlemini iptal etti");
         }
+    }).catch(error => {
+        console.error("🔴 [DEBUG] Modal hata verdi:", error);
     });
 }
 
@@ -13544,7 +14892,7 @@ function updateQuestionInfoForComponent(studentId, groupId, componentId) {
     console.log(`📋 ${componentId} etkinliğinde ${studentId} için ${componentRows.length} satır bulundu (Assessment: ${assessmentRows.length})`);
     
     if (componentRows.length === 0) {
-        console.warn(`⚠️ ${studentId} öğrencisi için ${componentId} etkinliğinde hiç satır bulunamadı!`);
+        console.debug(`🔍 ${studentId} öğrencisi için ${componentId} etkinliğinde hiç satır bulunamadı (filtre nedeniyle normal)`);
         return;
     }
     
@@ -27750,7 +29098,9 @@ if (document.readyState === 'complete') {
                 };
             }
             
-            // deleteNode fonksiyonunu genişlet
+            // deleteNode fonksiyonunu genişlet - DEVRE DIŞI BIRAKILDI
+            // NOT: deleteNode fonksiyonu kendi içinde ID yeniden düzenleme yapıyor
+            /*
             if (typeof window.deleteNode === 'function') {
                 const originalDeleteNode = window.deleteNode;
                 
@@ -27779,6 +29129,7 @@ if (document.readyState === 'complete') {
                     }, 100);
                 };
             }
+            */
         }, 1000);
     });
 
@@ -27905,38 +29256,10 @@ if (document.readyState === 'complete') {
     });
     
     /**
-     * deleteNode fonksiyonunu veri koruma uyarısı ilegenişlet
+     * deleteNode fonksiyonunu veri koruma uyarısı ile genişlet
+     * NOT: Bu wrapper artık devre dışı, deleteNode fonksiyonu kendi içinde kontrolü yapıyor
      */
-    document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(function() {
-            if (typeof window.deleteNode === 'function') {
-                const originalDeleteNode = window.deleteNode;
-                
-                window.deleteNode = function(nodeId) {
-                    if (!nodeId) return;
-                    
-                    // Öğrenci notları var mı kontrol et
-                    const hasGrades = checkIfNodeHasGrades(nodeId);
-                    
-                    if (hasGrades) {
-                        // Ekstra uyarı ver
-                        showModernConfirm(
-                            "⚠️ DİKKAT! Notlı Soru/Rubrik Silme",
-                            "Bu soru/rubrik için öğrenci notları girilmiş.\n\nSilme işlemi yapılırsa:\n• Bu soruya ait notlar kalıcı olarak silinecek\n• Diğer soruların notları korunacak\n• ID'ler yeniden düzenlenecek\n\nDevam etmek istediğinizden emin misiniz?",
-                            function() {
-                                // Orijinal fonksiyonu çağır
-                                originalDeleteNode(nodeId);
-                            }
-                        );
-                        return;
-                    }
-                    
-                    // Orijinal fonksiyonu çağır
-                    originalDeleteNode(nodeId);
-                };
-            }
-        }, 1500);
-    });
+    // WRAPPER TAMAMEN DEVRE DIŞI BIRAKILDI - deleteNode fonksiyonu kendi içinde kontrolü yapıyor
     
     /**
      * Düğümün not verisi olup olmadığını kontrol et
@@ -30911,3 +32234,1171 @@ function testStudentReassignment() {
 
 window.testGroupMappingUpdate = testGroupMappingUpdate;
 window.testStudentReassignment = testStudentReassignment;
+
+// =====================================================
+// GRUP ARAMA VE FİLTRELEME SİSTEMİ
+// =====================================================
+
+/**
+ * Grup görünüm ayarları
+ */
+const GROUP_VIEW_SETTINGS = {
+    currentSearch: '',
+    currentActivityFilter: '',
+    currentStatusFilter: '',
+    currentGroupFilter: '',
+    currentDirectSelect: ''
+};
+
+/**
+ * Grup filtreleme sistemini başlat
+ */
+function initializeGroupFiltering() {
+    console.log('🔧 Grup filtreleme sistemi başlatılıyor...');
+    
+    // Arama inputu
+    const searchInput = document.getElementById('groupSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            GROUP_VIEW_SETTINGS.currentSearch = e.target.value;
+            // Doğrudan seçimi temizle
+            const directSelect = document.getElementById('groupDirectSelect');
+            if (directSelect && e.target.value) {
+                directSelect.value = '';
+                GROUP_VIEW_SETTINGS.currentDirectSelect = '';
+            }
+            updateStudentGroupInfoWithFilters();
+            updateGroupFilterInfo();
+        });
+        console.log('✅ Grup arama input event listener eklendi');
+    }
+    
+    // Doğrudan seçim
+    const directSelect = document.getElementById('groupDirectSelect');
+    if (directSelect) {
+        directSelect.addEventListener('change', function(e) {
+            if (e.target.value) {
+                // Arama kutusunu temizle
+                const searchInput = document.getElementById('groupSearchInput');
+                if (searchInput) {
+                    searchInput.value = '';
+                    GROUP_VIEW_SETTINGS.currentSearch = '';
+                }
+                // Filtreyi uygula
+                GROUP_VIEW_SETTINGS.currentDirectSelect = e.target.value;
+            } else {
+                GROUP_VIEW_SETTINGS.currentDirectSelect = '';
+            }
+            updateStudentGroupInfoWithFilters();
+            updateGroupFilterInfo();
+        });
+        console.log('✅ Grup doğrudan seçim event listener eklendi');
+    }
+    
+    // Etkinlik filtresi
+    const activityFilter = document.getElementById('groupActivityFilter');
+    if (activityFilter) {
+        activityFilter.addEventListener('change', function(e) {
+            GROUP_VIEW_SETTINGS.currentActivityFilter = e.target.value;
+            updateStudentGroupInfoWithFilters();
+            updateGroupFilterInfo();
+        });
+        console.log('✅ Grup etkinlik filter event listener eklendi');
+    }
+    
+    // Durum filtresi
+    const statusFilter = document.getElementById('groupStatusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', function(e) {
+            GROUP_VIEW_SETTINGS.currentStatusFilter = e.target.value;
+            updateStudentGroupInfoWithFilters();
+            updateGroupFilterInfo();
+        });
+        console.log('✅ Grup durum filter event listener eklendi');
+    }
+    
+    // Grup filtresi
+    const groupFilter = document.getElementById('groupGroupFilter');
+    if (groupFilter) {
+        groupFilter.addEventListener('change', function(e) {
+            GROUP_VIEW_SETTINGS.currentGroupFilter = e.target.value;
+            updateStudentGroupInfoWithFilters();
+            updateGroupFilterInfo();
+        });
+        console.log('✅ Grup grup filter event listener eklendi');
+    }
+    
+    // Filtreleri temizle butonu
+    const clearButton = document.getElementById('clearGroupFilters');
+    if (clearButton) {
+        clearButton.addEventListener('click', function() {
+            clearGroupFilters();
+        });
+        console.log('✅ Grup filtre temizleme butonu event listener eklendi');
+    }
+    
+    // Filtreleri doldur
+    populateGroupActivityFilter();
+    populateGroupDirectSelect();
+    
+    console.log('✅ Grup filtreleme sistemi başarıyla başlatıldı');
+}
+
+/**
+ * Etkinlik filtresini doldur
+ */
+function populateGroupActivityFilter() {
+    const activityFilter = document.getElementById('groupActivityFilter');
+    if (!activityFilter) return;
+    
+    // Mevcut seçimi sakla
+    const currentValue = activityFilter.value;
+    
+    // Filtreyi temizle (ilk seçenek hariç)
+    activityFilter.innerHTML = '<option value="">Tüm Etkinlikler</option>';
+    
+    // Aktiviteleri al
+    const activities = {};
+    
+    // Yarıyıl içi etkinlikleri
+    if (APP_STATE.courseData?.dersDegerlendirme?.yariyilIciEtkinlikleri) {
+        APP_STATE.courseData.dersDegerlendirme.yariyilIciEtkinlikleri.forEach(activity => {
+            activities[activity.id] = {
+                id: activity.id,
+                adi: activity.etkinlik,
+                type: 'Ara Sınav'
+            };
+        });
+    }
+    
+    // Yarıyıl sonu etkinlikleri
+    if (APP_STATE.courseData?.dersDegerlendirme?.yariyilSonuEtkinlikleri) {
+        APP_STATE.courseData.dersDegerlendirme.yariyilSonuEtkinlikleri.forEach(activity => {
+            activities[activity.id] = {
+                id: activity.id,
+                adi: activity.etkinlik,
+                type: 'Final'
+            };
+        });
+    }
+    
+    // Seçenekleri ekle
+    Object.values(activities).forEach(activity => {
+        const option = document.createElement('option');
+        option.value = activity.id;
+        option.textContent = `${activity.id} - ${activity.adi} (${activity.type})`;
+        activityFilter.appendChild(option);
+    });
+    
+    // Önceki seçimi geri yükle
+    if (currentValue && activityFilter.querySelector(`option[value="${currentValue}"]`)) {
+        activityFilter.value = currentValue;
+    }
+}
+
+/**
+ * Grup filtrelerini temizle
+ */
+function clearGroupFilters() {
+    GROUP_VIEW_SETTINGS.currentSearch = '';
+    GROUP_VIEW_SETTINGS.currentActivityFilter = '';
+    GROUP_VIEW_SETTINGS.currentStatusFilter = '';
+    GROUP_VIEW_SETTINGS.currentGroupFilter = '';
+    GROUP_VIEW_SETTINGS.currentDirectSelect = '';
+    
+    // Form elemanlarını temizle
+    const searchInput = document.getElementById('groupSearchInput');
+    if (searchInput) searchInput.value = '';
+    
+    const directSelect = document.getElementById('groupDirectSelect');
+    if (directSelect) directSelect.value = '';
+    
+    const activityFilter = document.getElementById('groupActivityFilter');
+    if (activityFilter) activityFilter.value = '';
+    
+    const statusFilter = document.getElementById('groupStatusFilter');
+    if (statusFilter) statusFilter.value = '';
+    
+    const groupFilter = document.getElementById('groupGroupFilter');
+    if (groupFilter) groupFilter.value = '';
+    
+    // Görünümü güncelle
+    updateStudentGroupInfoWithFilters();
+    updateGroupFilterInfo();
+    
+    showModernToast('Grup filtreleri temizlendi', 'info');
+    console.log('🧹 Grup filtreleri temizlendi');
+}
+
+/**
+ * Filtreli grup bilgilerini güncelle
+ */
+function updateStudentGroupInfoWithFilters() {
+    try {
+        const container = document.getElementById('studentGroupInfoContainer');
+        const card = document.getElementById('studentGroupInfoCard');
+        
+        if (!container || !APP_STATE.studentData || APP_STATE.studentData.length === 0) {
+            if (card) card.style.display = 'none';
+            return;
+        }
+        
+        // Card'ı göster
+        if (card) card.style.display = 'block';
+        
+        // Aktiviteleri al
+        const activities = getFilteredActivities();
+        
+        if (Object.keys(activities).length === 0) {
+            container.innerHTML = '<p class="empty-message">Filtreye uygun etkinlik bulunamadı.</p>';
+            return;
+        }
+        
+        let html = '';
+        Object.values(activities).forEach(activity => {
+            const groups = getGroupsForActivity(activity.id);
+            const typeLabel = activity.type;
+            
+            // Filtrelenmiş öğrencileri al
+            const filteredStudents = getFilteredStudentsForActivity(activity.id);
+            
+            if (filteredStudents.length === 0 && GROUP_VIEW_SETTINGS.currentSearch) {
+                return; // Bu etkinlikte filtreye uygun öğrenci yoksa atla
+            }
+            
+            html += `
+                <div class="activity-group-section" data-activity-id="${activity.id}">
+                    <div class="activity-group-title">
+                        <span>${activity.id} - ${activity.adi} (${typeLabel})</span>
+                        <button class="btn btn-sm btn-info" onclick="randomizeStudentsForActivity('${activity.id}')" title="Rastgele Dağıt">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16 3h5v5"></path>
+                                <path d="M8 3H3v5"></path>
+                                <path d="M12 22V8"></path>
+                                <path d="M16 8l5-5"></path>
+                                <path d="M8 8L3 3"></path>
+                            </svg>
+                            Rastgele
+                        </button>
+                    </div>
+                    
+                    <div class="group-container">
+                        ${groups.map(groupId => {
+                            const groupStudents = getFilteredStudentsInGroup(activity.id, groupId);
+                            
+                            // Grup filtresi varsa ve bu grup seçili değilse atla
+                            if (GROUP_VIEW_SETTINGS.currentGroupFilter && GROUP_VIEW_SETTINGS.currentGroupFilter !== groupId) {
+                                return '';
+                            }
+                            
+                            return `
+                                <div class="group-section">
+                                    <div class="group-label">${groupId} Grubu (${groupStudents.length} öğrenci)</div>
+                                    <div class="group-drop-zone" data-group="${groupId}" data-activity="${activity.id}">
+                                        <div class="group-students" id="group-${activity.id}-${groupId}">
+                                            ${groupStudents.map(student => `
+                                                <div class="student-item" draggable="true" data-student-id="${student.studentId}" data-student-name="${student.name} ${student.surname}">
+                                                    <div class="student-name">${student.name} ${student.surname}</div>
+                                                    <div class="student-details">
+                                                        <span class="student-id">${student.studentId}</span>
+                                                        ${student.email ? `<span class="student-email">${student.email}</span>` : ''}
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                            ${groupStudents.length === 0 ? '<div class="empty-group-message">Filtreye uygun öğrenci yok</div>' : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).filter(html => html !== '').join('')}
+                    </div>
+                </div>
+            `;
+        });
+        
+        if (!html) {
+            container.innerHTML = '<p class="empty-message">Filtrelere uygun öğrenci bulunamadı.</p>';
+        } else {
+            container.innerHTML = html;
+            
+            // Drag&drop'u yeniden ayarla
+            setTimeout(() => {
+                setupDragAndDrop();
+            }, 100);
+        }
+        
+        console.log('✅ Filtreli grup bilgileri güncellendi');
+        
+    } catch (error) {
+        console.error('Filtreli grup bilgileri güncellenirken hata:', error);
+    }
+}
+
+/**
+ * Filtrelenmiş aktiviteleri al
+ */
+function getFilteredActivities() {
+    const activities = {};
+    
+    // Yarıyıl içi etkinlikleri
+    if (APP_STATE.courseData?.dersDegerlendirme?.yariyilIciEtkinlikleri) {
+        APP_STATE.courseData.dersDegerlendirme.yariyilIciEtkinlikleri.forEach(activity => {
+            if (!GROUP_VIEW_SETTINGS.currentActivityFilter || activity.id === GROUP_VIEW_SETTINGS.currentActivityFilter) {
+                activities[activity.id] = {
+                    id: activity.id,
+                    adi: activity.etkinlik,
+                    type: 'Ara Sınav'
+                };
+            }
+        });
+    }
+    
+    // Yarıyıl sonu etkinlikleri
+    if (APP_STATE.courseData?.dersDegerlendirme?.yariyilSonuEtkinlikleri) {
+        APP_STATE.courseData.dersDegerlendirme.yariyilSonuEtkinlikleri.forEach(activity => {
+            if (!GROUP_VIEW_SETTINGS.currentActivityFilter || activity.id === GROUP_VIEW_SETTINGS.currentActivityFilter) {
+                activities[activity.id] = {
+                    id: activity.id,
+                    adi: activity.etkinlik,
+                    type: 'Final'
+                };
+            }
+        });
+    }
+    
+    return activities;
+}
+
+/**
+ * Belirli bir etkinlik için filtrelenmiş öğrencileri al
+ */
+function getFilteredStudentsForActivity(activityId) {
+    if (!APP_STATE.studentData) return [];
+    
+    return APP_STATE.studentData.filter(student => {
+        // Doğrudan seçim filtresi (en yüksek öncelik)
+        if (GROUP_VIEW_SETTINGS.currentDirectSelect) {
+            return student.studentId === GROUP_VIEW_SETTINGS.currentDirectSelect;
+        }
+        
+        // Durum filtresi
+        if (GROUP_VIEW_SETTINGS.currentStatusFilter && student.status !== GROUP_VIEW_SETTINGS.currentStatusFilter) {
+            return false;
+        }
+        
+        // Arama filtresi
+        if (GROUP_VIEW_SETTINGS.currentSearch) {
+            const searchTerm = GROUP_VIEW_SETTINGS.currentSearch.toLowerCase();
+            const searchableText = `${student.name} ${student.surname} ${student.studentId} ${student.email || ''}`.toLowerCase();
+            if (!searchableText.includes(searchTerm)) {
+                return false;
+            }
+        }
+        
+        return true;
+    });
+}
+
+/**
+ * Belirli bir grup için filtrelenmiş öğrencileri al
+ */
+function getFilteredStudentsInGroup(activityId, groupId) {
+    const allStudents = getFilteredStudentsForActivity(activityId);
+    const groupStudents = [];
+    
+    allStudents.forEach(student => {
+        let studentGroupId = 'A'; // Varsayılan grup
+        
+        // courseData'dan grup bilgisini al
+        if (APP_STATE.courseData?.ogrenciNotlari?.[student.studentId]?.grupBilgileri?.[activityId]) {
+            studentGroupId = APP_STATE.courseData.ogrenciNotlari[student.studentId].grupBilgileri[activityId];
+        } else if (student.grupId) {
+            studentGroupId = student.grupId;
+        }
+        
+        if (studentGroupId === groupId) {
+            groupStudents.push(student);
+        }
+    });
+    
+    return groupStudents;
+}
+
+/**
+ * Grup filtre bilgisini güncelle
+ */
+function updateGroupFilterInfo() {
+    const filterInfo = document.getElementById('groupFilterInfo');
+    if (!filterInfo || !APP_STATE.studentData) return;
+    
+    const totalStudents = APP_STATE.studentData.length;
+    let filteredCount = 0;
+    
+    // Her etkinlik için filtrelenmiş öğrenci sayısını hesapla
+    const activities = getFilteredActivities();
+    Object.keys(activities).forEach(activityId => {
+        const activityStudents = getFilteredStudentsForActivity(activityId);
+        filteredCount = Math.max(filteredCount, activityStudents.length);
+    });
+    
+    let infoText = `Toplam ${totalStudents} öğrenci`;
+    
+    if (GROUP_VIEW_SETTINGS.currentSearch || GROUP_VIEW_SETTINGS.currentStatusFilter || 
+        GROUP_VIEW_SETTINGS.currentActivityFilter || GROUP_VIEW_SETTINGS.currentGroupFilter ||
+        GROUP_VIEW_SETTINGS.currentDirectSelect) {
+        infoText += ` (${filteredCount} gösteriliyor)`;
+    }
+    
+    filterInfo.textContent = infoText;
+}
+
+// =====================================================
+// ÖĞRENCİ COMBOBOX YÖNETİMİ
+// =====================================================
+
+/**
+ * Öğrenci listesi doğrudan seçim combobox'ını doldur
+ */
+function populateStudentDirectSelect() {
+    const directSelect = document.getElementById('studentDirectSelect');
+    if (!directSelect || !APP_STATE.studentData) return;
+    
+    // Mevcut seçimi sakla
+    const currentValue = directSelect.value;
+    
+    // Listeyi temizle (ilk seçenek hariç)
+    directSelect.innerHTML = '<option value="">Tüm Öğrenciler</option>';
+    
+    // Öğrencileri alfabetik sıraya koy
+    const sortedStudents = [...APP_STATE.studentData].sort((a, b) => {
+        return `${a.name} ${a.surname}`.localeCompare(`${b.name} ${b.surname}`, 'tr');
+    });
+    
+    // Seçenekleri ekle
+    sortedStudents.forEach(student => {
+        const option = document.createElement('option');
+        option.value = student.studentId;
+        option.textContent = `${student.name} ${student.surname} (${student.studentId})`;
+        directSelect.appendChild(option);
+    });
+    
+    // Önceki seçimi geri yükle
+    if (currentValue && directSelect.querySelector(`option[value="${currentValue}"]`)) {
+        directSelect.value = currentValue;
+    }
+}
+
+/**
+ * Grup bilgileri doğrudan seçim combobox'ını doldur
+ */
+function populateGroupDirectSelect() {
+    const directSelect = document.getElementById('groupDirectSelect');
+    if (!directSelect || !APP_STATE.studentData) return;
+    
+    // Mevcut seçimi sakla
+    const currentValue = directSelect.value;
+    
+    // Listeyi temizle (ilk seçenek hariç)
+    directSelect.innerHTML = '<option value="">Tüm Öğrenciler</option>';
+    
+    // Öğrencileri alfabetik sıraya koy
+    const sortedStudents = [...APP_STATE.studentData].sort((a, b) => {
+        return `${a.name} ${a.surname}`.localeCompare(`${b.name} ${b.surname}`, 'tr');
+    });
+    
+    // Seçenekleri ekle
+    sortedStudents.forEach(student => {
+        const option = document.createElement('option');
+        option.value = student.studentId;
+        option.textContent = `${student.name} ${student.surname} (${student.studentId})`;
+        directSelect.appendChild(option);
+    });
+    
+    // Önceki seçimi geri yükle
+    if (currentValue && directSelect.querySelector(`option[value="${currentValue}"]`)) {
+        directSelect.value = currentValue;
+    }
+}
+
+// =====================================================
+// GELİŞMİŞ DEĞERLENDİRME FİLTRESİ SİSTEMİ
+// =====================================================
+
+/**
+ * Değerlendirme filtre ayarları
+ */
+const ASSESSMENT_FILTER_SETTINGS = {
+    currentSearch: '',
+    currentStudentSelect: '',
+    currentActivity: '',
+    currentStatus: '',
+    currentGroup: '',
+    currentPass: '',
+    currentGrade: ''
+};
+
+/**
+ * Değerlendirme filtreleme sistemini başlat
+ */
+function initializeAssessmentFiltering() {
+    console.log('🔧 Değerlendirme filtreleme sistemi başlatılıyor...');
+    
+    // Arama inputu
+    const searchInput = document.getElementById('assessmentSearchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            ASSESSMENT_FILTER_SETTINGS.currentSearch = e.target.value;
+            updateAssessmentViewWithFilters();
+            updateAssessmentFilterStats();
+        });
+        console.log('✅ Değerlendirme arama input event listener eklendi');
+    }
+    
+    // Doğrudan öğrenci seçimi
+    const studentSelect = document.getElementById('assessmentStudentSelect');
+    if (studentSelect) {
+        studentSelect.addEventListener('change', function(e) {
+            ASSESSMENT_FILTER_SETTINGS.currentStudentSelect = e.target.value;
+            updateAssessmentViewWithFilters();
+            updateAssessmentFilterStats();
+        });
+        console.log('✅ Değerlendirme öğrenci seçim event listener eklendi');
+    }
+    
+    // Etkinlik filtresi
+    const activityFilter = document.getElementById('assessmentActivityFilter');
+    if (activityFilter) {
+        activityFilter.addEventListener('change', function(e) {
+            ASSESSMENT_FILTER_SETTINGS.currentActivity = e.target.value;
+            updateAssessmentViewWithFilters();
+            updateAssessmentFilterStats();
+        });
+        console.log('✅ Değerlendirme etkinlik filter event listener eklendi');
+    }
+    
+    // Durum filtresi
+    const statusFilter = document.getElementById('assessmentStatusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', function(e) {
+            ASSESSMENT_FILTER_SETTINGS.currentStatus = e.target.value;
+            updateAssessmentViewWithFilters();
+            updateAssessmentFilterStats();
+        });
+        console.log('✅ Değerlendirme durum filter event listener eklendi');
+    }
+    
+    // Grup filtresi
+    const groupFilter = document.getElementById('assessmentGroupFilter');
+    if (groupFilter) {
+        groupFilter.addEventListener('change', function(e) {
+            ASSESSMENT_FILTER_SETTINGS.currentGroup = e.target.value;
+            updateAssessmentViewWithFilters();
+            updateAssessmentFilterStats();
+        });
+        console.log('✅ Değerlendirme grup filter event listener eklendi');
+    }
+    
+
+    
+    // Başarı durumu filtresi
+    const passFilter = document.getElementById('assessmentPassFilter');
+    if (passFilter) {
+        passFilter.addEventListener('change', function(e) {
+            ASSESSMENT_FILTER_SETTINGS.currentPass = e.target.value;
+            updateAssessmentViewWithFilters();
+            updateAssessmentFilterStats();
+        });
+        console.log('✅ Değerlendirme başarı filter event listener eklendi');
+    }
+    
+    // Harf notu filtresi
+    const gradeFilter = document.getElementById('assessmentGradeFilter');
+    if (gradeFilter) {
+        gradeFilter.addEventListener('change', function(e) {
+            ASSESSMENT_FILTER_SETTINGS.currentGrade = e.target.value;
+            updateAssessmentViewWithFilters();
+            updateAssessmentFilterStats();
+        });
+        console.log('✅ Değerlendirme harf notu filter event listener eklendi');
+    }
+    
+    // Filtreleri temizle butonu
+    const clearButton = document.getElementById('clearAssessmentFilters');
+    if (clearButton) {
+        clearButton.addEventListener('click', function() {
+            clearAssessmentFilters();
+        });
+        console.log('✅ Değerlendirme filtre temizleme butonu event listener eklendi');
+    }
+    
+    // Yenile butonu
+    const refreshButton = document.getElementById('refreshAssessmentFilters');
+    if (refreshButton) {
+        refreshButton.addEventListener('click', function() {
+            refreshAssessmentFilters();
+        });
+        console.log('✅ Değerlendirme filtre yenileme butonu event listener eklendi');
+    }
+    
+    // Filtreleri başlat
+    populateAssessmentFilters();
+    
+    console.log('✅ Değerlendirme filtreleme sistemi başarıyla başlatıldı');
+}
+
+/**
+ * Değerlendirme filtrelerini doldur
+ */
+function populateAssessmentFilters() {
+    populateAssessmentActivityFilter();
+    populateAssessmentStudentSelect();
+}
+
+/**
+ * Etkinlik filtresini doldur
+ */
+function populateAssessmentActivityFilter() {
+    const activityFilter = document.getElementById('assessmentActivityFilter');
+    if (!activityFilter) return;
+    
+    // Mevcut seçimi sakla
+    const currentValue = activityFilter.value;
+    
+    // Filtreyi temizle (ilk seçenek hariç)
+    activityFilter.innerHTML = '<option value="">Tüm Etkinlikler</option>';
+    
+    // Import edilen JSON'dan etkinlikleri al
+    if (!APP_STATE.courseData?.dersDegerlendirme) {
+        console.warn('⚠️ Ders değerlendirme verisi bulunamadı, etkinlik filtresi doldurulamadı');
+        return;
+    }
+    
+    const dersDegerlendirme = APP_STATE.courseData.dersDegerlendirme;
+    
+    // Yarıyıl içi etkinlikleri
+    if (dersDegerlendirme.yariyilIciEtkinlikleri && dersDegerlendirme.yariyilIciEtkinlikleri.length > 0) {
+        const termGroup = document.createElement('optgroup');
+        termGroup.label = 'Yarıyıl İçi Etkinlikleri';
+        
+        dersDegerlendirme.yariyilIciEtkinlikleri.forEach(activity => {
+            const option = document.createElement('option');
+            option.value = activity.id;
+            option.textContent = `${activity.id} - ${activity.etkinlik} (${activity.katkiYuzdesi}%)`;
+            termGroup.appendChild(option);
+        });
+        
+        activityFilter.appendChild(termGroup);
+    }
+    
+    // Yarıyıl sonu etkinlikleri
+    if (dersDegerlendirme.yariyilSonuEtkinlikleri && dersDegerlendirme.yariyilSonuEtkinlikleri.length > 0) {
+        const finalGroup = document.createElement('optgroup');
+        finalGroup.label = 'Yarıyıl Sonu Etkinlikleri';
+        
+        dersDegerlendirme.yariyilSonuEtkinlikleri.forEach(activity => {
+            const option = document.createElement('option');
+            option.value = activity.id;
+            option.textContent = `${activity.id} - ${activity.etkinlik} (${activity.katkiYuzdesi}%)`;
+            finalGroup.appendChild(option);
+        });
+        
+        activityFilter.appendChild(finalGroup);
+    }
+    
+    // Önceki seçimi geri yükle
+    if (currentValue && activityFilter.querySelector(`option[value="${currentValue}"]`)) {
+        activityFilter.value = currentValue;
+    }
+    
+    const termCount = dersDegerlendirme.yariyilIciEtkinlikleri?.length || 0;
+    const finalCount = dersDegerlendirme.yariyilSonuEtkinlikleri?.length || 0;
+    console.log(`✅ Etkinlik filtresi dolduruldu. Yarıyıl içi: ${termCount}, Yarıyıl sonu: ${finalCount}`);
+}
+
+/**
+ * Öğrenci seçim listesini doldur
+ */
+function populateAssessmentStudentSelect() {
+    console.log('🔍 populateAssessmentStudentSelect çağrıldı');
+    
+    const studentSelect = document.getElementById('assessmentStudentSelect');
+    console.log('📋 studentSelect element:', studentSelect);
+    console.log('👥 APP_STATE.studentData:', APP_STATE.studentData);
+    
+    if (!studentSelect) {
+        console.error('❌ assessmentStudentSelect elementi bulunamadı!');
+        return;
+    }
+    
+    if (!APP_STATE.studentData) {
+        console.warn('⚠️ APP_STATE.studentData boş veya tanımsız');
+        return;
+    }
+    
+    // Mevcut seçimi sakla
+    const currentValue = studentSelect.value;
+    
+    // Listeyi temizle (ilk seçenek hariç)
+    studentSelect.innerHTML = '<option value="">Tüm Öğrenciler</option>';
+    
+    // Öğrencileri alfabetik sıraya koy
+    const sortedStudents = [...APP_STATE.studentData].sort((a, b) => {
+        return `${a.name} ${a.surname}`.localeCompare(`${b.name} ${b.surname}`, 'tr');
+    });
+    
+    console.log(`📝 ${sortedStudents.length} öğrenci sıralandı`);
+    
+    // Seçenekleri ekle
+    sortedStudents.forEach(student => {
+        const option = document.createElement('option');
+        option.value = student.studentId;
+        option.textContent = `${student.name} ${student.surname} (${student.studentId})`;
+        studentSelect.appendChild(option);
+    });
+    
+    // Önceki seçimi geri yükle
+    if (currentValue && studentSelect.querySelector(`option[value="${currentValue}"]`)) {
+        studentSelect.value = currentValue;
+    }
+    
+    console.log(`✅ populateAssessmentStudentSelect tamamlandı. Toplam seçenek: ${studentSelect.options.length}`);
+}
+
+/**
+ * Tüm öğrenci dropdown'larını güncelle
+ */
+function updateAllStudentDropdowns() {
+    console.log('🔄 Tüm öğrenci dropdown\'ları güncelleniyor...');
+    
+    // Öğrenci listesi sekmesi dropdown'ı
+    if (typeof populateStudentDirectSelect === 'function') {
+        populateStudentDirectSelect();
+    }
+    
+    // Grup bilgileri sekmesi dropdown'ı
+    if (typeof populateGroupDirectSelect === 'function') {
+        populateGroupDirectSelect();
+    }
+    
+    // Değerlendirme girişi sekmesi dropdown'ı
+    if (typeof populateAssessmentStudentSelect === 'function') {
+        populateAssessmentStudentSelect();
+    }
+    
+    console.log('✅ Tüm öğrenci dropdown\'ları güncellendi');
+}
+
+/**
+ * Debug için manuel test fonksiyonu
+ */
+window.testAssessmentStudentSelect = function() {
+    console.log('🧪 Manuel test başlatılıyor...');
+    console.log('APP_STATE.studentData:', APP_STATE.studentData);
+    const element = document.getElementById('assessmentStudentSelect');
+    console.log('assessmentStudentSelect element:', element);
+    
+    if (typeof populateAssessmentStudentSelect === 'function') {
+        populateAssessmentStudentSelect();
+    } else {
+        console.error('populateAssessmentStudentSelect fonksiyonu bulunamadı!');
+    }
+};
+
+/**
+ * Değerlendirme filtrelerini temizle
+ */
+function clearAssessmentFilters() {
+    ASSESSMENT_FILTER_SETTINGS.currentSearch = '';
+    ASSESSMENT_FILTER_SETTINGS.currentStudentSelect = '';
+    ASSESSMENT_FILTER_SETTINGS.currentActivity = '';
+    ASSESSMENT_FILTER_SETTINGS.currentStatus = '';
+    ASSESSMENT_FILTER_SETTINGS.currentGroup = '';
+
+    ASSESSMENT_FILTER_SETTINGS.currentPass = '';
+    ASSESSMENT_FILTER_SETTINGS.currentGrade = '';
+    
+    // Form elemanlarını temizle
+    const searchInput = document.getElementById('assessmentSearchInput');
+    if (searchInput) searchInput.value = '';
+    
+    const studentSelect = document.getElementById('assessmentStudentSelect');
+    if (studentSelect) studentSelect.value = '';
+    
+    const activityFilter = document.getElementById('assessmentActivityFilter');
+    if (activityFilter) activityFilter.value = '';
+    
+    const statusFilter = document.getElementById('assessmentStatusFilter');
+    if (statusFilter) statusFilter.value = '';
+    
+    const groupFilter = document.getElementById('assessmentGroupFilter');
+    if (groupFilter) groupFilter.value = '';
+    
+
+    
+    const passFilter = document.getElementById('assessmentPassFilter');
+    if (passFilter) passFilter.value = '';
+    
+    const gradeFilter = document.getElementById('assessmentGradeFilter');
+    if (gradeFilter) gradeFilter.value = '';
+    
+    // Görünümü güncelle
+    updateAssessmentViewWithFilters();
+    updateAssessmentFilterStats();
+    
+    showModernToast('Değerlendirme filtreleri temizlendi', 'info');
+    console.log('🧹 Değerlendirme filtreleri temizlendi');
+}
+
+/**
+ * Değerlendirme filtrelerini yenile
+ */
+function refreshAssessmentFilters() {
+    populateAssessmentFilters();
+    updateAssessmentViewWithFilters();
+    updateAssessmentFilterStats();
+    
+    showModernToast('Değerlendirme filtreleri yenilendi', 'success');
+    console.log('🔄 Değerlendirme filtreleri yenilendi');
+}
+
+/**
+ * Filtrelenmiş öğrenci listesini al
+ */
+function getFilteredAssessmentStudents() {
+    if (!APP_STATE.studentData) return [];
+    
+    return APP_STATE.studentData.filter(student => {
+        // Doğrudan öğrenci seçimi (en yüksek öncelik)
+        if (ASSESSMENT_FILTER_SETTINGS.currentStudentSelect) {
+            return student.studentId === ASSESSMENT_FILTER_SETTINGS.currentStudentSelect;
+        }
+        
+        // Arama filtresi
+        if (ASSESSMENT_FILTER_SETTINGS.currentSearch) {
+            const searchTerm = ASSESSMENT_FILTER_SETTINGS.currentSearch.toLowerCase();
+            const searchableText = `${student.name} ${student.surname} ${student.studentId} ${student.email || ''}`.toLowerCase();
+            if (!searchableText.includes(searchTerm)) {
+                return false;
+            }
+        }
+        
+        // Durum filtresi
+        if (ASSESSMENT_FILTER_SETTINGS.currentStatus && student.status !== ASSESSMENT_FILTER_SETTINGS.currentStatus) {
+            return false;
+        }
+        
+        // Grup filtresi
+        if (ASSESSMENT_FILTER_SETTINGS.currentGroup) {
+            let studentGroup = 'A'; // Varsayılan grup
+            if (APP_STATE.courseData?.ogrenciNotlari?.[student.studentId]?.grupBilgileri) {
+                // İlk etkinliğin grup bilgisini al
+                const firstActivity = Object.keys(APP_STATE.courseData.ogrenciNotlari[student.studentId].grupBilgileri)[0];
+                if (firstActivity) {
+                    studentGroup = APP_STATE.courseData.ogrenciNotlari[student.studentId].grupBilgileri[firstActivity];
+                }
+            }
+            if (studentGroup !== ASSESSMENT_FILTER_SETTINGS.currentGroup) {
+                return false;
+            }
+        }
+        
+        // Etkinlik filtresi
+        if (ASSESSMENT_FILTER_SETTINGS.currentActivity) {
+            // Seçilen etkinlik için not girişi yapılacak öğrencileri göster
+            // Bu durumda tüm öğrencileri göstermek mantıklı çünkü not girişi yapmak için
+            // hangi öğrencilerin o etkinliğe katıldığını görmek gerekir
+            
+            // Eğer sadece not girişi yapılmış öğrencileri göstermek istenirse:
+            // const hasGradeForActivity = checkStudentHasGradeForActivity(student.studentId, ASSESSMENT_FILTER_SETTINGS.currentActivity);
+            // if (!hasGradeForActivity) return false;
+            
+            // Şu an için tüm öğrencileri göster (not girişi yapabilmek için)
+            // Bu mantık, öğretmenin belirli bir etkinlik için not girişi yapacağı zaman
+            // o etkinlikle ilgili tüm öğrencileri görmesini sağlar
+        }
+        
+        // Başarı durumu filtresi - RTEU Yönetmeliği'ne göre
+        if (ASSESSMENT_FILTER_SETTINGS.currentPass) {
+            const letterGrade = getStudentLetterGrade(student.studentId);
+            if (ASSESSMENT_FILTER_SETTINGS.currentPass === 'passed') {
+                // Başarılı öğrenciler: AA, BA, BB, CB, CC + şartlı başarılı DC (YANO kontrolü gerekli)
+                const successfulGrades = ['AA', 'BA', 'BB', 'CB', 'CC'];
+                if (!letterGrade || (!successfulGrades.includes(letterGrade) && letterGrade !== 'DC')) {
+                    return false;
+                }
+                // DC için şartlı başarı kontrolü (basit olarak geçti sayıyoruz)
+                if (letterGrade === 'DC') {
+                    // YANO hesaplaması karmaşık olduğu için DC'yi şartlı başarılı kabul ediyoruz
+                    // Gerçek uygulamada YANO >= 2.00 kontrolü yapılmalı
+                }
+            } else if (ASSESSMENT_FILTER_SETTINGS.currentPass === 'failed') {
+                // Başarısız öğrenciler: DD, FD, FF, D
+                const failedGrades = ['DD', 'FD', 'FF', 'D'];
+                if (!letterGrade || !failedGrades.includes(letterGrade)) {
+                    return false;
+                }
+            } else if (ASSESSMENT_FILTER_SETTINGS.currentPass === 'pending') {
+                // Not girilmemiş öğrenciler
+                if (letterGrade !== null) {
+                    return false;
+                }
+            }
+        }
+        
+        // Harf notu filtresi
+        if (ASSESSMENT_FILTER_SETTINGS.currentGrade) {
+            const letterGrade = getStudentLetterGrade(student.studentId);
+            if (ASSESSMENT_FILTER_SETTINGS.currentGrade === 'no_grade') {
+                // Not girilmemiş öğrenciler
+                if (letterGrade !== null) {
+                    return false;
+                }
+            } else {
+                // Belirli harf notu
+                if (letterGrade !== ASSESSMENT_FILTER_SETTINGS.currentGrade) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    });
+}
+
+
+
+/**
+ * Öğrenci final notunu al (mevcut calculateStudentGrades fonksiyonunu kullan)
+ */
+function getStudentFinalGrade(studentId) {
+    try {
+        const grades = calculateStudentGrades(studentId);
+        return grades && grades.totalGrade !== null && grades.totalGrade !== undefined ? parseFloat(grades.totalGrade) : null;
+    } catch (error) {
+        console.debug('Öğrenci notu hesaplanırken hata:', studentId, error);
+        return null;
+    }
+}
+
+/**
+ * Öğrenci harf notunu al (mevcut calculateStudentGrades fonksiyonunu kullan)
+ */
+function getStudentLetterGrade(studentId) {
+    try {
+        const grades = calculateStudentGrades(studentId);
+        return grades && grades.letterGrade ? grades.letterGrade : null;
+    } catch (error) {
+        console.debug('Öğrenci harf notu hesaplanırken hata:', studentId, error);
+        return null;
+    }
+}
+
+/**
+ * Filtreli değerlendirme görünümünü güncelle
+ */
+function updateAssessmentViewWithFilters() {
+    try {
+        // updateAssessmentView fonksiyonu kendi içinde getFilteredAssessmentStudents() çağırıyor
+        updateAssessmentView();
+        
+        const filteredStudents = getFilteredAssessmentStudents();
+        console.log(`✅ Değerlendirme görünümü güncellendi: ${filteredStudents.length} öğrenci`);
+        
+    } catch (error) {
+        console.error('Filtreli değerlendirme görünümü güncellenirken hata:', error);
+    }
+}
+
+/**
+ * Değerlendirme filtre istatistiklerini güncelle
+ */
+function updateAssessmentFilterStats() {
+    const filterStats = document.getElementById('assessmentFilterStats');
+    if (!filterStats || !APP_STATE.studentData) return;
+    
+    const totalStudents = APP_STATE.studentData.length;
+    const filteredStudents = getFilteredAssessmentStudents();
+    const filteredCount = filteredStudents.length;
+    
+    let infoText = `Toplam ${totalStudents} öğrenci`;
+    
+    if (hasActiveAssessmentFilters()) {
+        infoText += ` (${filteredCount} gösteriliyor)`;
+        
+        // Aktif filtre sayısını göster
+        const activeFilterCount = getActiveAssessmentFilterCount();
+        if (activeFilterCount > 0) {
+            infoText += ` • ${activeFilterCount} aktif filtre`;
+        }
+    }
+    
+    filterStats.textContent = infoText;
+}
+
+/**
+ * Aktif değerlendirme filtresi var mı kontrol et
+ */
+function hasActiveAssessmentFilters() {
+    return ASSESSMENT_FILTER_SETTINGS.currentSearch ||
+           ASSESSMENT_FILTER_SETTINGS.currentStudentSelect ||
+           ASSESSMENT_FILTER_SETTINGS.currentActivity ||
+           ASSESSMENT_FILTER_SETTINGS.currentStatus ||
+           ASSESSMENT_FILTER_SETTINGS.currentGroup ||
+           ASSESSMENT_FILTER_SETTINGS.currentPass ||
+           ASSESSMENT_FILTER_SETTINGS.currentGrade;
+}
+
+/**
+ * Aktif değerlendirme filtre sayısını al
+ */
+function getActiveAssessmentFilterCount() {
+    let count = 0;
+    if (ASSESSMENT_FILTER_SETTINGS.currentSearch) count++;
+    if (ASSESSMENT_FILTER_SETTINGS.currentStudentSelect) count++;
+    if (ASSESSMENT_FILTER_SETTINGS.currentActivity) count++;
+    if (ASSESSMENT_FILTER_SETTINGS.currentStatus) count++;
+    if (ASSESSMENT_FILTER_SETTINGS.currentGroup) count++;
+    if (ASSESSMENT_FILTER_SETTINGS.currentPass) count++;
+    if (ASSESSMENT_FILTER_SETTINGS.currentGrade) count++;
+    return count;
+}
+
+// =====================================================
+// APP INITIALIZATION
+// =====================================================
+
+/**
+ * Öğrenci listesi event listener'larını ayarla
+ */
+function setupStudentListEventListeners() {
+    console.log('🔧 Öğrenci listesi event listener\'ları ayarlanıyor...');
+    
+    // JSON file input
+    const studentFileInput = document.getElementById('studentFileInput');
+    if (studentFileInput) {
+        studentFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processStudentJSONFile(file);
+            }
+        });
+        console.log('✅ JSON file input event listener eklendi');
+    }
+    
+    // CSV file input
+    const studentCSVInput = document.getElementById('studentCSVInput');
+    if (studentCSVInput) {
+        studentCSVInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processStudentCSVFile(file);
+            }
+        });
+        console.log('✅ CSV file input event listener eklendi');
+    }
+    
+    // Search input
+    const searchInput = document.getElementById('studentSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', function(e) {
+            STUDENT_VIEW_SETTINGS.currentSearch = e.target.value;
+            // Doğrudan seçimi temizle
+            const directSelect = document.getElementById('studentDirectSelect');
+            if (directSelect && e.target.value) {
+                directSelect.value = '';
+            }
+            updateStudentTableEnhanced();
+        });
+        console.log('✅ Search input event listener eklendi');
+    }
+    
+    // Direct select
+    const directSelect = document.getElementById('studentDirectSelect');
+    if (directSelect) {
+        directSelect.addEventListener('change', function(e) {
+            if (e.target.value) {
+                // Arama kutusunu temizle
+                const searchInput = document.getElementById('studentSearch');
+                if (searchInput) {
+                    searchInput.value = '';
+                    STUDENT_VIEW_SETTINGS.currentSearch = '';
+                }
+                // Filtreyi uygula
+                STUDENT_VIEW_SETTINGS.currentDirectSelect = e.target.value;
+            } else {
+                STUDENT_VIEW_SETTINGS.currentDirectSelect = '';
+            }
+            updateStudentTableEnhanced();
+        });
+        console.log('✅ Direct select event listener eklendi');
+    }
+    
+    // Status filter
+    const statusFilter = document.getElementById('studentStatusFilter');
+    if (statusFilter) {
+        statusFilter.addEventListener('change', function(e) {
+            STUDENT_VIEW_SETTINGS.currentStatusFilter = e.target.value;
+            updateStudentTableEnhanced();
+        });
+        console.log('✅ Status filter event listener eklendi');
+    }
+    
+    // Group filter
+    const groupFilter = document.getElementById('studentGroupFilter');
+    if (groupFilter) {
+        groupFilter.addEventListener('change', function(e) {
+            STUDENT_VIEW_SETTINGS.currentGroupFilter = e.target.value;
+            updateStudentTableEnhanced();
+        });
+        console.log('✅ Group filter event listener eklendi');
+    }
+    
+    console.log('✅ Öğrenci listesi event listener\'ları başarıyla ayarlandı');
+}
+
+/**
+ * Uygulamayı başlat
+ */
+function initializeApp() {
+    console.log('🚀 MUDEK Ders Değerlendirme Formu v2.0 başlatılıyor...');
+    
+    try {
+        // Öğrenci listesi event listener'larını ayarla
+        setupStudentListEventListeners();
+        
+        // Tablo görünüm kontrollerini ayarla
+        setupTableViewControls();
+        
+        // Değerlendirme filtreleme sistemini başlat
+        setTimeout(() => {
+            initializeAssessmentFiltering();
+        }, 500);
+        
+        // Öğrenci tablosunu başlat
+        if (APP_STATE.studentData && APP_STATE.studentData.length > 0) {
+            updateStudentTableEnhanced();
+            updateStudentGroupInfo();
+            updateAssessmentStudentFilter();
+            
+            // Yeni filtreleme sistemi için öğrenci listesini güncelle
+            if (typeof populateAssessmentStudentSelect === 'function') {
+                populateAssessmentStudentSelect();
+            }
+            
+            updateAssessmentView();
+        }
+        
+        console.log('✅ Uygulama başarıyla başlatıldı');
+        
+    } catch (error) {
+        console.error('❌ Uygulama başlatma hatası:', error);
+    }
+}
+
+// DOM yüklendiğinde uygulamayı başlat
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+    // DOM zaten yüklenmiş
+    initializeApp();
+}

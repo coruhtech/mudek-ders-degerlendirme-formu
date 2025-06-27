@@ -869,7 +869,7 @@
                             <line x1="12" y1="3" x2="12" y2="15"></line>
                         </svg>
                         JSON Yükle
-                    </button>
+                        </button>
                     <button class="btn btn-success btn-sm" id="btnImportStudentsCSV" title="CSV İçe Aktar">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
@@ -891,12 +891,15 @@
                             <line x1="8" y1="12" x2="16" y2="12"></line>
                         </svg>
                         Yeni Öğrenci
-                    </button>
-                </div>
+                        </button>
+                    </div>
 
                 <!-- Arama ve Filtreleme -->
                 <div class="search-filter">
                     <input type="text" id="studentSearch" placeholder="Öğrenci ara (ad, soyad, numara, e-posta...)" class="search-input">
+                    <select id="studentDirectSelect" class="filter-select">
+                        <option value="">Tüm Öğrenciler</option>
+                    </select>
                     <select id="statusFilter" class="filter-select">
                         <option value="">Tüm Durumlar</option>
                         <option value="Aktif">Aktif</option>
@@ -909,7 +912,7 @@
             <!-- Öğrenci Tablosu -->
             <div class="card">
                 <div class="table-header">
-                    <h3 class="card-title">Öğrenci Listesi</h3>
+                <h3 class="card-title">Öğrenci Listesi</h3>
                     <div class="column-controls">
                         <div class="column-toggles">
                             <button class="column-toggle active" data-column="col-no" title="Sıra numarası kolonunu göster/gizle">
@@ -994,11 +997,118 @@
                     </table>
                 </div>
             </div>
-
+            
             <!-- Öğrenci Grup Bilgileri -->
             <div class="card" id="studentGroupInfoCard" style="display: none;">
                 <h3 class="card-title">📊 Öğrenci Grup Bilgileri</h3>
                 <p class="card-description">Öğrencileri sürükleyerek farklı gruplara atayabilirsiniz.</p>
+                
+                <!-- Grup Arama ve Filtreleme Kontrolleri -->
+                <div class="controls-section">
+                    <div class="control-group">
+                        <h4 class="control-title">🔍 Arama ve Filtreleme</h4>
+                        <div class="search-filter-container">
+                            <div class="search-group">
+                                <label for="groupSearchInput">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="11" cy="11" r="8"></circle>
+                                        <path d="m21 21-4.35-4.35"></path>
+                                    </svg>
+                                    Öğrenci Ara:
+                                </label>
+                                <input type="text" id="groupSearchInput" placeholder="Ad, soyad, öğrenci no veya e-posta ile ara..." class="search-input">
+                            </div>
+                            
+                            <div class="search-group">
+                                <label for="groupDirectSelect">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="8.5" cy="7" r="4"></circle>
+                                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                                        <line x1="23" y1="11" x2="17" y2="11"></line>
+                                    </svg>
+                                    Doğrudan Seç:
+                                </label>
+                                <select id="groupDirectSelect" class="search-input">
+                                    <option value="">Tüm Öğrenciler</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="groupActivityFilter">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18"></path>
+                                        <path d="M7 12h10"></path>
+                                        <path d="M10 18h4"></path>
+                                    </svg>
+                                    Etkinlik:
+                                </label>
+                                <select id="groupActivityFilter" class="filter-select">
+                                    <option value="">Tüm Etkinlikler</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="groupStatusFilter">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                        <path d="M12 1v6m0 6v6"></path>
+                                        <path d="m15.5 4.5-3 3 3 3"></path>
+                                        <path d="m8.5 4.5 3 3-3 3"></path>
+                                    </svg>
+                                    Durum:
+                                </label>
+                                <select id="groupStatusFilter" class="filter-select">
+                                    <option value="">Tüm Durumlar</option>
+                                    <option value="Aktif">Aktif</option>
+                                    <option value="İlişiği Kesilmiş">İlişiği Kesilmiş</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-group">
+                                <label for="groupGroupFilter">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                        <circle cx="8.5" cy="7" r="4"></circle>
+                                        <line x1="20" y1="8" x2="20" y2="14"></line>
+                                        <line x1="23" y1="11" x2="17" y2="11"></line>
+                                    </svg>
+                                    Grup:
+                                </label>
+                                <select id="groupGroupFilter" class="filter-select">
+                                    <option value="">Tüm Gruplar</option>
+                                    <option value="A">A Grubu</option>
+                                    <option value="B">B Grubu</option>
+                                    <option value="C">C Grubu</option>
+                                    <option value="D">D Grubu</option>
+                                </select>
+                            </div>
+                            
+                            <div class="filter-actions">
+                                <button id="clearGroupFilters" class="btn btn-secondary btn-sm" title="Tüm filtreleri temizle">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18"></path>
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                    </svg>
+                                    Filtreleri Temizle
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="filter-info">
+                            <span id="groupFilterInfo" class="filter-stats">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="8.5" cy="7" r="4"></circle>
+                                    <line x1="20" y1="8" x2="20" y2="14"></line>
+                                    <line x1="23" y1="11" x2="17" y2="11"></line>
+                                </svg>
+                                Filtre bilgisi yükleniyor...
+                            </span>
+                        </div>
+                    </div>
+                </div>
                 
                 <div id="studentGroupInfoContainer" class="student-group-info-container">
                     <p class="empty-message">Grup bilgisi bulunmuyor.</p>
@@ -1033,34 +1143,160 @@
             </div>
             
             <div class="card">
-                <h3 class="card-title">Öğrenci Filtresi</h3>
-                <p class="card-description">Not girişini kolaylaştırmak için öğrenci filtreleyin. Tüm öğrencileri görmek için "Tüm Öğrenciler" seçeneğini seçin.</p>
-                <div class="student-filter-container">
-                    <div class="filter-controls">
-                        <div class="filter-group">
-                            <label for="assessmentStudentFilter">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <h3 class="card-title">🔍 Gelişmiş Öğrenci Filtresi</h3>
+                <p class="card-description">Not girişini kolaylaştırmak için öğrencileri çeşitli kriterlere göre filtreleyin.</p>
+                
+                <!-- Gelişmiş Filtre Kontrolleri -->
+                <div class="advanced-filter-container">
+                    
+                    <!-- Hızlı Arama ve Doğrudan Seçim -->
+                    <div class="filter-section">
+                        <h4 class="filter-section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <circle cx="11" cy="11" r="8"></circle>
                                     <path d="m21 21-4.35-4.35"></path>
                                 </svg>
-                                Öğrenci Seçin:
-                            </label>
-                            <select id="assessmentStudentFilter" class="student-filter-select">
+                            Hızlı Arama ve Seçim
+                        </h4>
+                        <div class="filter-row">
+                            <div class="filter-col">
+                                <label for="assessmentSearchInput">Öğrenci Ara:</label>
+                                <input type="text" id="assessmentSearchInput" placeholder="Ad, soyad, öğrenci no ile ara..." class="filter-input">
+                            </div>
+                            <div class="filter-col">
+                                <label for="assessmentStudentSelect">Doğrudan Seç:</label>
+                                <select id="assessmentStudentSelect" class="filter-select">
                                 <option value="">Tüm Öğrenciler</option>
                             </select>
                         </div>
-                        <div class="filter-stats">
-                            <span class="filter-info" id="assessmentFilterInfo">
+                        </div>
+                    </div>
+                    
+                    <!-- Temel Filtreler -->
+                    <div class="filter-section">
+                        <h4 class="filter-section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6h18"></path>
+                                <path d="M7 12h10"></path>
+                                <path d="M10 18h4"></path>
+                            </svg>
+                            Temel Filtreler
+                        </h4>
+                        <div class="filter-row">
+                            <div class="filter-col">
+                                <label for="assessmentActivityFilter">Etkinlik:</label>
+                                <select id="assessmentActivityFilter" class="filter-select">
+                                    <option value="">Tüm Etkinlikler</option>
+                                </select>
+                            </div>
+                            <div class="filter-col">
+                                <label for="assessmentStatusFilter">Durum:</label>
+                                <select id="assessmentStatusFilter" class="filter-select">
+                                    <option value="">Tüm Durumlar</option>
+                                    <option value="Aktif">Aktif</option>
+                                    <option value="İlişiği Kesilmiş">İlişiği Kesilmiş</option>
+                                </select>
+                            </div>
+                            <div class="filter-col">
+                                <label for="assessmentGroupFilter">Grup:</label>
+                                <select id="assessmentGroupFilter" class="filter-select">
+                                    <option value="">Tüm Gruplar</option>
+                                    <option value="A">A Grubu</option>
+                                    <option value="B">B Grubu</option>
+                                    <option value="C">C Grubu</option>
+                                    <option value="D">D Grubu</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Başarı ve Not Filtreleri -->
+                    <div class="filter-section">
+                        <h4 class="filter-section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 12l2 2 4-4"></path>
+                                <circle cx="12" cy="12" r="10"></circle>
+                            </svg>
+                            Başarı ve Not Durumu
+                        </h4>
+                        <div class="filter-row">
+                            <div class="filter-col">
+                                <label for="assessmentPassFilter">Başarı Durumu:</label>
+                                <select id="assessmentPassFilter" class="filter-select">
+                                    <option value="">Tüm Öğrenciler</option>
+                                    <option value="passed">Başarılı (AA,BA,BB,CB,CC,DC*)</option>
+                                    <option value="failed">Başarısız (DD,FD,FF,D)</option>
+                                    <option value="pending">Not Girilmemiş</option>
+                                </select>
+                            </div>
+                            <div class="filter-col">
+                                <label for="assessmentGradeFilter">Harf Notu:</label>
+                                <select id="assessmentGradeFilter" class="filter-select">
+                                    <option value="">Tüm Notlar</option>
+                                    <optgroup label="Başarılı Notlar">
+                                        <option value="AA">AA (90-100) - Mükemmel</option>
+                                        <option value="BA">BA (81-89) - Çok İyi</option>
+                                        <option value="BB">BB (73-80) - İyi</option>
+                                        <option value="CB">CB (66-72) - Orta</option>
+                                        <option value="CC">CC (60-65) - Yeterli</option>
+                                    </optgroup>
+                                    <optgroup label="Şartlı Başarılı">
+                                        <option value="DC">DC (50-59) - Şartlı Başarılı*</option>
+                                    </optgroup>
+                                    <optgroup label="Başarısız Notlar">
+                                        <option value="DD">DD (40-49) - Başarısız</option>
+                                        <option value="FD">FD (30-39) - Başarısız</option>
+                                        <option value="FF">FF (0-29) - Başarısız</option>
+                                        <option value="D">D - Devamsız</option>
+                                    </optgroup>
+                                    <option value="no_grade">Not Girilmemiş</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="filter-note">
+                            <small class="text-muted">
+                                <strong>*</strong> DC notu şartlı başarılıdır. Mezun olabilmek için Yarıyıl Ağırlıklı Not Ortalaması (YANO) ≥ 2.00 olmalıdır.
+                                <br>Final sınavından en az 50 puan alınması zorunludur (RTEÜ Yönetmeliği Madde 26).
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Filtre Aksiyonları ve İstatistikler -->
+                    <div class="filter-section">
+                        <div class="filter-actions-row">
+                            <div class="filter-actions-left">
+                                <button id="clearAssessmentFilters" class="btn btn-secondary btn-sm">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 6h18"></path>
+                                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                                    </svg>
+                                    Filtreleri Temizle
+                                </button>
+                                <button id="refreshAssessmentFilters" class="btn btn-info btn-sm">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                                        <path d="M21 3v5h-5"></path>
+                                        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                                        <path d="M3 21v-5h5"></path>
+                                    </svg>
+                                    Yenile
+                                </button>
+                            </div>
+                            <div class="filter-stats-container">
+                                <span id="assessmentFilterStats" class="filter-stats">
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                     <circle cx="8.5" cy="7" r="4"></circle>
                                     <line x1="20" y1="8" x2="20" y2="14"></line>
                                     <line x1="23" y1="11" x2="17" y2="11"></line>
                                 </svg>
-                                Toplam öğrenci sayısı yükleniyor...
+                                    Filtre bilgisi yükleniyor...
                             </span>
                         </div>
                     </div>
+                    </div>
+                    
                 </div>
             </div>
             
@@ -1823,10 +2059,10 @@
 				</div>
 				<p id="confirmModalMessage">Bu işlemi gerçekleştirmek istediğinizden emin misiniz?</p>
 			</div>
-			<div class="modern-modal-footer">
-				<button id="confirmModalYes" class="btn-modern btn-modern-danger">Evet, Sil</button>
-				<button id="confirmModalNo" class="btn-modern btn-modern-secondary modern-close">İptal</button>
-			</div>
+					<div class="modern-modal-footer">
+			<button type="button" id="confirmModalYes" class="btn-modern btn-modern-danger">Evet, Sil</button>
+			<button type="button" id="confirmModalNo" class="btn-modern btn-modern-secondary modern-close">İptal</button>
+		</div>
 		</div>
 	</div>
 
@@ -2320,7 +2556,7 @@
                 </form>
             </div>
             <div class="modern-modal-footer">
-                <button class="modern-confirm-btn btn-primary" onclick="saveStudentChanges()">
+                <button type="button" class="modern-confirm-btn btn-primary" onclick="saveStudentChanges()">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
                         <polyline points="17 21 17 13 7 13 7 21"></polyline>
@@ -2328,7 +2564,7 @@
                     </svg>
                     Kaydet
                 </button>
-                <button class="modern-confirm-btn btn-secondary" onclick="closeEditStudentModal()">İptal</button>
+                <button type="button" class="modern-confirm-btn btn-secondary" onclick="closeEditStudentModal()">İptal</button>
             </div>
         </div>
     </div>
