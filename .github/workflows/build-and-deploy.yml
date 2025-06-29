@@ -2,10 +2,8 @@ name: MUDEK - Build and Deploy
 
 on:
   push:
-    tags:
-      - 'v*'        # Tag push → Desktop app builds + GitHub Release
     branches:
-      - 'main'      # Main branch push → Web app deploy to GitHub Pages
+      - 'main'      # Main branch push → Auto tag + Web deploy + Desktop builds
   workflow_dispatch:   # Manual trigger
 
 permissions:
@@ -22,19 +20,137 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # 🌐 Web App Deploy (Main Branch → GitHub Pages)
-  web-deploy:
-    name: 🌐 Deploy Web App
+  # 🏷️ Auto Tag Creation with Timestamp
+  create-tag:
+    name: 🏷️ Create Auto Tag
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    outputs:
+      tag: ${{ steps.create_tag.outputs.tag }}
+      version: ${{ steps.create_tag.outputs.version }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+      
+    - name: Create Timestamp Tag
+      id: create_tag
+      shell: bash
+      run: |
+        # Benzersiz timestamp ile versiyon oluştur (UTC timezone)
+        TIMESTAMP=$(TZ=UTC date +%Y%m%d-%H%M%S)
+        BUILD_NUMBER=$(TZ=UTC date +%s)
+        
+        # Kısa commit hash
+        SHORT_SHA=$(git rev-parse --short HEAD)
+        
+        # Ana versiyon numarası (semantic versioning)
+        MAJOR_VERSION="2"
+        MINOR_VERSION="0"
+        
+        # Tag ve versiyon formatı: v2.0.20240315-142530-a1b2c3d
+        TAG="v${MAJOR_VERSION}.${MINOR_VERSION}.${TIMESTAMP}-${SHORT_SHA}"
+        VERSION="${MAJOR_VERSION}.${MINOR_VERSION}.${TIMESTAMP}"
+        
+        echo "🏷️ Generated tag: $TAG"
+        echo "📦 Generated version: $VERSION"
+        echo "#️⃣ Build number: $BUILD_NUMBER"
+        echo "🔗 Short SHA: $SHORT_SHA"
+        echo "🕐 Timestamp: $TIMESTAMP"
+        
+        # Tag oluştur ve push et
+        git config user.name "GitHub Actions Bot"
+        git config user.email "actions@github.com"
+        git tag -a "$TAG" -m "Auto build $TAG (Build #$BUILD_NUMBER)"
+        git push origin "$TAG"
+        
+        # Outputs
+        echo "tag=$TAG" >> $GITHUB_OUTPUT
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+        echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+        echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+        
+        echo "✅ Tag created and pushed successfully"
+
+  # 📝 Inject Version Info
+  inject-version:
+    name: 📝 Inject Version Info
+    needs: create-tag
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.create-tag.outputs.tag }}
+        
+    - name: Inject Version into HTML
+      shell: bash
+      run: |
+        TAG="${{ needs.create-tag.outputs.tag }}"
+        VERSION="${{ needs.create-tag.outputs.version }}"
+        TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        BUILD_NUMBER="${{ needs.create-tag.outputs.build_number }}"
+        
+        echo "🔄 Injecting version info..."
+        echo "📦 Version: $VERSION"
+        echo "🏷️ Tag: $TAG"
+        echo "🕐 Build Time: $TIMESTAMP"
+        echo "#️⃣ Build Number: $BUILD_NUMBER"
+        
+        # index.html'e versiyon bilgisini inject et (güvenli regex)
+        sed -i.bak "s|{{VERSION_PLACEHOLDER}}|$VERSION|g" app/v2/index.html
+        sed -i.bak "s|{{TAG_PLACEHOLDER}}|$TAG|g" app/v2/index.html
+        sed -i.bak "s|{{BUILD_TIME_PLACEHOLDER}}|$TIMESTAMP|g" app/v2/index.html
+        sed -i.bak "s|{{BUILD_NUMBER_PLACEHOLDER}}|$BUILD_NUMBER|g" app/v2/index.html
+        
+        # Backup dosyalarını temizle
+        rm -f app/v2/index.html.bak
+        
+        # version-info.js dosyasını oluştur
+        cat > app/v2/version-info.js << EOF
+        // Auto-generated version info - DO NOT EDIT
+        const APP_VERSION_INFO = {
+          version: '$VERSION',
+          tag: '$TAG',
+          buildTime: '$TIMESTAMP',
+          buildNumber: '$BUILD_NUMBER',
+          gitSha: '${{ github.sha }}',
+          branch: '${{ github.ref_name }}'
+        };
+        EOF
+        
+        # Sonuçları doğrula
+        echo "✅ Version injection completed"
+        echo "📄 Checking injected content:"
+        grep -n "footerVersionNumber" app/v2/index.html || echo "⚠️ Version placeholder not found"
+        
+    - name: Upload Versioned App
+      uses: actions/upload-artifact@v4
+      with:
+        name: versioned-app
+        path: ./app/v2/
+
+  # 🌐 Web App Deploy
+  web-deploy:
+    name: 🌐 Deploy Web App
+    needs: [create-tag, inject-version]
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-      
+    - name: Download Versioned App
+      uses: actions/download-artifact@v4
+      with:
+        name: versioned-app
+        path: ./app/v2/
+        
     - name: Setup Pages
       uses: actions/configure-pages@v5
       
@@ -47,186 +163,220 @@ jobs:
       id: deployment
       uses: actions/deploy-pages@v4
 
-  # 🪟 Windows Desktop App Build (Tags Only)
+  # 🪟 Windows Desktop App Build
   build-windows:
     name: 🪟 Build Windows App
+    needs: [create-tag, inject-version]
     runs-on: windows-latest
-    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v4
+    - name: Check out Git repository
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.create-tag.outputs.tag }}
+        
+    - name: Download Versioned App
+      uses: actions/download-artifact@v4
+      with:
+        name: versioned-app
+        path: ./app/v2/
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
 
-      - name: Install Dependencies
-        run: npm install
+    - name: Install Dependencies
+      run: npm install
 
-      - name: Create Icon (if needed)
-        run: |
-          if (Test-Path "app/v2/assets/img/app-icon.png") {
-            Write-Host "App icon exists, creating ICO format..."
-            try { 
-              npm run create-icon 2>$null 
-            } catch { 
-              Write-Host "Icon creation skipped" 
-            }
-          } else {
-            Write-Host "App icon not found, skipping icon creation"
+    - name: Create Icon (if needed)
+      shell: powershell
+      run: |
+        if (Test-Path "app/v2/assets/img/app-icon.png") {
+          Write-Host "App icon exists, creating ICO format..."
+          try { 
+            npm run create-icon 2>$null 
+          } catch { 
+            Write-Host "Icon creation skipped" 
           }
-        shell: powershell
+        } else {
+          Write-Host "App icon not found, skipping icon creation"
+        }
 
-      - name: Build Windows App
-        run: npm run build:win
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build Windows App
+      run: npm run build:win
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mudek-windows-x64
-          path: |
-            dist/*Windows*x64*.exe
-            dist/*Windows*x64*.zip
-            dist/*Windows*x64*.blockmap
-            dist/latest.yml
+    - name: Upload Windows Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mudek-windows-x64
+        path: |
+          dist/*Windows*x64*.exe
+          dist/*Windows*x64*.zip
+          dist/*Windows*x64*.blockmap
+          dist/latest.yml
 
-  # 🍎 Mac Intel Build (Tags Only)
+  # 🍎 Mac Intel Build
   build-mac-intel:
     name: 🍎 Build Mac Intel App
+    needs: [create-tag, inject-version]
     runs-on: macos-13
-    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v4
+    - name: Check out Git repository
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.create-tag.outputs.tag }}
+        
+    - name: Download Versioned App
+      uses: actions/download-artifact@v4
+      with:
+        name: versioned-app
+        path: ./app/v2/
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
 
-      - name: Install Dependencies
-        run: npm install
+    - name: Install Dependencies
+      run: npm install
 
-      - name: Create Icon (if needed)
-        run: |
-          if [ -f "app/v2/assets/img/app-icon.png" ]; then
-            echo "App icon exists, creating ICNS format..."
-            npm run create-icon || echo "Icon creation skipped"
-          else
-            echo "App icon not found, skipping icon creation"
-          fi
+    - name: Create Icon (if needed)
+      shell: bash
+      run: |
+        if [ -f "app/v2/assets/img/app-icon.png" ]; then
+          echo "App icon exists, creating ICNS format..."
+          npm run create-icon || echo "Icon creation skipped"
+        else
+          echo "App icon not found, skipping icon creation"
+        fi
 
-      - name: Build Mac Intel App
-        run: npm run build:mac-intel
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build Mac Intel App
+      run: npm run build:mac-intel
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Mac Intel Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mudek-mac-intel-x64
-          path: |
-            dist/*macOS*x64*.dmg
-            dist/*macOS*x64*.zip
-            dist/*macOS*x64*.blockmap
-            dist/latest-mac.yml
+    - name: Upload Mac Intel Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mudek-mac-intel-x64
+        path: |
+          dist/*macOS*x64*.dmg
+          dist/*macOS*x64*.zip
+          dist/*macOS*x64*.blockmap
+          dist/latest-mac.yml
 
-  # 🍎 Mac M1/M2 Build (Tags Only)
+  # 🍎 Mac M1/M2 Build
   build-mac-m1:
     name: 🍎 Build Mac M1/M2 App
-    runs-on: macos-14 
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [create-tag, inject-version]
+    runs-on: macos-14
 
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v4
+    - name: Check out Git repository
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.create-tag.outputs.tag }}
+        
+    - name: Download Versioned App
+      uses: actions/download-artifact@v4
+      with:
+        name: versioned-app
+        path: ./app/v2/
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
 
-      - name: Install Dependencies
-        run: npm install
+    - name: Install Dependencies
+      run: npm install
 
-      - name: Create Icon (if needed)
-        run: |
-          if [ -f "app/v2/assets/img/app-icon.png" ]; then
-            echo "App icon exists, creating ICNS format..."
-            npm run create-icon || echo "Icon creation skipped"
-          else
-            echo "App icon not found, skipping icon creation"
-          fi
+    - name: Create Icon (if needed)
+      shell: bash
+      run: |
+        if [ -f "app/v2/assets/img/app-icon.png" ]; then
+          echo "App icon exists, creating ICNS format..."
+          npm run create-icon || echo "Icon creation skipped"
+        else
+          echo "App icon not found, skipping icon creation"
+        fi
 
-      - name: Build Mac M1/M2 App
-        run: npm run build:mac-m1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build Mac M1/M2 App
+      run: npm run build:mac-m1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Mac M1/M2 Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mudek-mac-m1-arm64
-          path: |
-            dist/*macOS*arm64*.dmg
-            dist/*macOS*arm64*.zip
-            dist/*macOS*arm64*.blockmap
-            dist/latest-mac.yml
+    - name: Upload Mac M1/M2 Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mudek-mac-m1-arm64
+        path: |
+          dist/*macOS*arm64*.dmg
+          dist/*macOS*arm64*.zip
+          dist/*macOS*arm64*.blockmap
+          dist/latest-mac.yml
 
-  # 🐧 Linux Build (Tags Only)
+  # 🐧 Linux Build
   build-linux:
     name: 🐧 Build Linux App
+    needs: [create-tag, inject-version]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v4
+    - name: Check out Git repository
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ needs.create-tag.outputs.tag }}
+        
+    - name: Download Versioned App
+      uses: actions/download-artifact@v4
+      with:
+        name: versioned-app
+        path: ./app/v2/
 
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
+    - name: Install Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
 
-      - name: Install Dependencies
-        run: npm install
+    - name: Install Dependencies
+      run: npm install
 
-      - name: Create Icon (if needed)
-        run: |
-          if [ -f "app/v2/assets/img/app-icon.png" ]; then
-            echo "App icon exists, using PNG format..."
-            npm run create-icon || echo "Icon creation skipped"
-          else
-            echo "App icon not found, skipping icon creation"
-          fi
+    - name: Create Icon (if needed)
+      shell: bash
+      run: |
+        if [ -f "app/v2/assets/img/app-icon.png" ]; then
+          echo "App icon exists, using PNG format..."
+          npm run create-icon || echo "Icon creation skipped"
+        else
+          echo "App icon not found, skipping icon creation"
+        fi
 
-      - name: Build Linux App
-        run: npm run build:linux
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build Linux App
+      run: npm run build:linux
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Linux Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: mudek-linux-x64
-          path: |
-            dist/*Linux*x64*.AppImage
-            dist/*Linux*x64*.deb
-            dist/*Linux*x64*.rpm
-            dist/*Linux*x64*.zip
-            dist/latest-linux.yml
+    - name: Upload Linux Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: mudek-linux-x64
+        path: |
+          dist/*Linux*x64*.AppImage
+          dist/*Linux*x64*.deb
+          dist/*Linux*x64*.rpm
+          dist/*Linux*x64*.zip
+          dist/latest-linux.yml
 
-  # 🚀 GitHub Release Creation (Tags Only)
+  # 🚀 GitHub Release Creation
   release:
     name: 🚀 Create Multi-Platform Release
-    needs: [build-windows, build-mac-intel, build-mac-m1, build-linux]
+    needs: [create-tag, build-windows, build-mac-intel, build-mac-m1, build-linux]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
     
     steps:
     - name: Checkout
@@ -259,16 +409,17 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        name: MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
+        tag_name: ${{ needs.create-tag.outputs.tag }}
+        name: MUDEK Ders Değerlendirme Sistemi ${{ needs.create-tag.outputs.tag }}
         files: |
           release-assets/windows/*
           release-assets/mac-intel/*
           release-assets/mac-m1/*
           release-assets/linux/*
         draft: false
-        prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+        prerelease: ${{ contains(needs.create-tag.outputs.tag, 'beta') || contains(needs.create-tag.outputs.tag, 'alpha') }}
         body: |
-          ## 🎓 MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
+          ## 🎓 MUDEK Ders Değerlendirme Sistemi ${{ needs.create-tag.outputs.tag }}
           
           **CORUH ARGE ile Resmi Multi-Platform Release**
           
@@ -294,20 +445,20 @@ jobs:
           ### 📥 Platform Bazlı İndirme Seçenekleri
           
           #### 🪟 Windows (64-bit)
-          - **Setup (Önerilen)**: `MUDEK-Setup-${{ github.ref_name }}-Windows-x64.exe`
-          - **Portable ZIP**: `MUDEK-System-${{ github.ref_name }}-Windows-x64.zip`
+          - **Setup (Önerilen)**: `MUDEK-Setup-${{ needs.create-tag.outputs.tag }}-Windows-x64.exe`
+          - **Portable ZIP**: `MUDEK-System-${{ needs.create-tag.outputs.tag }}-Windows-x64.zip`
           
           #### 🍎 macOS
-          - **Intel Mac**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-macOS-x64.dmg`
-          - **M1/M2 Mac**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-macOS-arm64.dmg`
-          - **Intel ZIP**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-macOS-x64.zip`
-          - **M1/M2 ZIP**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-macOS-arm64.zip`
+          - **Intel Mac**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ needs.create-tag.outputs.tag }}-macOS-x64.dmg`
+          - **M1/M2 Mac**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ needs.create-tag.outputs.tag }}-macOS-arm64.dmg`
+          - **Intel ZIP**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ needs.create-tag.outputs.tag }}-macOS-x64.zip`
+          - **M1/M2 ZIP**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ needs.create-tag.outputs.tag }}-macOS-arm64.zip`
           
           #### 🐧 Linux (64-bit)
-          - **AppImage (Universal)**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-Linux-x64.AppImage`
-          - **DEB (Ubuntu/Debian)**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-Linux-x64.deb`
-          - **RPM (CentOS/RHEL)**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-Linux-x64.rpm`
-          - **Portable ZIP**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-Linux-x64.zip`
+          - **AppImage (Universal)**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ needs.create-tag.outputs.tag }}-Linux-x64.AppImage`
+          - **DEB (Ubuntu/Debian)**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ needs.create-tag.outputs.tag }}-Linux-x64.deb`
+          - **RPM (CentOS/RHEL)**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ needs.create-tag.outputs.tag }}-Linux-x64.rpm`
+          - **Portable ZIP**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ needs.create-tag.outputs.tag }}-Linux-x64.zip`
           
           ### 🛠️ Sistem Gereksinimleri
           

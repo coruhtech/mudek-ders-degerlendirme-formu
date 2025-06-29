@@ -9,7 +9,10 @@ dist/
 !app/*/assets/**/*.ico
 npm-debug.log*
 yarn-debug.log*
-yarn-error.log* 
+yarn-error.log*
+
+# Auto-generated version files
+app/v2/version-info.js 
  
 # Created by https://www.toptal.com/developers/gitignore/api/c,csharp,visualstudio,visualstudiocode,java,maven,c++,cmake,eclipse,netbeans
 # Edit at https://www.toptal.com/developers/gitignore?templates=c,csharp,visualstudio,visualstudiocode,java,maven,c++,cmake,eclipse,netbeans

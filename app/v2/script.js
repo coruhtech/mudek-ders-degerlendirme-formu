@@ -37396,3 +37396,133 @@ if (originalShowModernToast) {
 // Global fonksiyonları window'a ekle
 window.initializeLogSystem = initializeLogSystem;
 window.addLogEntry = addLogEntry;
+
+// =====================================================
+// VERSİYON BİLGİSİ SİSTEMİ
+// =====================================================
+
+/**
+ * Versiyon bilgilerini güncelle
+ */
+function updateVersionInfo() {
+    try {
+        // Version bilgilerini kontrol et
+        if (typeof APP_VERSION_INFO === 'undefined') {
+            console.warn('⚠️ Versiyon bilgisi bulunamadı');
+            return;
+        }
+
+        console.log('🏷️ Versiyon bilgileri:', APP_VERSION_INFO);
+
+        // Footer version info elemanlarını güncelle
+        const footerVersionNumber = document.getElementById('footerVersionNumber');
+        const footerBuildTime = document.getElementById('footerBuildTime');
+        const footerBuildNumber = document.getElementById('footerBuildNumber');
+
+        if (footerVersionNumber) {
+            footerVersionNumber.textContent = `v${APP_VERSION_INFO.version}`;
+        }
+
+        if (footerBuildTime) {
+            footerBuildTime.textContent = APP_VERSION_INFO.buildTime;
+        }
+
+        if (footerBuildNumber) {
+            footerBuildNumber.textContent = `#${APP_VERSION_INFO.buildNumber}`;
+        }
+
+        // Console'a versiyon bilgilerini yazdır
+        console.log('%c🎓 MUDEK Ders Değerlendirme Sistemi', 'color: #4ba3a8; font-size: 16px; font-weight: bold;');
+        console.log('%c📦 Versiyon:', 'color: #2d7a7e; font-weight: bold;', APP_VERSION_INFO.version);
+        console.log('%c🏷️ Tag:', 'color: #2d7a7e; font-weight: bold;', APP_VERSION_INFO.tag);
+        console.log('%c🔨 Build Zamanı:', 'color: #2d7a7e; font-weight: bold;', APP_VERSION_INFO.buildTime);
+        console.log('%c#️⃣ Build Number:', 'color: #2d7a7e; font-weight: bold;', APP_VERSION_INFO.buildNumber);
+        console.log('%c🔍 Git SHA:', 'color: #2d7a7e; font-weight: bold;', APP_VERSION_INFO.gitSha);
+        console.log('%c🌿 Branch:', 'color: #2d7a7e; font-weight: bold;', APP_VERSION_INFO.branch);
+
+        // Log sistemine kaydet
+        if (typeof addLogEntry === 'function') {
+            addLogEntry(`Uygulama versiyonu: ${APP_VERSION_INFO.version}`, 'info');
+            addLogEntry(`Build: ${APP_VERSION_INFO.buildTime} (#${APP_VERSION_INFO.buildNumber})`, 'info');
+        }
+
+        // Title'ı güncelle
+        if (APP_VERSION_INFO.version) {
+            document.title = `RTEÜ MUDEK Ders Değerlendirme Formu - v${APP_VERSION_INFO.version}`;
+        }
+
+    } catch (error) {
+        console.error('❌ Versiyon bilgisi güncelleme hatası:', error);
+    }
+}
+
+/**
+ * Versiyon bilgisini console'a yazdır
+ */
+function showVersionInfo() {
+    if (typeof APP_VERSION_INFO !== 'undefined') {
+        console.table(APP_VERSION_INFO);
+    } else {
+        console.warn('Versiyon bilgisi bulunamadı');
+    }
+}
+
+/**
+ * Detaylı versiyon bilgisini alert ile göster
+ */
+function showDetailedVersionInfo() {
+    if (typeof APP_VERSION_INFO === 'undefined') {
+        alert('Versiyon bilgisi bulunamadı');
+        return;
+    }
+
+    const versionDetails = `
+🎓 MUDEK Ders Değerlendirme Sistemi
+
+📦 Versiyon: ${APP_VERSION_INFO.version}
+🏷️ Tag: ${APP_VERSION_INFO.tag}
+🔨 Build Zamanı: ${APP_VERSION_INFO.buildTime}
+#️⃣ Build Number: ${APP_VERSION_INFO.buildNumber}
+🔍 Git SHA: ${APP_VERSION_INFO.gitSha}
+🌿 Branch: ${APP_VERSION_INFO.branch}
+
+👨‍💻 Geliştirici: Dr. Öğr. Üyesi Uğur CORUH
+🏢 CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ
+🌐 www.coruh.com.tr
+    `.trim();
+
+    alert(versionDetails);
+}
+
+// Global erişim için window'a ekle
+window.updateVersionInfo = updateVersionInfo;
+window.showVersionInfo = showVersionInfo;
+window.showDetailedVersionInfo = showDetailedVersionInfo;
+
+// DOM yüklendiğinde versiyon bilgisini güncelle
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔄 Versiyon bilgisi güncelleniyor...');
+    
+    // Version-info.js yüklenene kadar bekle
+    if (typeof APP_VERSION_INFO !== 'undefined') {
+        updateVersionInfo();
+    } else {
+        // Version-info.js yüklenmesini bekle
+        setTimeout(() => {
+            if (typeof APP_VERSION_INFO !== 'undefined') {
+                updateVersionInfo();
+            } else {
+                console.warn('⚠️ Version-info.js yüklenemedi, statik versiyon bilgisi kullanılıyor');
+            }
+        }, 500);
+    }
+});
+
+// Footer version info'ya tıklama event'i ekle
+document.addEventListener('DOMContentLoaded', function() {
+    const footerVersionInfo = document.getElementById('footerVersionInfo');
+    if (footerVersionInfo) {
+        footerVersionInfo.addEventListener('click', showDetailedVersionInfo);
+        footerVersionInfo.title = 'Detaylı versiyon bilgisi için tıklayın';
+    }
+});

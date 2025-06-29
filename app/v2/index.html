@@ -4,11 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="RTEÜ Bilgisayar Mühendisliği Bölümü - MUDEK ders değerlendirme kriterleri ve öğrenci notları yönetim sistemi">
-    <title>RTEÜ MUDEK Ders Değerlendirme Formu - v2.0</title>
+    <title>RTEÜ MUDEK Ders Değerlendirme Formu - v{{VERSION_PLACEHOLDER}}</title>
     <link rel="icon" href="https://erdogan.edu.tr/Images/Uploads/Logos/logo-small-1.png">
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="styles.css">
+    <script src="version-info.js"></script>
     <script src="script.js" defer></script>
     <style>
         /* RTEÜ Üniversite Header Banner */
@@ -127,6 +128,25 @@
             font-weight: 400;
             letter-spacing: 0.02em;
             color: rgba(255, 255, 255, 0.85);
+        }
+        
+        /* Footer Version Info */
+        .footer-version {
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        
+        .footer-version:hover {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .footer-version span {
+            font-weight: 500;
         }
         
         /* Taşıma Butonları Stili */
@@ -1591,6 +1611,11 @@
                     <div class="footer-bottom-content">
                         <p>CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ &copy; 2025 RTEÜ - Akreditasyon Değerlendirme Sistemi</p>
                         <p class="footer-note">Bu araç çevrimdışı olarak çalışır. Değişikliklerinizi kaydetmek için "JSON Dışa Aktar" seçeneğini kullanın.</p>
+                        <p class="footer-version" id="footerVersionInfo">
+                            Versiyon <span id="footerVersionNumber">v{{VERSION_PLACEHOLDER}}</span> • 
+                            <span id="footerBuildTime">{{BUILD_TIME_PLACEHOLDER}}</span> • 
+                            Build <span id="footerBuildNumber">#{{BUILD_NUMBER_PLACEHOLDER}}</span>
+                        </p>
                     </div>
                 </div>
             </div>
