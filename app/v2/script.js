@@ -14,6 +14,2081 @@
 // SABITLER VE GLOBAL DEĞIŞKENLER
 // =====================================================
 
+// =====================================================
+// IndexedDB OTOMATIK KAYIT SİSTEMİ
+// =====================================================
+
+/**
+ * IndexedDB tabanlı otomatik kayıt yönetimi
+ * Export/Import sistemini kullanarak tam veri tutarlılığı sağlar
+ */
+class MudekAutoSaveManager {
+    constructor() {
+        this.dbName = 'MudekCourseDatabase';
+        this.dbVersion = 1;
+        this.storeName = 'courseData';
+        this.db = null;
+        this.isInitialized = false;
+        this.lastSaveTime = null;
+        this.autoSaveInterval = null;
+        this.saveInProgress = false;
+        this.floatingButton = null;
+        this.clearButton = null;
+        
+        // Event listeners için
+        this.changeDetectors = new Set();
+        this.hasUnsavedChanges = false;
+        
+        // Timer için
+        this.nextSaveTime = null;
+        this.timerInterval = null;
+        this.autoSaveIntervalMs = 10000; // 10 saniye
+        
+        // Electron ortamı kontrolü
+        this.isElectron = typeof window !== 'undefined' && window.isElectron;
+        this.electronFilePath = null;
+        
+        // Debug: Ortam kontrolü
+        console.log('🔍 Ortam kontrolü:', {
+            isElectron: this.isElectron,
+            hasElectronAPI: typeof window.electronAPI !== 'undefined',
+            userAgent: navigator.userAgent.includes('Electron')
+        });
+        
+        this.init();
+    }
+
+    /**
+     * Güvenli toast mesajı göster (hem browser hem Electron)
+     */
+    showToastSafe(message, type = 'info', duration = 3000) {
+        try {
+            if (this.isElectron && typeof window.electronToastFunction === 'function') {
+                // Electron ortamında güvenli toast fonksiyonu
+                window.electronToastFunction(message, type, duration);
+            } else if (this.isElectron && typeof window.electronToast === 'function') {
+                // Electron preload toast
+                window.electronToast(message, type, duration);
+            } else if (typeof window.showToast === 'function') {
+                // Browser ortamında normal toast
+                window.showToast(message, type, duration);
+            } else {
+                // Son fallback
+                console.log(`[${type.toUpperCase()}] ${message}`);
+            }
+        } catch (error) {
+            console.error('Toast gösterme hatası:', error);
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+    }
+
+    showToast(message, type = 'info', duration = 3000) {
+        // Uyumluluk için alias
+        this.showToastSafe(message, type, duration);
+    }
+
+    /**
+     * Otomatik kayıt sistemini başlat
+     */
+    async init() {
+        console.log('🚀 MudekAutoSaveManager.init() başlatılıyor...');
+        try {
+            // Her iki ortamda da IndexedDB'yi başlat
+            console.log('🔄 IndexedDB açılıyor...');
+            this.db = await this.openDatabase();
+            console.log('✅ IndexedDB sistemi başlatıldı');
+            
+            if (this.isElectron) {
+                // Electron ortamında ek olarak dosya sistemi de başlat
+                console.log('🔄 Electron dosya sistemi başlatılıyor...');
+                await this.initElectronFileSystem();
+                console.log('✅ Electron dosya sistemi ek olarak başlatıldı');
+            }
+            
+            this.isInitialized = true;
+            console.log('✅ Sistem inicializasyonu tamamlandı');
+            
+            // Floating butonları oluştur (ortama göre farklı)
+            console.log('🔄 Floating butonlar oluşturuluyor...');
+            this.createFloatingButtons();
+            console.log('✅ Floating butonlar oluşturuldu');
+            
+            // Otomatik kayıt başlat (10 saniye)
+            console.log('🔄 Otomatik kayıt başlatılıyor...');
+            this.startAutoSave();
+            console.log('✅ Otomatik kayıt başlatıldı');
+            
+            // Sayfa yüklendiğinde veriyi restore et
+            console.log('🔄 Veri restore ediliyor...');
+            await this.autoRestore();
+            console.log('✅ Veri restore edildi');
+            
+            // Change detection başlat
+            console.log('🔄 Change detection başlatılıyor...');
+            this.setupChangeDetection();
+            console.log('✅ Change detection başlatıldı');
+            
+            console.log('🎉 MudekAutoSaveManager başarıyla başlatıldı!');
+            
+        } catch (error) {
+            console.error('❌ Otomatik kayıt sistemi başlatma hatası:', error);
+            console.error('❌ Hata detayları:', error.stack);
+            // Fallback: localStorage kulun
+            this.fallbackToLocalStorage();
+        }
+    }
+
+    /**
+     * Electron dosya sistemi başlatma
+     */
+    async initElectronFileSystem() {
+        if (!window.electronAPI) {
+            throw new Error('Electron API bulunamadı');
+        }
+        
+        try {
+            const pathResult = await window.electronAPI.getAutoSavePath();
+            if (pathResult.success) {
+                this.electronFilePath = pathResult.filePath;
+                this.electronBackupDir = pathResult.backupDir;
+                console.log('📁 Electron otomatik kayıt dosyası:', this.electronFilePath);
+                console.log('📂 Yedek klasörü konumu: Documents/MUDEK Backups');
+            } else {
+                throw new Error(pathResult.error || 'Dosya yolu alınamadı');
+            }
+        } catch (error) {
+            throw new Error('Electron dosya sistemi başlatılamadı: ' + error.message);
+        }
+    }
+
+    /**
+     * IndexedDB veritabanını aç
+     */
+    openDatabase() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, this.dbVersion);
+            
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                
+                // Store oluştur
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    const store = db.createObjectStore(this.storeName, { keyPath: 'id' });
+                    store.createIndex('timestamp', 'timestamp', { unique: false });
+                    store.createIndex('type', 'type', { unique: false });
+                }
+            };
+        });
+    }
+
+    /**
+     * Veriyi kaydet (Electron dosya sistemi veya IndexedDB)
+     */
+    async saveData(manual = false) {
+        if (!this.isInitialized || this.saveInProgress) {
+            return false;
+        }
+
+        try {
+            this.saveInProgress = true;
+            this.updateFloatingButton('saving');
+
+            // Mevcut export sistemini kullan
+            const exportData = createExportData();
+            
+            let result;
+            // Otomatik kayıt: Electron'da dosya sistemi, Browser'da IndexedDB
+            // Manuel kayıt: Her iki sistemde de çalışır
+            if (this.isElectron && !manual) {
+                // Otomatik kayıt: Electron dosya sistemi (daha güvenli)
+                result = await this.saveToElectronFile(exportData, false);
+            } else if (this.isElectron && manual) {
+                // Manuel kayıt: Kullanıcı buton ile hangisini seçerse
+                result = true; // Buton methodları kendi kayıtlarını yapar
+                return result;
+            } else {
+                // Browser ortamında: IndexedDB kullan
+                result = await this.saveToIndexedDB(exportData, manual);
+            }
+            
+            if (result) {
+                this.lastSaveTime = new Date();
+                this.hasUnsavedChanges = false;
+                this.updateFloatingButton('saved');
+                
+                // Timer'ı sıfırla
+                this.restartTimer();
+                
+                // Clear button status'unu güncelle
+                this.updateClearButtonStatus();
+                
+                console.log(`💾 ${manual ? 'Manuel' : 'Otomatik'} kayıt tamamlandı:`, this.lastSaveTime);
+            }
+            
+            return result;
+            
+        } catch (error) {
+            console.error('❌ Kayıt hatası:', error);
+            this.updateFloatingButton('error');
+            
+            if (manual) {
+                this.showToast('❌ Kayıt işlemi başarısız!', 'error');
+            }
+            
+            return false;
+        } finally {
+            this.saveInProgress = false;
+        }
+    }
+
+    /**
+     * Electron dosya sistemine kaydet
+     */
+    async saveToElectronFile(exportData, manual = false) {
+        try {
+            const saveData = {
+                content: exportData,
+                type: manual ? 'manual' : 'auto'
+            };
+            
+            const result = await window.electronAPI.saveAutoData(saveData);
+            
+            if (result.success) {
+                // Dosya yolunu kısalt (sadece dosya adı ve 2 üst klasör)
+                const shortPath = this.getShortFilePath(result.filePath);
+                
+                if (manual) {
+                    this.showToast(
+                        `💾 Veriler başarıyla kaydedildi!\n\n📁 Konum: ${shortPath}\n\n💡 İpucu: Menü > Dosya > Yedek Klasörünü Aç ile erişebilirsiniz`, 
+                        'success', 
+                        8000
+                    );
+                } else {
+                    console.log('📁 Otomatik kayıt:', shortPath);
+                }
+                return true;
+            } else {
+                throw new Error(result.error || 'Electron dosya kayıt hatası');
+            }
+        } catch (error) {
+            console.error('❌ Electron dosya kayıt hatası:', error);
+            if (manual) {
+                this.showToast('❌ Dosya kayıt hatası: ' + error.message, 'error');
+            }
+            return false;
+        }
+    }
+
+    /**
+     * IndexedDB'ye kaydet
+     */
+    async saveToIndexedDB(exportData, manual = false) {
+        try {
+            const saveRecord = {
+                id: 'current',
+                data: exportData,
+                timestamp: new Date().toISOString(),
+                type: manual ? 'manual' : 'auto',
+                version: this.dbVersion
+            };
+
+            const transaction = this.db.transaction([this.storeName], 'readwrite');
+            const store = transaction.objectStore(this.storeName);
+            
+            await this.promisifyRequest(store.put(saveRecord));
+            
+            if (manual) {
+                this.showToast('💾 Veriler başarıyla kaydedildi!', 'success');
+            }
+            return true;
+        } catch (error) {
+            console.error('❌ IndexedDB kayıt hatası:', error);
+            if (manual) {
+                this.showToast('❌ IndexedDB kayıt hatası!', 'error');
+            }
+            return false;
+        }
+    }
+
+    /**
+     * Dosya yolunu kısalt (kullanıcı dostu görünüm için)
+     */
+    getShortFilePath(fullPath) {
+        if (!fullPath) return '';
+        
+        const normalized = fullPath.replace(/\\/g, '/');
+        
+        // MUDEK Backups klasörünü özel olarak göster
+        if (normalized.includes('MUDEK Backups')) {
+            const parts = normalized.split('/');
+            const mudekIndex = parts.findIndex(part => part === 'MUDEK Backups');
+            if (mudekIndex >= 0) {
+                const relevantParts = parts.slice(mudekIndex);
+                return 'Documents/' + relevantParts.join('/');
+            }
+        }
+        
+        const parts = normalized.split('/');
+        if (parts.length <= 3) {
+            return fullPath;
+        }
+        
+        // Son 3 parçayı al: ...parent/folder/file.json
+        const shortParts = parts.slice(-3);
+        return '...' + '/' + shortParts.join('/');
+    }
+
+    /**
+     * Veriyi yükle (Electron dosya sistemi veya IndexedDB)
+     */
+    async loadData() {
+        if (!this.isInitialized) {
+            return null;
+        }
+
+        try {
+            if (this.isElectron) {
+                return await this.loadFromElectronFile();
+            } else {
+                return await this.loadFromIndexedDB();
+            }
+        } catch (error) {
+            console.error('❌ Veri yükleme hatası:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Electron dosya sisteminden yükle
+     */
+    async loadFromElectronFile() {
+        try {
+            const result = await window.electronAPI.loadAutoData();
+            
+            if (result.success && result.data) {
+                const shortPath = this.getShortFilePath(result.filePath);
+                console.log('📖 Electron dosyasından veri yüklendi:', shortPath);
+                console.log('📅 Kayıt zamanı:', new Date(result.timestamp));
+                return result.data;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('❌ Electron dosya yükleme hatası:', error);
+            return null;
+        }
+    }
+
+    /**
+     * IndexedDB'den yükle
+     */
+    async loadFromIndexedDB() {
+        try {
+            const transaction = this.db.transaction([this.storeName], 'readonly');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.get('current');
+            
+            const result = await this.promisifyRequest(request);
+            
+            if (result && result.data) {
+                console.log('📖 IndexedDB\'den veri yüklendi:', new Date(result.timestamp));
+                return result.data;
+            }
+            
+            return null;
+        } catch (error) {
+            console.error('❌ IndexedDB veri yükleme hatası:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Sayfa yüklendiğinde otomatik veri restore
+     */
+    async autoRestore() {
+        // Sadece veri yoksa restore et
+        if (APP_STATE.courseData && Object.keys(APP_STATE.courseData).length > 0) {
+            console.log('🔄 Mevcut veri bulundu, otomatik restore atlandı');
+            return;
+        }
+
+        const savedData = await this.loadData();
+        if (savedData) {
+            try {
+                // Mevcut import sistemini kullan - jsonContent'e veriyi yerleştir ve applyJsonData çağır
+                if (typeof jsonContent !== 'undefined' && jsonContent) {
+                    jsonContent.value = JSON.stringify(savedData, null, 2);
+                    
+                    // applyJsonData fonksiyonunu çağır
+                    if (typeof applyJsonData === 'function') {
+                        applyJsonData();
+                        this.showToast('📖 Kaydedilmiş veriler otomatik yüklendi', 'success');
+                    }
+                } else {
+                    // Direkt restore (jsonContent yoksa)
+                    this.directRestore(savedData);
+                }
+                
+            } catch (error) {
+                console.error('❌ Otomatik restore hatası:', error);
+                this.showToast('⚠️ Kaydedilmiş veri yüklenirken hata oluştu', 'warning');
+            }
+        }
+    }
+
+    /**
+     * Direkt veri restore (jsonContent olmadan)
+     */
+    directRestore(savedData) {
+        APP_STATE.courseData = savedData;
+        
+        if (savedData.dersOgrenmeÇiktilari && Array.isArray(savedData.dersOgrenmeÇiktilari)) {
+            APP_STATE.learningOutcomes = savedData.dersOgrenmeÇiktilari;
+            if (typeof renderOutcomes === 'function') renderOutcomes();
+        }
+        
+        if (savedData.programCiktilari && Array.isArray(savedData.programCiktilari)) {
+            APP_STATE.programOutcomes = savedData.programCiktilari;
+            if (typeof renderProgramOutcomes === 'function') renderProgramOutcomes();
+        }
+        
+        if (typeof updateCourseInfo === 'function') updateCourseInfo();
+        if (typeof renderCourseDetails === 'function') renderCourseDetails();
+        
+        // Assessment tree
+        if (savedData.degerlendirmeAgaci) {
+            APP_STATE.assessmentTree = savedData.degerlendirmeAgaci;
+        } else if (savedData.assessmentTree) {
+            APP_STATE.assessmentTree = savedData.assessmentTree;
+        }
+        
+        // Öğrenci verileri
+        if (savedData.ogrenciler && Array.isArray(savedData.ogrenciler)) {
+            APP_STATE.studentData = savedData.ogrenciler.map(student => ({
+                studentId: student.ogrenciNo,
+                name: student.ad,
+                surname: student.soyad,
+                status: student.durum || 'Aktif',
+                grup: student.grup || 'A',
+                email: student.email || '',
+                tcKimlik: student.tcKimlik || '',
+                telefon: student.telefon || ''
+            }));
+        }
+        
+        // Not verileri
+        if (savedData.ogrenciNotlari && typeof savedData.ogrenciNotlari === 'object') {
+            APP_STATE.gradesData = {};
+            if (typeof loadStudentGradesNewFormat === 'function') {
+                loadStudentGradesNewFormat(savedData);
+            }
+        }
+        
+        if (typeof renderTree === 'function') renderTree();
+        
+        this.showToast('📖 Kaydedilmiş veriler otomatik yüklendi', 'success');
+    }
+
+    /**
+     * Otomatik kayıt sistemini başlat
+     */
+    startAutoSave() {
+        if (this.autoSaveInterval) {
+            clearInterval(this.autoSaveInterval);
+        }
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+        
+        this.autoSaveInterval = setInterval(() => {
+            if (this.hasUnsavedChanges && APP_STATE.courseData) {
+                this.saveData(false);
+            }
+        }, this.autoSaveIntervalMs);
+        
+        // Timer'ı başlat
+        this.startTimer();
+        
+        console.log('⏰ Otomatik kayıt sistemi başlatıldı (10 saniye aralık)');
+    }
+
+    /**
+     * Timer'ı başlat
+     */
+    startTimer() {
+        this.nextSaveTime = Date.now() + this.autoSaveIntervalMs;
+        
+        this.timerInterval = setInterval(() => {
+            this.updateTimer();
+        }, 100); // Her 100ms'de güncelle (daha smooth)
+        
+        this.updateTimer();
+    }
+
+    /**
+     * Timer'ı güncelle
+     */
+    updateTimer() {
+        const timerElement = this.floatingButton?.querySelector('.save-timer');
+        if (!timerElement) return;
+
+        const now = Date.now();
+        const timeLeft = Math.max(0, this.nextSaveTime - now);
+        const secondsLeft = Math.ceil(timeLeft / 1000);
+
+        if (this.hasUnsavedChanges && secondsLeft > 0) {
+            timerElement.textContent = `${secondsLeft}s`;
+            timerElement.classList.add('show');
+            
+            // Son 3 saniyede pulse efekti
+            if (secondsLeft <= 3) {
+                timerElement.classList.add('pulse');
+            } else {
+                timerElement.classList.remove('pulse');
+            }
+        } else {
+            timerElement.classList.remove('show', 'pulse');
+        }
+
+        // Timer sıfırlandığında yeni timer başlat
+        if (timeLeft <= 0) {
+            this.nextSaveTime = Date.now() + this.autoSaveIntervalMs;
+        }
+    }
+
+    /**
+     * Timer'ı yeniden başlat (değişiklik olduğunda)
+     */
+    restartTimer() {
+        this.nextSaveTime = Date.now() + this.autoSaveIntervalMs;
+        this.updateTimer();
+    }
+
+    /**
+     * Temizle butonunun status'unu güncelle
+     */
+    async updateClearButtonStatus() {
+        if (!this.clearButton) return;
+
+        const statusElement = this.clearButton.querySelector('.clear-status');
+        if (!statusElement) return;
+
+        try {
+            let hasData = false;
+            let dataDetails = [];
+            
+            // Electron dosya kontrolü (önce bu kontrol edilir)
+            if (this.isElectron) {
+                try {
+                    const result = await window.electronAPI.checkAutoDataExists();
+                    if (result.success && result.exists) {
+                        hasData = true;
+                        const size = (result.size / 1024).toFixed(1);
+                        const shortPath = this.getShortFilePath(result.filePath);
+                        dataDetails.push(`📁 Yedek Dosyası (${size} KB)`);
+                    }
+                } catch (error) {
+                    console.error('❌ Electron dosya kontrolü hatası:', error);
+                }
+            } else {
+                // Browser ortamında IndexedDB kontrolü
+                const hasIndexedDBData = await this.checkIndexedDBData();
+                if (hasIndexedDBData) {
+                    hasData = true;
+                    dataDetails.push('🗄️ IndexedDB');
+                }
+            }
+            
+            // LocalStorage kontrolü (her ortamda)
+            const hasLocalStorageData = this.checkLocalStorageData();
+            if (hasLocalStorageData) {
+                hasData = true;
+                const lsKeys = this.getLocalStorageDataKeys();
+                dataDetails.push(`💾 LocalStorage (${lsKeys.length})`);
+            }
+            
+            if (hasData) {
+                // Temizlenecek veri var
+                statusElement.textContent = dataDetails.length > 0 ? 
+                    `Veri mevcut (${dataDetails.length})` : 'Veri mevcut';
+                statusElement.title = dataDetails.join('\n');
+                this.clearButton.style.background = 'linear-gradient(135deg, #ff6b6b, #ee5a52)';
+                this.clearButton.style.opacity = '0.85';
+            } else {
+                // Temizlenecek veri yok
+                statusElement.textContent = 'Veri yok';
+                statusElement.title = 'Temizlenecek veri bulunamadı';
+                this.clearButton.style.background = 'linear-gradient(135deg, #95a5a6, #7f8c8d)';
+                this.clearButton.style.opacity = '0.6';
+            }
+        } catch (error) {
+            console.error('❌ Clear button status güncellemesi hatası:', error);
+            statusElement.textContent = 'Kontrol hatası';
+        }
+    }
+
+    /**
+     * IndexedDB'de veri olup olmadığını kontrol et
+     */
+    async checkIndexedDBData() {
+        if (!this.isInitialized || !this.db) return false;
+
+        try {
+            const transaction = this.db.transaction([this.storeName], 'readonly');
+            const store = transaction.objectStore(this.storeName);
+            const request = store.get('current');
+            
+            const result = await this.promisifyRequest(request);
+            return result && result.data;
+        } catch (error) {
+            console.error('❌ IndexedDB veri kontrol hatası:', error);
+            return false;
+        }
+    }
+
+    /**
+     * LocalStorage'da veri olup olmadığını kontrol et
+     */
+    checkLocalStorageData() {
+        try {
+            const backupData = localStorage.getItem('mudek-course-data-backup');
+            const oldData = localStorage.getItem('mudek-course-data');
+            const courseData = localStorage.getItem('courseData');
+            const studentData = localStorage.getItem('studentData');
+            
+            return !!(backupData || oldData || courseData || studentData);
+        } catch (error) {
+            console.error('❌ LocalStorage veri kontrol hatası:', error);
+            return false;
+        }
+    }
+
+    /**
+     * LocalStorage'daki veri key'lerini döndür
+     */
+    getLocalStorageDataKeys() {
+        const keys = ['mudek-course-data-backup', 'mudek-course-data', 'courseData', 'studentData'];
+        const foundKeys = [];
+        
+        try {
+            keys.forEach(key => {
+                if (localStorage.getItem(key)) {
+                    foundKeys.push(key);
+                }
+            });
+        } catch (error) {
+            console.error('❌ LocalStorage key kontrol hatası:', error);
+        }
+        
+        return foundKeys;
+    }
+
+    /**
+     * Change detection sistemi
+     */
+    setupChangeDetection() {
+        // DOM değişikliklerini izle
+        const treeContainer = document.getElementById('treeContainer');
+        if (treeContainer) {
+            const observer = new MutationObserver(() => {
+                this.hasUnsavedChanges = true;
+                this.updateFloatingButton('unsaved');
+                this.restartTimer();
+            });
+            
+            observer.observe(treeContainer, {
+                childList: true,
+                subtree: true,
+                attributes: true,
+                attributeFilter: ['data-weight', 'data-points']
+            });
+        }
+        
+        // Input değişikliklerini izle
+        document.addEventListener('input', (e) => {
+            if (e.target.matches('input, textarea, select')) {
+                this.hasUnsavedChanges = true;
+                this.updateFloatingButton('unsaved');
+                this.restartTimer();
+            }
+        });
+        
+        // Form submit olaylarını izle [[memory:146162273345585106]]
+        document.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.hasUnsavedChanges = true;
+            this.updateFloatingButton('unsaved');
+            this.restartTimer();
+        });
+    }
+
+    /**
+     * Ortama göre floating butonları oluştur
+     */
+    createFloatingButtons() {
+        if (this.isElectron) {
+            // Electron ortamında 2 buton: Tek Kaydet (hem dosya hem DB) + Temizle
+            this.createUnifiedSaveButton();
+            this.createClearButton();
+        } else {
+            // Browser ortamında 2 buton: IndexedDB Kaydet + Temizle
+            this.createIndexedDBSaveButton();
+            this.createClearButton();
+        }
+    }
+
+    /**
+     * Electron dosya kayıt butonu oluştur
+     */
+    createElectronSaveButton() {
+        this.electronSaveButton = document.createElement('div');
+        this.electronSaveButton.id = 'electronSaveFloatingButton';
+        this.electronSaveButton.innerHTML = `
+            <div class="save-button-content">
+                <div class="save-top-row">
+                    <i class="fas fa-folder-open"></i>
+                    <span class="save-text">Dosyaya</span>
+                    <span class="save-timer"></span>
+                </div>
+                <div class="save-status">Hazır</div>
+            </div>
+        `;
+        
+        this.electronSaveButton.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            background: linear-gradient(135deg, #2196F3, #1976D2);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 20px rgba(33, 150, 243, 0.4);
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            backdrop-filter: blur(10px);
+            min-width: 100px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        document.body.appendChild(this.electronSaveButton);
+        
+        this.electronSaveButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.saveToElectronFileManual();
+        });
+        
+        this.floatingButton = this.electronSaveButton; // Uyumluluk için
+    }
+
+    /**
+     * Birleşik kayıt butonu oluştur (Electron için - hem dosya hem DB)
+     */
+    createUnifiedSaveButton() {
+        this.unifiedSaveButton = document.createElement('div');
+        this.unifiedSaveButton.id = 'unifiedSaveFloatingButton';
+        this.unifiedSaveButton.innerHTML = `
+            <div class="save-button-content">
+                <div class="save-top-row">
+                    <i class="fas fa-save"></i>
+                    <span class="save-text">Kaydet</span>
+                    <span class="save-timer"></span>
+                </div>
+                <div class="save-status">Hazır</div>
+            </div>
+        `;
+        
+        this.unifiedSaveButton.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4);
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            backdrop-filter: blur(10px);
+            min-width: 100px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        document.body.appendChild(this.unifiedSaveButton);
+        
+        this.unifiedSaveButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.saveUnifiedManual();
+        });
+        
+        this.floatingButton = this.unifiedSaveButton; // Ana buton olarak ata
+        console.log('💾 Birleşik kayıt butonu oluşturuldu (Electron)');
+    }
+
+    /**
+     * IndexedDB kayıt butonu oluştur
+     */
+    createIndexedDBSaveButton() {
+        this.indexedDBButton = document.createElement('div');
+        this.indexedDBButton.id = 'indexedDBSaveFloatingButton';
+        this.indexedDBButton.innerHTML = `
+            <div class="save-button-content">
+                <div class="save-top-row">
+                    <i class="fas fa-database"></i>
+                    <span class="save-text">${this.isElectron ? 'Veritabanı' : 'Kaydet'}</span>
+                    <span class="save-timer"></span>
+                </div>
+                <div class="save-status">Hazır</div>
+            </div>
+        `;
+        
+        // Pozisyon: Electron'da ikinci sırada, Browser'da ilk sırada
+        const topPosition = this.isElectron ? '80px' : '20px';
+        
+        this.indexedDBButton.style.cssText = `
+            position: fixed;
+            top: ${topPosition};
+            right: 20px;
+            z-index: 9999;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4);
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            backdrop-filter: blur(10px);
+            min-width: 100px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+
+        document.body.appendChild(this.indexedDBButton);
+        
+        this.indexedDBButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.saveToIndexedDBManual();
+        });
+        
+        // Browser ortamında ana floating button olarak ata
+        if (!this.isElectron) {
+            this.floatingButton = this.indexedDBButton;
+        }
+        
+        console.log('💾 IndexedDB kayıt butonu oluşturuldu');
+    }
+
+    /**
+     * Electron dosyaya manuel kayıt
+     */
+    async saveToElectronFileManual() {
+        if (!this.isElectron || !this.isInitialized) {
+            this.showToast('❌ Electron dosya sistemi kullanılamıyor!', 'error');
+            return;
+        }
+
+        const exportData = createExportData();
+        const result = await this.saveToElectronFile(exportData, true);
+        
+        if (result) {
+            this.updateElectronButtonStatus('saved');
+            setTimeout(() => this.updateElectronButtonStatus('ready'), 3000);
+        } else {
+            this.updateElectronButtonStatus('error');
+            setTimeout(() => this.updateElectronButtonStatus('ready'), 3000);
+        }
+    }
+
+    /**
+     * IndexedDB'ye manuel kayıt
+     */
+    async saveToIndexedDBManual() {
+        if (!this.db) {
+            this.showToast('❌ IndexedDB kullanılamıyor!', 'error');
+            return;
+        }
+
+        const exportData = createExportData();
+        const result = await this.saveToIndexedDB(exportData, true);
+        
+        if (result) {
+            this.updateIndexedDBButtonStatus('saved');
+            setTimeout(() => this.updateIndexedDBButtonStatus('ready'), 3000);
+        } else {
+            this.updateIndexedDBButtonStatus('error');
+            setTimeout(() => this.updateIndexedDBButtonStatus('ready'), 3000);
+        }
+    }
+
+    /**
+     * Birleşik kayıt (Electron - hem dosya hem DB)
+     */
+    async saveUnifiedManual() {
+        if (!this.isElectron || !this.isInitialized) {
+            this.showToast('❌ Sistem hazır değil!', 'error');
+            return;
+        }
+
+        console.log('🚀 Birleşik kayıt başlatılıyor...');
+        this.updateUnifiedButtonStatus('saving');
+
+        try {
+            const exportData = createExportData();
+            
+            // Veritabanı lock kontrolü
+            const dbLockCheck = await this.checkDatabaseLock();
+            if (!dbLockCheck.success) {
+                this.showToast(`⚠️ ${dbLockCheck.message}`, 'warning');
+                // Dosyaya devam et ama uyar
+            }
+
+            // 1. Dosyaya kaydet
+            console.log('💾 Dosyaya kaydediliyor...');
+            const fileResult = await this.saveToElectronFile(exportData, true);
+            
+            // 2. IndexedDB'ye kaydet (veritabanı kullanılabilirse)
+            console.log('🗄️ Veritabanına kaydediliyor...');
+            let dbResult = true;
+            if (this.db && dbLockCheck.success) {
+                dbResult = await this.saveToIndexedDB(exportData, false); // silent
+            }
+
+            if (fileResult && dbResult) {
+                this.showToast('✅ Hem dosyaya hem veritabanına kaydedildi!', 'success', 5000);
+                this.updateUnifiedButtonStatus('saved');
+            } else if (fileResult) {
+                this.showToast('⚠️ Dosyaya kaydedildi, veritabanı hatası!', 'warning', 5000);
+                this.updateUnifiedButtonStatus('partial');
+            } else {
+                this.showToast('❌ Kayıt işlemi başarısız!', 'error');
+                this.updateUnifiedButtonStatus('error');
+            }
+
+        } catch (error) {
+            console.error('❌ Birleşik kayıt hatası:', error);
+            this.showToast(`❌ Kayıt hatası: ${error.message}`, 'error');
+            this.updateUnifiedButtonStatus('error');
+        }
+
+        // 3 saniye sonra normal duruma dön
+        setTimeout(() => this.updateUnifiedButtonStatus('ready'), 3000);
+    }
+
+    /**
+     * Veritabanı lock durumunu kontrol et
+     */
+    async checkDatabaseLock() {
+        try {
+            if (!this.db) {
+                return {
+                    success: false,
+                    message: 'Veritabanı bağlantısı yok'
+                };
+            }
+
+            // Hızlı test işlemi yapmaya çalış
+            const transaction = this.db.transaction(['courseData'], 'readwrite');
+            const store = transaction.objectStore('courseData');
+            
+            // Test verisi ile lock kontrolü
+            const testKey = 'lockTest_' + Date.now();
+            await new Promise((resolve, reject) => {
+                const request = store.put({ test: true }, testKey);
+                request.onsuccess = () => {
+                    // Test verisini sil
+                    const deleteRequest = store.delete(testKey);
+                    deleteRequest.onsuccess = () => resolve();
+                    deleteRequest.onerror = () => reject(deleteRequest.error);
+                };
+                request.onerror = () => reject(request.error);
+            });
+
+            return {
+                success: true,
+                message: 'Veritabanı kullanılabilir'
+            };
+
+        } catch (error) {
+            console.warn('⚠️ Veritabanı lock kontrolü:', error);
+            
+            if (error.name === 'InvalidStateError' || error.name === 'TransactionInactiveError') {
+                return {
+                    success: false,
+                    message: 'Veritabanı başka bir uygulama tarafından kullanılıyor'
+                };
+            } else if (error.name === 'QuotaExceededError') {
+                return {
+                    success: false,
+                    message: 'Veritabanı alanı dolu'
+                };
+            } else {
+                return {
+                    success: false,
+                    message: 'Veritabanı geçici olarak kullanılamıyor'
+                };
+            }
+        }
+    }
+
+    /**
+     * Electron buton durumunu güncelle
+     */
+    updateElectronButtonStatus(status) {
+        if (!this.electronSaveButton) return;
+        
+        const statusElement = this.electronSaveButton.querySelector('.save-status');
+        const timerElement = this.electronSaveButton.querySelector('.save-timer');
+        
+        switch (status) {
+            case 'saving':
+                this.electronSaveButton.style.setProperty('background', 'linear-gradient(135deg, #FF9800, #F57C00)', 'important');
+                this.electronSaveButton.style.setProperty('box-shadow', '0 4px 20px rgba(255, 152, 0, 0.4)', 'important');
+                statusElement.textContent = 'Kaydediyor...';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'saved':
+                this.electronSaveButton.style.setProperty('background', 'linear-gradient(135deg, #4CAF50, #388E3C)', 'important');
+                this.electronSaveButton.style.setProperty('box-shadow', '0 0 20px rgba(76, 175, 80, 0.6)', 'important');
+                statusElement.textContent = 'Kaydedildi!';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'unsaved':
+                this.electronSaveButton.style.setProperty('background', 'linear-gradient(135deg, #FFC107, #FF8F00)', 'important');
+                this.electronSaveButton.style.setProperty('box-shadow', '0 4px 20px rgba(255, 193, 7, 0.4)', 'important');
+                statusElement.textContent = 'Değişiklik Var';
+                break;
+            case 'error':
+                this.electronSaveButton.style.setProperty('background', 'linear-gradient(135deg, #f44336, #d32f2f)', 'important');
+                this.electronSaveButton.style.setProperty('box-shadow', '0 4px 20px rgba(244, 67, 54, 0.4)', 'important');
+                statusElement.textContent = 'Hata!';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'ready':
+            default:
+                this.electronSaveButton.style.setProperty('background', 'linear-gradient(135deg, #2196F3, #1976D2)', 'important');
+                this.electronSaveButton.style.setProperty('box-shadow', '0 4px 20px rgba(33, 150, 243, 0.4)', 'important');
+                statusElement.textContent = 'Hazır';
+                break;
+        }
+    }
+
+    /**
+     * Birleşik buton durumunu güncelle
+     */
+    updateUnifiedButtonStatus(status) {
+        if (!this.unifiedSaveButton) return;
+        
+        const statusElement = this.unifiedSaveButton.querySelector('.save-status');
+        const timerElement = this.unifiedSaveButton.querySelector('.save-timer');
+        
+        switch (status) {
+            case 'saving':
+                this.unifiedSaveButton.style.setProperty('background', 'linear-gradient(135deg, #FF9800, #F57C00)', 'important');
+                this.unifiedSaveButton.style.setProperty('box-shadow', '0 4px 20px rgba(255, 152, 0, 0.4)', 'important');
+                statusElement.textContent = 'Kaydediyor...';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'saved':
+                this.unifiedSaveButton.style.setProperty('background', 'linear-gradient(135deg, #4CAF50, #388E3C)', 'important');
+                this.unifiedSaveButton.style.setProperty('box-shadow', '0 0 20px rgba(76, 175, 80, 0.6)', 'important');
+                statusElement.textContent = 'Kaydedildi!';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'partial':
+                this.unifiedSaveButton.style.setProperty('background', 'linear-gradient(135deg, #FF9800, #F57C00)', 'important');
+                this.unifiedSaveButton.style.setProperty('box-shadow', '0 4px 20px rgba(255, 152, 0, 0.4)', 'important');
+                statusElement.textContent = 'Kısmi Kayıt';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'error':
+                this.unifiedSaveButton.style.setProperty('background', 'linear-gradient(135deg, #f44336, #d32f2f)', 'important');
+                this.unifiedSaveButton.style.setProperty('box-shadow', '0 4px 20px rgba(244, 67, 54, 0.4)', 'important');
+                statusElement.textContent = 'Hata!';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'unsaved':
+                this.unifiedSaveButton.style.setProperty('background', 'linear-gradient(135deg, #FFC107, #FF8F00)', 'important');
+                this.unifiedSaveButton.style.setProperty('box-shadow', '0 4px 20px rgba(255, 193, 7, 0.4)', 'important');
+                statusElement.textContent = 'Değişiklik Var';
+                break;
+            case 'ready':
+            default:
+                this.unifiedSaveButton.style.setProperty('background', 'linear-gradient(135deg, #4CAF50, #45a049)', 'important');
+                this.unifiedSaveButton.style.setProperty('box-shadow', '0 4px 20px rgba(76, 175, 80, 0.4)', 'important');
+                statusElement.textContent = 'Hazır';
+                break;
+        }
+    }
+
+    /**
+     * IndexedDB buton durumunu güncelle
+     */
+    updateIndexedDBButtonStatus(status) {
+        if (!this.indexedDBButton) return;
+        
+        const statusElement = this.indexedDBButton.querySelector('.save-status');
+        const timerElement = this.indexedDBButton.querySelector('.save-timer');
+        
+        switch (status) {
+            case 'saving':
+                this.indexedDBButton.style.setProperty('background', 'linear-gradient(135deg, #FF9800, #F57C00)', 'important');
+                this.indexedDBButton.style.setProperty('box-shadow', '0 4px 20px rgba(255, 152, 0, 0.4)', 'important');
+                statusElement.textContent = 'Kaydediyor...';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'saved':
+                this.indexedDBButton.style.setProperty('background', 'linear-gradient(135deg, #4CAF50, #388E3C)', 'important');
+                this.indexedDBButton.style.setProperty('box-shadow', '0 0 20px rgba(76, 175, 80, 0.6)', 'important');
+                statusElement.textContent = 'Kaydedildi!';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'unsaved':
+                this.indexedDBButton.style.setProperty('background', 'linear-gradient(135deg, #FFC107, #FF8F00)', 'important');
+                this.indexedDBButton.style.setProperty('box-shadow', '0 4px 20px rgba(255, 193, 7, 0.4)', 'important');
+                statusElement.textContent = 'Değişiklik Var';
+                break;
+            case 'error':
+                this.indexedDBButton.style.setProperty('background', 'linear-gradient(135deg, #f44336, #d32f2f)', 'important');
+                this.indexedDBButton.style.setProperty('box-shadow', '0 4px 20px rgba(244, 67, 54, 0.4)', 'important');
+                statusElement.textContent = 'Hata!';
+                if (timerElement) timerElement.textContent = '';
+                break;
+            case 'ready':
+            default:
+                this.indexedDBButton.style.setProperty('background', 'linear-gradient(135deg, #4CAF50, #45a049)', 'important');
+                this.indexedDBButton.style.setProperty('box-shadow', '0 4px 20px rgba(76, 175, 80, 0.4)', 'important');
+                statusElement.textContent = 'Hazır';
+                break;
+        }
+    }
+
+    /**
+     * Floating button durumunu güncelle (uyumluluk için)
+     */
+    updateFloatingButton(status) {
+        if (this.isElectron) {
+            // Electron ortamında birleşik buton varsa onu güncelle
+            if (this.unifiedSaveButton) {
+                this.updateUnifiedButtonStatus(status);
+            } else {
+                // Fallback: Eski sistem
+                this.updateElectronButtonStatus(status);
+                this.updateIndexedDBButtonStatus(status);
+            }
+        } else {
+            // Browser ortamında IndexedDB butonunu güncelle
+            this.updateIndexedDBButtonStatus(status);
+        }
+    }
+
+    // *** ESKİ createFloatingButton FONKSİYONU TAMAMEN KALDIRILDI ***
+    // Artık createFloatingButtons() kullanılıyor
+
+    createClearButton() {
+        this.clearButton = document.createElement('div');
+        this.clearButton.id = 'autoClearFloatingButton';
+        this.clearButton.innerHTML = `
+            <div class="clear-button-content">
+                <div class="clear-top-row">
+                    <i class="fas fa-trash-alt"></i>
+                    <span class="clear-text">Temizle</span>
+                </div>
+                <div class="clear-status">Veri mevcut</div>
+            </div>
+        `;
+        
+        // Pozisyon: Electron'da 2. sırada (80px), Browser'da 2. sırada (80px)
+        const topPosition = '80px';
+        
+        this.clearButton.style.cssText = `
+            position: fixed;
+            top: ${topPosition};
+            left: 20px;
+            z-index: 9999;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 20px rgba(238, 90, 82, 0.4);
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            backdrop-filter: blur(10px);
+            min-width: 100px;
+            text-align: center;
+            opacity: 0.85;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        // CSS animasyonları ekle
+        const style = document.createElement('style');
+        style.textContent = `
+            #autoSaveFloatingButton:hover {
+                transform: translateY(-2px) !important;
+            }
+            
+            #autoSaveFloatingButton.saving {
+                background: linear-gradient(135deg, #FF9800, #F57C00) !important;
+                box-shadow: 0 4px 20px rgba(255, 152, 0, 0.4) !important;
+                animation: pulse 1.5s infinite !important;
+            }
+            
+            #autoSaveFloatingButton.saved {
+                background: linear-gradient(135deg, #4CAF50, #388E3C) !important;
+                box-shadow: 0 4px 20px rgba(76, 175, 80, 0.4) !important;
+                animation: success-glow 0.5s ease-out !important;
+            }
+            
+            #autoSaveFloatingButton.unsaved {
+                background: linear-gradient(135deg, #FFC107, #FFB300) !important;
+                box-shadow: 0 4px 20px rgba(255, 193, 7, 0.4) !important;
+                animation: gentle-glow 2s infinite !important;
+            }
+            
+            #autoSaveFloatingButton.ready {
+                background: linear-gradient(135deg, #4CAF50, #45a049) !important;
+                box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3) !important;
+                animation: none !important;
+            }
+            
+            #autoSaveFloatingButton.error {
+                background: linear-gradient(135deg, #f44336, #d32f2f) !important;
+                box-shadow: 0 4px 20px rgba(244, 67, 54, 0.4) !important;
+                animation: shake 0.5s !important;
+            }
+            
+            @media (max-width: 768px) {
+                #autoSaveFloatingButton {
+                    top: 15px;
+                    right: 15px;
+                    padding: 10px 14px;
+                    font-size: 12px;
+                    min-width: 90px;
+                }
+                
+                .save-button-content {
+                    gap: 2px;
+                }
+                
+                .save-top-row {
+                    gap: 4px;
+                    font-size: 12px;
+                }
+                
+                .save-text {
+                    font-size: 11px;
+                }
+                
+                .save-timer {
+                    font-size: 9px;
+                    padding: 1px 3px;
+                }
+                
+                .save-status {
+                    font-size: 9px;
+                }
+            }
+            
+            @keyframes pulse {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.7; }
+            }
+            
+            @keyframes gentle-glow {
+                0%, 100% { box-shadow: 0 4px 20px rgba(255, 193, 7, 0.4); }
+                50% { box-shadow: 0 4px 25px rgba(255, 193, 7, 0.6); }
+            }
+            
+            @keyframes success-glow {
+                0% { 
+                    box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+                    transform: scale(1);
+                }
+                50% { 
+                    box-shadow: 0 6px 30px rgba(76, 175, 80, 0.6);
+                    transform: scale(1.05);
+                }
+                100% { 
+                    box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+                    transform: scale(1);
+                }
+            }
+            
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-5px); }
+                75% { transform: translateX(5px); }
+            }
+            
+            .save-button-content {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 3px;
+                width: 100%;
+                height: 100%;
+            }
+            
+            .save-top-row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 13px;
+            }
+            
+            .save-status {
+                font-size: 10px;
+                opacity: 0.8;
+                text-align: center;
+            }
+            
+            .save-timer {
+                font-size: 10px;
+                font-weight: 700;
+                opacity: 0;
+                color: rgba(255, 255, 255, 0.9);
+                background: rgba(0, 0, 0, 0.2);
+                padding: 1px 4px;
+                border-radius: 8px;
+                transition: all 0.3s ease;
+                transform: scale(0.8);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+            
+            .save-timer.show {
+                opacity: 1;
+                transform: scale(1);
+            }
+            
+            .save-timer.pulse {
+                animation: timer-pulse 1s infinite;
+            }
+            
+            @keyframes timer-pulse {
+                0%, 100% { opacity: 0.9; transform: scale(1); }
+                50% { opacity: 1; transform: scale(1.05); }
+            }
+        `;
+        
+        document.head.appendChild(style);
+        document.body.appendChild(this.floatingButton);
+        
+        // Click event - [[memory:146162273345585106]] uygun şekilde type="button" davranışı
+        this.floatingButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.saveData(true);
+        });
+
+        // Çift tık ile kayıt durumu bilgisi
+        this.floatingButton.addEventListener('dblclick', (e) => {
+            e.preventDefault();
+            this.showSaveInfo();
+        });
+
+        // Sağ tık menüsü artık gerekmiyor - ayrı clear button var
+        
+        this.updateFloatingButton('ready');
+    }
+
+    /**
+     * Floating temizleme butonu oluştur
+     */
+    createClearButton() {
+        this.clearButton = document.createElement('div');
+        this.clearButton.id = 'autoClearFloatingButton';
+        this.clearButton.innerHTML = `
+            <div class="clear-button-content">
+                <div class="clear-top-row">
+                    <i class="fas fa-trash-alt"></i>
+                    <span class="clear-text">Temizle</span>
+                </div>
+                <div class="clear-status">Veri mevcut</div>
+            </div>
+        `;
+        
+        // CSS stilleri - kaydet butonu ile aynı boyutlarda
+        this.clearButton.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9998;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 20px rgba(238, 90, 82, 0.3);
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+            backdrop-filter: blur(10px);
+            min-width: 100px;
+            text-align: center;
+            opacity: 0.85;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        // CSS animasyonları ekle (sadece bir kez)
+        const clearStyle = document.createElement('style');
+        clearStyle.id = 'clearButtonStyles';
+        if (!document.getElementById('clearButtonStyles')) {
+            clearStyle.textContent = `
+                #autoClearFloatingButton:hover {
+                    opacity: 1;
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 25px rgba(238, 90, 82, 0.4);
+                }
+                
+                #autoClearFloatingButton.clearing {
+                    background: linear-gradient(135deg, #ffa726, #ff9800);
+                    animation: clear-pulse 1.5s infinite;
+                }
+                
+                #autoClearFloatingButton.confirm {
+                    background: linear-gradient(135deg, #ff5722, #d84315);
+                    animation: clear-shake 0.5s;
+                }
+                
+                @keyframes clear-pulse {
+                    0%, 100% { opacity: 0.8; }
+                    50% { opacity: 1; }
+                }
+                
+                @keyframes clear-shake {
+                    0%, 100% { transform: translateX(0); }
+                    25% { transform: translateX(-3px); }
+                    75% { transform: translateX(3px); }
+                }
+                
+                .clear-button-content {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 3px;
+                    width: 100%;
+                    height: 100%;
+                }
+                
+                .clear-top-row {
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 13px;
+                }
+                
+                .clear-status {
+                    font-size: 10px;
+                    opacity: 0.8;
+                    text-align: center;
+                }
+                
+                @media (max-width: 768px) {
+                    #autoClearFloatingButton {
+                        top: 15px;
+                        left: 15px;
+                        padding: 10px 14px;
+                        font-size: 12px;
+                        min-width: 90px;
+                    }
+                    
+                    .clear-button-content {
+                        gap: 2px;
+                    }
+                    
+                    .clear-top-row {
+                        gap: 4px;
+                        font-size: 12px;
+                    }
+                    
+                    .clear-text {
+                        font-size: 11px;
+                    }
+                    
+                    .clear-status {
+                        font-size: 9px;
+                    }
+                }
+            `;
+            
+            document.head.appendChild(clearStyle);
+        }
+        
+        document.body.appendChild(this.clearButton);
+        
+        // Click event - [[memory:146162273345585106]] uygun şekilde type="button" davranışı
+        this.clearButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.clearAllSavedData();
+        });
+        
+        // İlk status güncellemesi
+        this.updateClearButtonStatus();
+        
+        console.log('🗑️ Floating temizleme butonu oluşturuldu');
+    }
+
+    /**
+     * Sağ tık context menüsünü göster
+     */
+    showContextMenu(event) {
+        // Mevcut context menu'ları kaldır
+        const existingMenu = document.getElementById('autoSaveContextMenu');
+        if (existingMenu) {
+            existingMenu.remove();
+        }
+
+        // Context menu oluştur
+        const contextMenu = document.createElement('div');
+        contextMenu.id = 'autoSaveContextMenu';
+        contextMenu.innerHTML = `
+            <div class="context-menu-item" data-action="manual-save">
+                <i class="fas fa-save"></i>
+                <span>Manuel Kayıt</span>
+            </div>
+            <div class="context-menu-item" data-action="clear-data">
+                <i class="fas fa-trash-alt"></i>
+                <span>Kaydedilmiş Verileri Temizle</span>
+            </div>
+            <div class="context-menu-item" data-action="info">
+                <i class="fas fa-info-circle"></i>
+                <span>Kayıt Durumu</span>
+            </div>
+        `;
+
+        // Context menu stilini ayarla
+        contextMenu.style.cssText = `
+            position: fixed;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            z-index: 10000;
+            min-width: 200px;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        `;
+
+        // Pozisyonu ayarla (üst köşe için)
+        const buttonRect = this.floatingButton.getBoundingClientRect();
+        contextMenu.style.right = `${window.innerWidth - buttonRect.left + 10}px`;
+        contextMenu.style.top = `${buttonRect.bottom + 10}px`;
+
+        // CSS stillerini ekle
+        const style = document.createElement('style');
+        style.textContent = `
+            .context-menu-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                cursor: pointer;
+                transition: background-color 0.2s ease;
+                font-size: 14px;
+                color: #333;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            
+            .context-menu-item:last-child {
+                border-bottom: none;
+            }
+            
+            .context-menu-item:hover {
+                background-color: #f5f5f5;
+            }
+            
+            .context-menu-item[data-action="clear-data"]:hover {
+                background-color: #fff5f5;
+                color: #d73527;
+            }
+            
+            .context-menu-item i {
+                width: 16px;
+                text-align: center;
+                color: #666;
+            }
+            
+            .context-menu-item[data-action="clear-data"] i {
+                color: #ff6b6b;
+            }
+        `;
+        
+        document.head.appendChild(style);
+        document.body.appendChild(contextMenu);
+
+        // Event listeners ekle
+        contextMenu.addEventListener('click', (e) => {
+            const item = e.target.closest('.context-menu-item');
+            if (!item) return;
+
+            const action = item.dataset.action;
+            
+            switch (action) {
+                case 'manual-save':
+                    this.saveData(true);
+                    break;
+                    
+                case 'clear-data':
+                    this.clearAllSavedData();
+                    break;
+                    
+                case 'info':
+                    this.showSaveInfo();
+                    break;
+            }
+            
+            // Menüyü kapat
+            contextMenu.remove();
+        });
+
+        // Dışarı tıklayınca kapat
+        const closeMenu = (e) => {
+            if (!contextMenu.contains(e.target)) {
+                contextMenu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 100);
+    }
+
+    /**
+     * Kayıt durumu bilgisini göster
+     */
+    showSaveInfo() {
+        const hasData = this.lastSaveTime !== null;
+        const status = hasData 
+            ? `Son kayıt: ${this.lastSaveTime.toLocaleString('tr-TR')}`
+            : 'Henüz kayıt yapılmamış';
+        
+        const dbStatus = this.isInitialized ? 'IndexedDB aktif' : 'LocalStorage fallback';
+        
+        this.showToast(
+            `📊 Otomatik Kayıt Durumu:\n${status}\n🔧 ${dbStatus}`,
+            'info'
+        );
+    }
+
+    // *** ESKİ updateFloatingButton FONKSİYONU KALDIRILDI ***
+    // Modern updateFloatingButton fonksiyonu artık satır 1209'da !important ile çalışıyor
+
+    /**
+     * Promise wrapper for IndexedDB requests
+     */
+    promisifyRequest(request) {
+        return new Promise((resolve, reject) => {
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    /**
+     * LocalStorage fallback
+     */
+    fallbackToLocalStorage() {
+        console.warn('⚠️ IndexedDB kullanılamıyor, localStorage fallback aktif');
+        
+        // Basit localStorage implementasyonu
+        this.saveData = async (manual = false) => {
+            try {
+                const exportData = createExportData();
+                localStorage.setItem('mudek-course-data-backup', JSON.stringify({
+                    data: exportData,
+                    timestamp: new Date().toISOString(),
+                    type: manual ? 'manual' : 'auto'
+                }));
+                
+                this.hasUnsavedChanges = false;
+                this.updateFloatingButton('saved');
+                this.restartTimer();
+                this.updateClearButtonStatus();
+                console.log('💾 LocalStorage fallback kayıt tamamlandı');
+                
+                if (manual) {
+                    this.showToast('💾 Veriler localStorage\'a kaydedildi', 'success');
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('❌ LocalStorage fallback hatası:', error);
+                return false;
+            }
+        };
+        
+        this.loadData = async () => {
+            try {
+                const saved = localStorage.getItem('mudek-course-data-backup');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    return parsed.data;
+                }
+                return null;
+            } catch (error) {
+                console.error('❌ LocalStorage fallback yükleme hatası:', error);
+                return null;
+            }
+        };
+        
+        this.createFloatingButtons();
+        this.createClearButton();
+        this.startAutoSave();
+        this.autoRestore();
+        this.setupChangeDetection();
+    }
+
+    /**
+     * Toast mesajı göster
+     */
+    showToast(message, type = 'info') {
+        if (typeof showModernToast === 'function') {
+            showModernToast(message, type);
+        } else if (typeof showToast === 'function') {
+            showToast(message, type);
+        } else {
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+    }
+
+    /**
+     * Kaydedilmiş tüm verileri temizle (güvenlik onayı ile)
+     */
+    async clearAllSavedData() {
+        // Confirm modal göster (Promise döndürüyor!)
+        if (typeof showModernConfirm === 'function') {
+            try {
+                const result = await showModernConfirm(
+                    '🗑️ Tüm Verileri Temizle',
+                    '⚠️ Bu işlem tüm verileri kalıcı olarak silecek!\n\n' +
+                    '• IndexedDB\'deki otomatik kayıtlar silinecek\n' +
+                    '• LocalStorage yedekleri temizlenecek\n' +
+                    '• Sayfa yenilenecek (tüm veriler kaybolacak)\n\n' +
+                    '❗ Bu işlem geri alınamaz! Temiz bir sayfa ile başlayacaksınız!\n\n' +
+                    'Devam etmek istediğinizden emin misiniz?'
+                );
+                
+                console.log('🔴 Modal sonucu:', result);
+                
+                if (result === true) {
+                    console.log('🔴 Modal onaylandı, temizleme başlıyor...');
+                    
+                    // Eğer performClearAllData çalışmazsa, direkt reload yap
+                    try {
+                        await this.performClearAllData();
+                    } catch (error) {
+                        console.error('❌ performClearAllData hatası:', error);
+                        console.log('🔄 Emergency reload çağrılıyor...');
+                        this.showToast('⚠️ Hata oluştu! Emergency reload...', 'error');
+                        setTimeout(() => {
+                            this.showToast('🚨 EMERGENCY RELOAD!', 'error');
+                            if (this.isElectron) {
+                                this.reloadElectronApp();
+                            } else {
+                                window.location.reload(true);
+                            }
+                        }, 200);
+                    }
+                } else {
+                    console.log('❌ Modal iptal edildi');
+                }
+            } catch (modalError) {
+                console.error('❌ Modal error:', modalError);
+                // Modal hata verirse fallback'e düş
+                this.showFallbackConfirm();
+            }
+        } else {
+            // Modern modal yoksa fallback'e düş
+            this.showFallbackConfirm();
+        }
+    }
+
+    /**
+     * Fallback confirm dialog
+     */
+    async showFallbackConfirm() {
+        // Fallback: basit confirm
+        if (confirm('⚠️ Tüm verileri silip sayfayı yenilemek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz!')) {
+            console.log('🔴 Basit modal onaylandı, temizleme başlıyor...');
+            try {
+                await this.performClearAllData();
+            } catch (error) {
+                console.error('❌ Fallback performClearAllData hatası:', error);
+                console.log('🔄 Fallback emergency reload çağrılıyor...');
+                this.showToast('⚠️ Fallback hatası! Emergency reload...', 'error');
+                setTimeout(() => {
+                    this.showToast('🚨 FALLBACK EMERGENCY RELOAD!', 'error');
+                    if (this.isElectron) {
+                        this.reloadElectronApp();
+                    } else {
+                        window.location.reload(true);
+                    }
+                }, 200);
+            }
+        }
+    }
+
+    /**
+     * Veri temizleme işlemini gerçekleştir
+     */
+    async performClearAllData() {
+        try {
+            this.updateFloatingButton('saving');
+            
+            // Clear button animasyonu
+            if (this.clearButton) {
+                this.clearButton.className = 'clearing';
+            }
+            
+            let clearedCount = 0;
+            let clearDetails = [];
+
+            // Electron dosya sistemini temizle
+            if (this.isElectron) {
+                try {
+                    const result = await window.electronAPI.clearAutoData();
+                    if (result.success) {
+                        const shortPath = this.getShortFilePath(result.filePath);
+                        if (result.fileExisted) {
+                            clearedCount++;
+                            clearDetails.push(`📁 Yedek Dosyası (${shortPath})`);
+                            console.log('✅ Electron dosyası silindi:', shortPath);
+                        } else {
+                            console.log('ℹ️ Electron dosyası zaten mevcut değildi:', shortPath);
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Electron dosya temizleme hatası:', error);
+                }
+            }
+
+            // IndexedDB'yi temizle (sadece browser ortamında)
+            if (!this.isElectron && this.isInitialized && this.db) {
+                try {
+                    const transaction = this.db.transaction([this.storeName], 'readwrite');
+                    const store = transaction.objectStore(this.storeName);
+                    await this.promisifyRequest(store.clear());
+                    clearedCount++;
+                    clearDetails.push('🗄️ IndexedDB');
+                    console.log('✅ IndexedDB verileri temizlendi');
+                } catch (error) {
+                    console.error('❌ IndexedDB temizleme hatası:', error);
+                }
+            }
+
+            // LocalStorage'ı komple temizle
+            try {
+                const removedKeys = [];
+                const keysToRemove = [
+                    'mudek-course-data-backup',
+                    'mudek-course-data',
+                    'courseData',
+                    'studentData',
+                    'assessmentTree',
+                    'gradesData'
+                ];
+                
+                keysToRemove.forEach(key => {
+                    if (localStorage.getItem(key)) {
+                        localStorage.removeItem(key);
+                        removedKeys.push(key);
+                    }
+                });
+                
+                if (removedKeys.length > 0) {
+                    clearedCount++;
+                    clearDetails.push(`💾 LocalStorage (${removedKeys.length})`);
+                    console.log('✅ LocalStorage verileri temizlendi:', removedKeys);
+                }
+            } catch (error) {
+                console.error('❌ LocalStorage temizleme hatası:', error);
+            }
+
+            // Durumu güncelle
+            this.hasUnsavedChanges = false;
+            this.lastSaveTime = null;
+            
+            // Clear button'ı normale döndür
+            if (this.clearButton) {
+                this.clearButton.className = '';
+            }
+
+            // Başarı mesajı göster ve sayfayı yenile
+            let toastMessage = `🗑️ Tüm veriler başarıyla temizlendi! (${clearedCount} kaynak)`;
+            if (clearDetails.length > 0) {
+                toastMessage += `\n\n📋 Temizlenen:\n• ${clearDetails.join('\n• ')}`;
+            }
+            toastMessage += '\n\n🔄 Sayfa yenileniyor...';
+            
+            this.showToast(toastMessage, 'success', 8000);
+
+            console.log('🗑️ Tüm veriler temizlendi, sayfa yenileniyor...');
+
+        } catch (error) {
+            console.error('❌ Veri temizleme hatası:', error);
+            this.updateFloatingButton('error');
+            
+            // Clear button hata durumu
+            if (this.clearButton) {
+                this.clearButton.className = 'confirm';
+                setTimeout(() => {
+                    this.clearButton.className = '';
+                }, 2000);
+            }
+            
+            this.showToast('❌ Veri temizleme işlemi başarısız!', 'error');
+        } finally {
+            // Her durumda uygulamayı yenile (başarılı olsun veya olmasın)
+            console.log('🔄 Uygulama yenileniyor...');
+            this.showToast('🔄 Uygulama yenileniyor...', 'info');
+            
+            setTimeout(() => {
+                if (this.isElectron) {
+                    // Electron'da uygulama yenileme
+                    console.log('🔄 Electron uygulaması yenileniyor...');
+                    this.showToast('⚡ Electron uygulaması yenileniyor!', 'warning');
+                    this.reloadElectronApp();
+                } else {
+                    // Browser'da sayfa yenileme
+                    console.log('🔄 Tarayıcı sayfası yenileniyor...');
+                    this.showToast('⚡ Sayfa yenileniyor!', 'warning');
+                    this.reloadBrowserPage();
+                }
+                         }, 2000); // 2 saniye bekle ki kullanıcı mesajları görebilsin
+        }
+    }
+
+    /**
+     * Electron uygulamasını yenile
+     */
+    reloadElectronApp() {
+        try {
+            // Electron BrowserWindow'u yenile
+            if (window.electronAPI && window.electronAPI.reloadWindow) {
+                console.log('🔄 Electron API ile window reload...');
+                window.electronAPI.reloadWindow();
+            } else if (window.location && window.location.reload) {
+                console.log('🔄 Fallback: location.reload() kullanılıyor...');
+                window.location.reload();
+            } else {
+                console.log('❌ Electron reload başarısız, manuel yenileme gerekiyor!');
+                this.showToast('❌ Otomatik yenileme başarısız! Uygulamayı manuel yenileyin.', 'error');
+            }
+        } catch (error) {
+            console.error('❌ Electron reload hatası:', error);
+            this.showToast('❌ Uygulama yenileme hatası!', 'error');
+        }
+    }
+
+    /**
+     * Browser sayfasını yenile
+     */
+    reloadBrowserPage() {
+        try {
+            // Birden fazla reload yöntemi dene
+            if (window.location && window.location.reload) {
+                console.log('🔄 Browser reload: location.reload(true)...');
+                window.location.reload(true); // Force reload
+            } else if (window.location && window.location.href) {
+                console.log('🔄 Browser reload: href yeniden atama...');
+                window.location.href = window.location.href;
+            } else if (window.location && window.location.replace) {
+                console.log('🔄 Browser reload: location.replace...');
+                window.location.replace(window.location.href);
+            } else {
+                console.log('❌ Browser reload başarısız!');
+                this.showToast('❌ Otomatik yenileme başarısız!', 'error');
+                setTimeout(() => {
+                    alert('⚠️ UYARI: Sayfa otomatik yenilenemedi!\n\n' +
+                          '🔄 Manuel yenileme gerekiyor:\n' +
+                          '• F5 tuşuna basın, VEYA\n' +
+                          '• Ctrl+F5 (tam yenileme), VEYA\n' +
+                          '• Tarayıcı yenile butonuna basın\n\n' +
+                          '✅ Veriler temizlendi, sadece sayfa yenilenmeli!');
+                }, 1000);
+            }
+        } catch (error) {
+            console.error('❌ Browser reload hatası:', error);
+            this.showToast('❌ Sayfa yenileme hatası!', 'error');
+        }
+    }
+
+    /**
+     * Temizlik işlemleri
+     */
+    destroy() {
+        if (this.autoSaveInterval) {
+            clearInterval(this.autoSaveInterval);
+        }
+        
+        if (this.timerInterval) {
+            clearInterval(this.timerInterval);
+        }
+        
+        if (this.electronSaveButton) {
+            this.electronSaveButton.remove();
+        }
+        
+        if (this.indexedDBButton) {
+            this.indexedDBButton.remove();
+        }
+        
+        if (this.floatingButton) {
+            this.floatingButton.remove();
+        }
+        
+        if (this.clearButton) {
+            this.clearButton.remove();
+        }
+        
+        if (this.db) {
+            this.db.close();
+        }
+    }
+}
+
+// Global otomatik kayıt manager instance
+let autoSaveManager = null;
+
 /**
  * Değerlendirme etkinlik türleri
  */
@@ -3603,6 +5678,12 @@ function addTermActivity() {
     try {
         // Önce modal göster - etkinlik henüz eklenmedi
         showActivityOptionsModal('term', null);
+        
+        // Otomatik kayıt trigger
+        if (autoSaveManager) {
+            autoSaveManager.hasUnsavedChanges = true;
+            autoSaveManager.updateFloatingButton('unsaved');
+        }
 		
     } catch (error) {
         console.error("Yarıyıl içi etkinlik modalı açılırken hata oluştu:", error);
@@ -3617,6 +5698,12 @@ function addFinalActivity() {
     try {
         // Önce modal göster - etkinlik henüz eklenmedi
         showActivityOptionsModal('final', null);
+        
+        // Otomatik kayıt trigger
+        if (autoSaveManager) {
+            autoSaveManager.hasUnsavedChanges = true;
+            autoSaveManager.updateFloatingButton('unsaved');
+        }
 		
     } catch (error) {
         console.error("Yarıyıl sonu etkinlik modalı açılırken hata oluştu:", error);
@@ -3896,6 +5983,12 @@ function removeNode() {
                     console.log("🔴 [DEBUG] Başarı mesajı gösteriliyor...");
                     showModernToast(`"${nodeName}" etkinliği başarıyla silindi.`);
                     console.log("🔴 [DEBUG] removeNode işlemi başarıyla tamamlandı");
+                    
+                    // Otomatik kayıt trigger
+                    if (autoSaveManager) {
+                        autoSaveManager.hasUnsavedChanges = true;
+                        autoSaveManager.updateFloatingButton('unsaved');
+                    }
                 } else {
                     console.log("🔴 [DEBUG] HATA: Silme işlemi başarısız!");
                     showModernToast("Etkinlik silinemedi!", "error");
@@ -8525,6 +10618,12 @@ function updateStudentGrade(input) {
         // Toplam puan hücrelerini güncelle
         updateTotalPointsForStudent(studentId, activityId);
         
+        // Otomatik kayıt trigger
+        if (autoSaveManager) {
+            autoSaveManager.hasUnsavedChanges = true;
+            autoSaveManager.updateFloatingButton('unsaved');
+        }
+        
     } catch (error) {
         console.error("Öğrenci notu güncellenirken hata oluştu:", error);
         showModernToast("Not güncellenirken hata oluştu!", "error");
@@ -9356,6 +11455,12 @@ function clearStudents() {
                 // Değerlendirme görünümünü güncelle
                 updateAssessmentView();
                 
+                // Otomatik kayıt trigger
+                if (autoSaveManager) {
+                    autoSaveManager.hasUnsavedChanges = true;
+                    autoSaveManager.updateFloatingButton('unsaved');
+                }
+                
                 showModernToast("🎓 Öğrenci listesi temizlendi!", "success");
             } catch (error) {
                 console.error("Öğrenci listesi temizlenirken hata oluştu:", error);
@@ -9470,6 +11575,12 @@ function importStudentData(jsonData) {
         
         // Değerlendirme sekmesine geç
         switchTab('assessment');
+        
+        // Otomatik kayıt trigger
+        if (autoSaveManager) {
+            autoSaveManager.hasUnsavedChanges = true;
+            autoSaveManager.updateFloatingButton('unsaved');
+        }
         
         showModernToast(`${APP_STATE.studentData.length} öğrenci başarıyla yüklendi.`);
     } catch (error) {
@@ -10662,6 +12773,12 @@ function applyJsonData() {
         
         closeModal(importModal);
         showModernToast("JSON verisi başarıyla yüklendi.");
+        
+        // Otomatik kayıt trigger
+        if (autoSaveManager) {
+            autoSaveManager.hasUnsavedChanges = true;
+            autoSaveManager.updateFloatingButton('unsaved');
+        }
         
         // Öğrenci verileri yüklendiyse değerlendirme sekmesine geç
         if (hasStudentData) {
@@ -34512,76 +36629,84 @@ function setupElectronMenuHandlers() {
  * Web ortamı için ayarlar
  */
 function setupWebIntegration() {
-    // Web ortamında özel ayarlar
-    // Örneğin: localStorage'dan otomatik veri yükleme
-    const savedData = localStorage.getItem('mudek-course-data');
-    if (savedData) {
-        try {
-            const parsedData = JSON.parse(savedData);
-            importCourseData(parsedData);
-            console.log('💾 localStorage\'dan veri yüklendi');
-        } catch (error) {
-            console.error('localStorage veri yükleme hatası:', error);
-        }
+    // IndexedDB otomatik kayıt sistemini başlat
+    if (!autoSaveManager) {
+        autoSaveManager = new MudekAutoSaveManager();
+        console.log('🚀 IndexedDB tabanlı otomatik kayıt sistemi aktif edildi');
     }
     
-    // Periyodik otomatik kaydetme
-    setInterval(() => {
-        if (APP_STATE.courseData) {
-            const courseData = exportCourseData();
-            try {
-                localStorage.setItem('mudek-course-data', JSON.stringify(courseData));
-                console.log('💾 Otomatik localStorage kaydı yapıldı');
-            } catch (error) {
-                console.error('localStorage kaydetme hatası:', error);
-            }
+    // Eski localStorage verilerini temizle (geçiş için)
+    try {
+        const oldData = localStorage.getItem('mudek-course-data');
+        if (oldData) {
+            console.log('🔄 Eski localStorage verisi IndexedDB\'ye geçiriliyor...');
+            localStorage.removeItem('mudek-course-data');
         }
-    }, 30000); // 30 saniyede bir kaydet
+    } catch (error) {
+        console.warn('⚠️ Eski veri temizleme uyarısı:', error);
+    }
 }
 
 /**
- * Electron'da toast mesajları göster (memory'deki kurala uygun)
+ * Electron'da toast mesajları güvenli şekilde göster
  */
 if (typeof window.electronAPI !== 'undefined') {
-    // Electron ortamında showToast'ı override et
-    const originalShowToast = window.showToast;
-    window.showToast = function(message, type = 'info', duration = 3000) {
+    console.log('🔧 Electron toast sistemi ayarlanıyor...');
+    
+    // Güvenli toast fonksiyonu oluştur (window'a atamadan)
+    function createElectronToast(message, type = 'info', duration = 3000) {
         // Önce mevcut toast sistemini kullanmaya çalış
-        if (originalShowToast) {
-            originalShowToast(message, type, duration);
-        } else {
-            // Fallback - basit bir toast sistemi
-            console.log(`[${type.toUpperCase()}] ${message}`);
-            
-            // Basit bir toast elementi oluştur
-            const toast = document.createElement('div');
-            toast.className = `toast toast-${type}`;
-            toast.textContent = message;
-            toast.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
-                color: white;
-                padding: 12px 24px;
-                border-radius: 4px;
-                z-index: 10000;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-                animation: slideInRight 0.3s ease;
-            `;
-            
-            document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                toast.style.animation = 'slideOutRight 0.3s ease';
+        if (typeof window.showToast === 'function') {
+            try {
+                window.showToast(message, type, duration);
+                return;
+            } catch (error) {
+                console.warn('⚠️ showToast hatası:', error);
+            }
+        }
+        
+        // Fallback - basit bir toast sistemi
+        console.log(`[${type.toUpperCase()}] ${message}`);
+        
+        // Basit bir toast elementi oluştur
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            color: white;
+            padding: 12px 24px;
+            border-radius: 4px;
+            z-index: 10000;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            max-width: 300px;
+            word-wrap: break-word;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size: 14px;
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
                 setTimeout(() => {
                     if (toast.parentNode) {
                         toast.parentNode.removeChild(toast);
                     }
                 }, 300);
-            }, duration);
-        }
-    };
+            }
+        }, duration);
+    }
+    
+    // Global olarak erişilebilir kıl ama window'a atamadan
+    window.electronToastFunction = createElectronToast;
+    
+    console.log('✅ Electron toast sistemi hazır');
 }
 
 // DOM yüklendiğinde uygulamayı başlat
@@ -34589,9 +36714,21 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         initializeApp();
         setupElectronIntegration();
+        
+        // IndexedDB otomatik kayıt sistemini başlat
+        if (!autoSaveManager) {
+            autoSaveManager = new MudekAutoSaveManager();
+            console.log('🚀 IndexedDB otomatik kayıt sistemi DOM yüklendiğinde başlatıldı');
+        }
     });
 } else {
     // DOM zaten yüklenmiş
     initializeApp();
     setupElectronIntegration();
+    
+    // IndexedDB otomatik kayıt sistemini başlat
+    if (!autoSaveManager) {
+        autoSaveManager = new MudekAutoSaveManager();
+        console.log('🚀 IndexedDB otomatik kayıt sistemi hemen başlatıldı');
+    }
 }

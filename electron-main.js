@@ -3,6 +3,7 @@ const path = require('path');
 
 // Auto-updater kaldırıldı, sadece basit desktop app
 const fs = require('fs');
+const os = require('os');
 const isDev = process.env.NODE_ENV === 'development' || process.argv.includes('--dev');
 
 // Ana pencere referansı
@@ -85,14 +86,14 @@ function createMenu() {
             label: 'Dosya',
             submenu: [
                 {
-                    label: 'Ders Tanımı Yükle',
+                    label: 'Ders Tanimi Yukle',
                     accelerator: 'CmdOrCtrl+O',
                     click: () => {
                         openFile();
                     }
                 },
                 {
-                    label: 'Ders Tanımı Kaydet',
+                    label: 'Ders Tanimi Kaydet',
                     accelerator: 'CmdOrCtrl+S',
                     click: () => {
                         saveFile();
@@ -100,17 +101,32 @@ function createMenu() {
                 },
                 { type: 'separator' },
                 {
-                    label: 'Öğrenci Listesi Yükle',
+                    label: 'Ogrenci Listesi Yukle',
                     accelerator: 'CmdOrCtrl+Shift+O',
                     click: () => {
                         loadStudents();
                     }
                 },
                 {
-                    label: 'Notları Dışa Aktar',
+                    label: 'Notlari Disa Aktar',
                     accelerator: 'CmdOrCtrl+E',
                     click: () => {
                         exportGrades();
+                    }
+                },
+                { type: 'separator' },
+                {
+                    label: 'Yedek Klasorunu Ac',
+                    accelerator: 'CmdOrCtrl+B',
+                    click: () => {
+                        openBackupFolder();
+                    }
+                },
+                {
+                    label: 'Yedek Dosyadan Yukle',
+                    accelerator: 'CmdOrCtrl+Shift+B',
+                    click: () => {
+                        loadFromBackup();
                     }
                 },
                 { type: 'separator' },
@@ -124,7 +140,7 @@ function createMenu() {
             ]
         },
         {
-            label: 'Düzenle',
+            label: 'Duzenle',
             submenu: [
                 {
                     label: 'Geri Al',
@@ -148,29 +164,29 @@ function createMenu() {
                     role: 'copy'
                 },
                 {
-                    label: 'Yapıştır',
+                    label: 'Yapistir',
                     accelerator: 'CmdOrCtrl+V',
                     role: 'paste'
                 },
                 {
-                    label: 'Tümünü Seç',
+                    label: 'Tumunu Sec',
                     accelerator: 'CmdOrCtrl+A',
                     role: 'selectall'
                 }
             ]
         },
         {
-            label: 'Görünüm',
+            label: 'Gorunum',
             submenu: [
                 {
-                    label: 'Yeniden Yükle',
+                    label: 'Yeniden Yukle',
                     accelerator: 'CmdOrCtrl+R',
                     click: () => {
                         mainWindow.reload();
                     }
                 },
                 {
-                    label: 'Geliştirici Araçları',
+                    label: 'Gelistirici Araclari',
                     accelerator: process.platform === 'darwin' ? 'Alt+Cmd+I' : 'Ctrl+Shift+I',
                     click: () => {
                         mainWindow.webContents.toggleDevTools();
@@ -185,7 +201,7 @@ function createMenu() {
                     }
                 },
                 {
-                    label: 'Yakınlaştır',
+                    label: 'Yakinlastir',
                     accelerator: 'CmdOrCtrl+Plus',
                     click: () => {
                         const currentZoom = mainWindow.webContents.getZoomFactor();
@@ -193,7 +209,7 @@ function createMenu() {
                     }
                 },
                 {
-                    label: 'Uzaklaştır',
+                    label: 'Uzaklastir',
                     accelerator: 'CmdOrCtrl+-',
                     click: () => {
                         const currentZoom = mainWindow.webContents.getZoomFactor();
@@ -201,7 +217,7 @@ function createMenu() {
                     }
                 },
                 {
-                    label: 'Gerçek Boyut',
+                    label: 'Gercek Boyut',
                     accelerator: 'CmdOrCtrl+0',
                     click: () => {
                         mainWindow.webContents.setZoomFactor(1.0);
@@ -210,7 +226,7 @@ function createMenu() {
             ]
         },
         {
-            label: 'Yardım',
+            label: 'Yardim',
             submenu: [
                 {
                     label: 'Web Sitesi',
@@ -232,13 +248,13 @@ function createMenu() {
                 },
                 { type: 'separator' },
                 {
-                    label: 'Güncelleme Kontrol Et',
+                    label: 'Guncelleme Kontrol Et',
                     click: () => {
                         checkForUpdates();
                     }
                 },
                 {
-                    label: 'Hakkında',
+                    label: 'Hakkinda',
                     click: () => {
                         showAbout();
                     }
@@ -354,6 +370,91 @@ function exportGrades() {
 }
 
 /**
+ * Yedek klasörünü aç
+ */
+async function openBackupFolder() {
+    try {
+        const documentsPath = app.getPath('documents');
+        const backupDir = path.join(documentsPath, 'MUDEK Backups');
+        
+        // Klasörün var olduğundan emin ol
+        if (!fs.existsSync(backupDir)) {
+            fs.mkdirSync(backupDir, { recursive: true });
+            console.log('📁 MUDEK Backups klasörü oluşturuldu:', backupDir);
+        }
+        
+        // Klasörü aç
+        await shell.openPath(backupDir);
+        console.log('📂 Yedek klasörü açıldı:', backupDir);
+        
+    } catch (error) {
+        console.error('❌ Yedek klasörü açma hatası:', error);
+        dialog.showErrorBox('Hata', 'Yedek klasörü açılamadı: ' + error.message);
+    }
+}
+
+/**
+ * Yedek dosyadan yükle
+ */
+async function loadFromBackup() {
+    try {
+        const documentsPath = app.getPath('documents');
+        const backupDir = path.join(documentsPath, 'MUDEK Backups');
+        
+        const result = await dialog.showOpenDialog(mainWindow, {
+            title: 'Yedek Dosyadan Yükle',
+            defaultPath: backupDir,
+            filters: [
+                { name: 'JSON Dosyaları', extensions: ['json'] },
+                { name: 'Tüm Dosyalar', extensions: ['*'] }
+            ],
+            properties: ['openFile']
+        });
+
+        if (!result.canceled && result.filePaths.length > 0) {
+            const filePath = result.filePaths[0];
+            try {
+                const content = fs.readFileSync(filePath, 'utf8');
+                
+                // MUDEK yedek dosyası mı kontrol et
+                let jsonData;
+                try {
+                    const backupData = JSON.parse(content);
+                    
+                    // Eğer yedek dosyası formatındaysa (data property'si varsa)
+                    if (backupData.data && backupData.timestamp) {
+                        jsonData = backupData.data;
+                        console.log('📖 MUDEK yedek dosyası yüklendi:', path.basename(filePath));
+                        console.log('📅 Yedek tarihi:', new Date(backupData.timestamp));
+                    } else {
+                        // Normal JSON dosyası
+                        jsonData = backupData;
+                        console.log('📖 Normal JSON dosyası yüklendi:', path.basename(filePath));
+                    }
+                    
+                    mainWindow.webContents.send('load-json-file', { 
+                        content: JSON.stringify(jsonData), 
+                        filename: path.basename(filePath),
+                        isBackup: true
+                    });
+                    
+                } catch (parseError) {
+                    console.error('❌ JSON parse hatası:', parseError);
+                    dialog.showErrorBox('Hata', 'Dosya geçerli bir JSON formatında değil: ' + parseError.message);
+                }
+                
+            } catch (readError) {
+                console.error('❌ Dosya okuma hatası:', readError);
+                dialog.showErrorBox('Hata', 'Dosya okunamadı: ' + readError.message);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Yedek dosya yükleme hatası:', error);
+        dialog.showErrorBox('Hata', 'Yedek dosya yükleme işlemi başarısız: ' + error.message);
+    }
+}
+
+/**
  * Güncelleme kontrolü
  */
 function checkForUpdates() {
@@ -437,6 +538,154 @@ ipcMain.handle('save-grades-dialog', async (event, data) => {
     }
     
     return { success: false, cancelled: true };
+});
+
+// Otomatik kayıt sistemi için IPC handlers
+ipcMain.handle('get-auto-save-path', async () => {
+    try {
+        const documentsPath = app.getPath('documents');
+        const autoSaveDir = path.join(documentsPath, 'MUDEK Backups');
+        
+        // MUDEK Backups klasörünü oluştur
+        if (!fs.existsSync(autoSaveDir)) {
+            fs.mkdirSync(autoSaveDir, { recursive: true });
+            console.log('📁 MUDEK Backups klasörü oluşturuldu:', autoSaveDir);
+        }
+        
+        const autoSaveFile = path.join(autoSaveDir, 'mudek-course-data.json');
+        return { 
+            success: true, 
+            filePath: autoSaveFile,
+            backupDir: autoSaveDir
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('save-auto-data', async (event, data) => {
+    try {
+        const documentsPath = app.getPath('documents');
+        const autoSaveDir = path.join(documentsPath, 'MUDEK Backups');
+        
+        // MUDEK Backups klasörünü oluştur
+        if (!fs.existsSync(autoSaveDir)) {
+            fs.mkdirSync(autoSaveDir, { recursive: true });
+        }
+        
+        const autoSaveFile = path.join(autoSaveDir, 'mudek-course-data.json');
+        const saveRecord = {
+            data: data.content,
+            timestamp: new Date().toISOString(),
+            type: data.type || 'auto',
+            version: '2.0.0',
+            platform: process.platform,
+            backupLocation: 'Documents/MUDEK Backups'
+        };
+        
+        fs.writeFileSync(autoSaveFile, JSON.stringify(saveRecord, null, 2), 'utf8');
+        
+        return { 
+            success: true, 
+            filePath: autoSaveFile,
+            timestamp: saveRecord.timestamp,
+            backupDir: autoSaveDir
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('load-auto-data', async () => {
+    try {
+        const documentsPath = app.getPath('documents');
+        const autoSaveFile = path.join(documentsPath, 'MUDEK Backups', 'mudek-course-data.json');
+        
+        if (!fs.existsSync(autoSaveFile)) {
+            return { success: true, data: null, filePath: autoSaveFile };
+        }
+        
+        const content = fs.readFileSync(autoSaveFile, 'utf8');
+        const saveRecord = JSON.parse(content);
+        
+        return { 
+            success: true, 
+            data: saveRecord.data, 
+            filePath: autoSaveFile,
+            timestamp: saveRecord.timestamp,
+            type: saveRecord.type,
+            backupDir: path.dirname(autoSaveFile)
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('clear-auto-data', async () => {
+    try {
+        const documentsPath = app.getPath('documents');
+        const autoSaveFile = path.join(documentsPath, 'MUDEK Backups', 'mudek-course-data.json');
+        
+        let fileExisted = false;
+        if (fs.existsSync(autoSaveFile)) {
+            fs.unlinkSync(autoSaveFile);
+            fileExisted = true;
+        }
+        
+        return { 
+            success: true, 
+            filePath: autoSaveFile,
+            fileExisted: fileExisted,
+            backupDir: path.dirname(autoSaveFile)
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('check-auto-data-exists', async () => {
+    try {
+        const documentsPath = app.getPath('documents');
+        const autoSaveFile = path.join(documentsPath, 'MUDEK Backups', 'mudek-course-data.json');
+        
+        const exists = fs.existsSync(autoSaveFile);
+        let size = 0;
+        let timestamp = null;
+        
+        if (exists) {
+            const stats = fs.statSync(autoSaveFile);
+            size = stats.size;
+            timestamp = stats.mtime.toISOString();
+        }
+        
+        return { 
+            success: true, 
+            exists: exists,
+            filePath: autoSaveFile,
+            size: size,
+            timestamp: timestamp,
+            backupDir: path.dirname(autoSaveFile)
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// Electron window reload handler
+ipcMain.handle('reload-window', async () => {
+    try {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            console.log('🔄 Electron Window yeniden yükleniyor...');
+            mainWindow.reload();
+            return { success: true };
+        } else {
+            console.log('❌ Ana pencere mevcut değil');
+            return { success: false, error: 'Ana pencere mevcut değil' };
+        }
+    } catch (error) {
+        console.error('❌ Window reload hatası:', error);
+        return { success: false, error: error.message };
+    }
 });
 
 // App Event Handlers

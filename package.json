@@ -1,16 +1,16 @@
 {
-  "name": "mudek-ders-degerlendirme-formu",
+  "name": "mudek-ders-degerlendirme-sistemi",
   "version": "2.0.0",
-  "description": "RTEÜ MUDEK Ders Değerlendirme ve Akreditasyon Sistemi - Masaüstü Uygulaması",
+  "description": "RTEU MUDEK Ders Degerlendirme ve Akreditasyon Sistemi - Masaustu Uygulamasi",
   "main": "electron-main.js",
   "homepage": "https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/",
   "author": {
-    "name": "Dr. Öğr. Üyesi Uğur CORUH",
+    "name": "Dr. Ogr. Uyesi Ugur CORUH",
     "email": "ugur.coruh@erdogan.edu.tr",
     "url": "https://www.coruh.com.tr"
   },
-  "company": "CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ",
-  "copyright": "© 2024 CORUH R&D and TECHNOLOGY. Tüm hakları saklıdır.",
+  "company": "CORUH Arastirma ve Gelistirme Ltd. Sti.",
+  "copyright": "© 2025 CORUH ArGe. Tum haklari saklidir.",
   "license": "MIT",
   "scripts": {
     "setup": "node scripts/build-setup.js",
@@ -20,17 +20,23 @@
     "build": "electron-builder",
     "build:win": "electron-builder --windows",
     "build:mac": "electron-builder --mac",
+    "build:mac-intel": "electron-builder --mac --x64",
+    "build:mac-m1": "electron-builder --mac --arm64",
     "build:linux": "electron-builder --linux",
     "build:all": "electron-builder --windows --mac --linux",
-    "dist": "npm run build:all",
+    "build:all-platforms": "npm run build:win && npm run build:mac-intel && npm run build:mac-m1 && npm run build:linux",
+    "dist": "npm run build:all-platforms",
     "pack": "electron-builder --dir",
     "web": "cd app/v2 && python -m http.server 8080",
     "serve": "cd app/v2 && npx http-server -p 8080 -c-1",
-    "postinstall": "npm run setup"
+    "postinstall": "npm run setup",
+    "create-icon": "node create-icon.js",
+    "version": "git add -A",
+    "postversion": "git push && git push --tags"
   },
   "build": {
     "appId": "com.coruh.mudek-ders-degerlendirme",
-    "productName": "MUDEK Ders Değerlendirme Sistemi",
+    "productName": "MUDEK Ders Degerlendirme Sistemi",
     "directories": {
       "output": "dist"
     },
@@ -52,47 +58,63 @@
         "to": "assets"
       }
     ],
+    "compression": "maximum",
     "win": {
       "target": [
         {
           "target": "nsis",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         },
         {
-          "target": "portable",
+          "target": "zip",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         }
       ],
       "icon": "app/v2/assets/img/app-icon.ico",
       "requestedExecutionLevel": "asInvoker",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "MUDEK-System-${version}-Windows-${arch}.${ext}",
+      "verifyUpdateCodeSignature": false,
+      "rfc3161TimeStampServer": "",
+      "signingHashAlgorithms": []
     },
     "mac": {
       "target": [
         {
           "target": "dmg",
           "arch": [
-            "x64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "dmg",
+          "arch": [
             "arm64"
           ]
         },
         {
           "target": "zip",
           "arch": [
-            "x64",
             "arm64"
           ]
         }
       ],
       "icon": "app/v2/assets/img/app-icon.icns",
       "category": "public.app-category.education",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-macOS-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": null,
+      "entitlementsInherit": null
     },
     "linux": {
       "target": [
@@ -113,26 +135,40 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "app/v2/assets/img/app-icon.png",
       "category": "Education",
-      "artifactName": "${productName}-${version}-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-Linux-${arch}.${ext}",
+      "desktop": {
+        "Name": "MUDEK Ders Degerlendirme Sistemi",
+        "Comment": "RTEÜ MUDEK Ders Değerlendirme ve Akreditasyon Sistemi",
+        "Keywords": "mudek;ders;degerlendirme;akreditasyon;rteu;education",
+        "Categories": "Education;Office;Development"
+      }
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "app/v2/assets/img/app-icon.ico",
       "uninstallerIcon": "app/v2/assets/img/app-icon.ico",
-      "installerHeaderIcon": "app/v2/assets/img/app-icon.ico",
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "MUDEK Ders Değerlendirme Sistemi"
+      "shortcutName": "MUDEK Degerlendirme",
+      "displayLanguageSelector": false,
+      "language": "1033",
+      "artifactName": "MUDEK-Setup-${version}-Windows-x64.${ext}"
     },
     "dmg": {
       "title": "${productName} ${version}",
       "icon": "app/v2/assets/img/app-icon.icns",
-      "background": "app/v2/assets/img/dmg-background.png",
+      "background": null,
       "contents": [
         {
           "x": 130,
@@ -144,13 +180,16 @@
           "type": "link",
           "path": "/Applications"
         }
-      ]
+      ],
+      "format": "ULFO"
     }
   },
   "dependencies": {},
   "devDependencies": {
     "electron": "^28.0.0",
-    "electron-builder": "^24.9.1"
+    "electron-builder": "^24.9.1",
+    "sharp": "^0.33.2",
+    "to-ico": "^1.1.5"
   },
   "repository": {
     "type": "git",
@@ -159,12 +198,13 @@
   "keywords": [
     "mudek",
     "ders",
-    "değerlendirme",
+    "degerlendirme",
     "akreditasyon",
-    "rteü",
+    "rteu",
     "electron",
-    "desktop",
-    "education",
-    "assessment"
+    "masaustu",
+    "egitim",
+    "assessment",
+    "universite"
   ]
 }

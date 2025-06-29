@@ -14,6 +14,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     saveJsonDialog: (data) => ipcRenderer.invoke('save-json-dialog', data),
     saveGradesDialog: (data) => ipcRenderer.invoke('save-grades-dialog', data),
     
+    // Otomatik kayıt sistemi
+    getAutoSavePath: () => ipcRenderer.invoke('get-auto-save-path'),
+    saveAutoData: (data) => ipcRenderer.invoke('save-auto-data', data),
+    loadAutoData: () => ipcRenderer.invoke('load-auto-data'),
+    clearAutoData: () => ipcRenderer.invoke('clear-auto-data'),
+    checkAutoDataExists: () => ipcRenderer.invoke('check-auto-data-exists'),
+    
+    // Electron window yenileme
+    reloadWindow: () => ipcRenderer.invoke('reload-window'),
+    
     // Event listeners
     onLoadJsonFile: (callback) => ipcRenderer.on('load-json-file', callback),
     onSaveJsonRequest: (callback) => ipcRenderer.on('save-json-request', callback),
@@ -25,13 +35,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
 });
 
 // Toast mesajları için global fonksiyon ekle
-contextBridge.exposeInMainWorld('showToast', (message, type = 'info', duration = 3000) => {
+contextBridge.exposeInMainWorld('electronToast', (message, type = 'info', duration = 3000) => {
     // Web uygulamasındaki toast sistemini kullan
-    if (window.showToast) {
-        window.showToast(message, type, duration);
+    const executeToast = () => {
+        if (typeof window.showToast === 'function') {
+            window.showToast(message, type, duration);
+        } else {
+            // Fallback - console.log
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+    };
+    
+    // DOM hazır olduğunda çalıştır
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', executeToast);
     } else {
-        // Fallback - console.log
-        console.log(`[${type.toUpperCase()}] ${message}`);
+        executeToast();
     }
 });
 

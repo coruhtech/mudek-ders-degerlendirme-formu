@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
@@ -55,7 +55,17 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
-      - name: Build Electron App
+      - name: Create Icon (if needed)
+        run: |
+          if (Test-Path "app/v2/assets/img/app-icon.png") {
+            Write-Host "App icon exists, creating ICO format..."
+            npm run create-icon 2>$null || Write-Host "Icon creation skipped"
+          } else {
+            Write-Host "App icon not found, skipping icon creation"
+          }
+        shell: powershell
+
+      - name: Build Windows App
         run: npm run build:win
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,125 +73,264 @@ jobs:
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mudek-windows
+          name: mudek-windows-x64
           path: |
-            dist/*.exe
-            dist/*.blockmap
+            dist/*Windows*x64*.exe
+            dist/*Windows*x64*.zip
+            dist/*Windows*x64*.blockmap
             dist/latest.yml
 
-  # Auto Release (sadece main branch push)
-  auto-release:
-    name: Auto Release
-    needs: [web-deploy, build-windows]
+  # Mac Intel Build
+  build-mac-intel:
+    name: Build Mac Intel App
+    runs-on: macos-13
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Create Icon (if needed)
+        run: |
+          if [ -f "app/v2/assets/img/app-icon.png" ]; then
+            echo "App icon exists, creating ICNS format..."
+            npm run create-icon || echo "Icon creation skipped"
+          else
+            echo "App icon not found, skipping icon creation"
+          fi
+
+      - name: Build Mac Intel App
+        run: npm run build:mac-intel
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Mac Intel Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mudek-mac-intel-x64
+          path: |
+            dist/*macOS*x64*.dmg
+            dist/*macOS*x64*.zip
+            dist/*macOS*x64*.blockmap
+            dist/latest-mac.yml
+
+  # Mac M1/M2 Build
+  build-mac-m1:
+    name: Build Mac M1/M2 App
+    runs-on: macos-14
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Create Icon (if needed)
+        run: |
+          if [ -f "app/v2/assets/img/app-icon.png" ]; then
+            echo "App icon exists, creating ICNS format..."
+            npm run create-icon || echo "Icon creation skipped"
+          else
+            echo "App icon not found, skipping icon creation"
+          fi
+
+      - name: Build Mac M1/M2 App
+        run: npm run build:mac-m1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Mac M1/M2 Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mudek-mac-m1-arm64
+          path: |
+            dist/*macOS*arm64*.dmg
+            dist/*macOS*arm64*.zip
+            dist/*macOS*arm64*.blockmap
+            dist/latest-mac.yml
+
+  # Linux Build
+  build-linux:
+    name: Build Linux App
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Create Icon (if needed)
+        run: |
+          if [ -f "app/v2/assets/img/app-icon.png" ]; then
+            echo "App icon exists, using PNG format..."
+            npm run create-icon || echo "Icon creation skipped"
+          else
+            echo "App icon not found, skipping icon creation"
+          fi
+
+      - name: Build Linux App
+        run: npm run build:linux
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mudek-linux-x64
+          path: |
+            dist/*Linux*x64*.AppImage
+            dist/*Linux*x64*.deb
+            dist/*Linux*x64*.rpm
+            dist/*Linux*x64*.zip
+            dist/latest-linux.yml
+
+  # Tagged Release
+  release:
+    name: Create Release
+    needs: [web-deploy, build-windows, build-mac-intel, build-mac-m1, build-linux]
+    runs-on: ubuntu-latest
     
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      
-    - name: Generate Version Tag
-      id: version
-      run: |
-        BUILD_DATE=$(date +'%Y.%m%d')
-        BUILD_TIME=$(date +'%H%M')
-        BUILD_NUM=$(printf "%04d" ${{ github.run_number }})
-        VERSION_TAG="v${BUILD_DATE}.${BUILD_TIME}.${BUILD_NUM}"
-        echo "version=${VERSION_TAG}" >> $GITHUB_OUTPUT
-        echo "Generated version: ${VERSION_TAG}"
         
-    - name: Create and Push Tag
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git tag ${{ steps.version.outputs.version }}
-        git push origin ${{ steps.version.outputs.version }}
-      
     - name: Download Windows Artifacts
       uses: actions/download-artifact@v4
       with:
-        name: mudek-windows
-        path: ./release-assets/
-
+        name: mudek-windows-x64
+        path: ./release-assets/windows/
+        
+    - name: Download Mac Intel Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mudek-mac-intel-x64
+        path: ./release-assets/mac-intel/
+        
+    - name: Download Mac M1/M2 Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mudek-mac-m1-arm64
+        path: ./release-assets/mac-m1/
+        
+    - name: Download Linux Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: mudek-linux-x64
+        path: ./release-assets/linux/
+        
     - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.version.outputs.version }}
-        name: MUDEK Ders Değerlendirme Sistemi ${{ steps.version.outputs.version }}
-        files: |
-          release-assets/*.exe
-          release-assets/*.blockmap
-          release-assets/latest.yml
-        draft: false
-        prerelease: false
-        body: |
-          ## 🚀 MUDEK Ders Değerlendirme Sistemi ${{ steps.version.outputs.version }}
-          
-          ### 📱 CORUH ARGE Logosu ile Windows Masaüstü Uygulaması
-          
-          **Build Bilgileri:**
-          - Build Tarihi: $(date +'%Y-%m-%d')
-          - Build Numarası: ${{ github.run_number }}
-          - Commit: ${{ github.sha }}
-          
-          **Özellikler:**
-          - 🏢 CORUH ARGE logosu ve branding
-          - 🎓 MUDEK ders değerlendirme sistemi
-          - 💾 Native Windows dosya işlemleri
-          - ⌨️ Klavye kısayolları (Ctrl+O, Ctrl+S)
-          - 🌐 Web versiyonu: https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/
-          
-          **Geliştirici:** Dr. Öğr. Üyesi Uğur CORUH  
-          **Firma:** CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ  
-          **Web:** [www.coruh.com.tr](https://www.coruh.com.tr)
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  # Manuel Release (tag ile)
-  manual-release:
-    name: Manual Tagged Release
-    needs: [web-deploy, build-windows]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
-    
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v4
-        
-    - name: Download Windows Artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: mudek-windows
-        path: ./release-assets/
-        
-    - name: Create Manual Release
       uses: softprops/action-gh-release@v1
       with:
         name: MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
         files: |
-          release-assets/*.exe
-          release-assets/*.blockmap
-          release-assets/latest.yml
+          release-assets/windows/*
+          release-assets/mac-intel/*
+          release-assets/mac-m1/*
+          release-assets/linux/*
         draft: false
         prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
         body: |
           ## 🎓 MUDEK Ders Değerlendirme Sistemi ${{ github.ref_name }}
           
-          **Manuel Release - CORUH ARGE Logosu ile**
+          **CORUH ARGE ile Resmi Multi-Platform Release**
           
           RTEÜ MUDEK ders değerlendirme ve akreditasyon sistemi masaüstü uygulaması.
           
           **Özellikler:**
-          - CORUH ARGE kurumsal logosu ve tasarım
-          - Native Windows uygulaması
-          - Dosya aç/kaydet native dialog'ları  
-          - Klavye kısayolları desteği
-          - MUDEK kriterlerine uygun değerlendirme sistemi
+          - 🏢 CORUH ARGE kurumsal logosu ve tasarım
+          - 💻 Native masaüstü uygulaması (Windows, Mac, Linux)
+          - 📁 Dosya aç/kaydet native dialog'ları  
+          - ⌨️ Klavye kısayolları desteği (Ctrl+O, Ctrl+S)
+          - 📊 MUDEK kriterlerine uygun değerlendirme sistemi
+          - 🌐 Web versiyonu mevcut
           
           **Web Versiyonu:** https://coruhtech.github.io/mudek-ders-degerlendirme-formu/app/v2/
           
           **Geliştirici:** Dr. Öğr. Üyesi Uğur CORUH
+          **Kurum:** CORUH ARGE VE TEKNOLOJİ SANAYİ TİCARET LİMİTED ŞİRKETİ  
           **İletişim:** ugur.coruh@erdogan.edu.tr
-          **Web:** www.coruh.com.tr
+          **Web:** [www.coruh.com.tr](https://www.coruh.com.tr)
+          
+          ---
+          
+          ### 📥 Platform Bazlı İndirme Seçenekleri
+          
+          #### 🪟 Windows (64-bit)
+          - **Setup (Önerilen)**: `MUDEK-Setup-${{ github.ref_name }}-Windows-x64.exe`
+          - **Portable ZIP**: `MUDEK-System-${{ github.ref_name }}-Windows-x64.zip`
+          
+          #### 🍎 macOS
+          - **Intel Mac**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-macOS-x64.dmg`
+          - **M1/M2 Mac**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-macOS-arm64.dmg`
+          - **Intel ZIP**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-macOS-x64.zip`
+          - **M1/M2 ZIP**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-macOS-arm64.zip`
+          
+          #### 🐧 Linux (64-bit)
+          - **AppImage (Universal)**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-Linux-x64.AppImage`
+          - **DEB (Ubuntu/Debian)**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-Linux-x64.deb`
+          - **RPM (CentOS/RHEL)**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-Linux-x64.rpm`
+          - **Portable ZIP**: `MUDEK-Ders-Degerlendirme-Sistemi-${{ github.ref_name }}-Linux-x64.zip`
+          
+          ### 🛠️ Sistem Gereksinimleri
+          
+          **Windows:**
+          - Windows 10/11 (64-bit)
+          - .NET Framework 4.8 veya üzeri
+          - 100 MB boş disk alanı
+          
+          **macOS:**
+          - macOS 10.14 Mojave veya üzeri
+          - Intel işlemci veya Apple Silicon (M1/M2)
+          - 100 MB boş disk alanı
+          
+          **Linux:**
+          - Ubuntu 18.04+ / Debian 10+ / CentOS 8+
+          - GLIBC 2.23 veya üzeri
+          - 100 MB boş disk alanı
+          
+          ### 📋 Kurulum Talimatları
+          
+          **Windows:**
+          1. `.exe` dosyasını indirin ve çalıştırın
+          2. Kurulum sihirbazını takip edin
+          3. Masaüstü kısayolundan başlatın
+          
+          **macOS:**
+          1. `.dmg` dosyasını indirin ve açın
+          2. Uygulamayı Applications klasörüne sürükleyin
+          3. Launchpad'den veya Applications'tan başlatın
+          
+          **Linux:**
+          - **AppImage**: İndirin, çalıştırılabilir yapın (`chmod +x`) ve çalıştırın
+          - **DEB**: `sudo dpkg -i mudek-*.deb` komutu ile kurun
+          - **RPM**: `sudo rpm -i mudek-*.rpm` komutu ile kurun
+          
+          ### 📝 Sürüm Notları
+          
+          - Build Tarihi: ${{ github.event.head_commit.timestamp }}
+          - Commit: ${{ github.sha }}
+          - Desteklenen Platformlar: Windows x64, macOS x64/arm64, Linux x64
+          
+          Bu sürümde yapılan değişiklikler için commit geçmişini inceleyebilirsiniz.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 

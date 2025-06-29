@@ -2,6 +2,15 @@
 # Template includes C, C#, Visual Studio, VS Code, Java, Maven, C++, CMake, Eclipse, NetBeans 
 # Generated on: Wed 05/21/2025 12:46:08.80 
  
+# Electron & Node.js specific
+node_modules/
+dist/
+*.ico
+!app/*/assets/**/*.ico
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log* 
+ 
 # Created by https://www.toptal.com/developers/gitignore/api/c,csharp,visualstudio,visualstudiocode,java,maven,c++,cmake,eclipse,netbeans
 # Edit at https://www.toptal.com/developers/gitignore?templates=c,csharp,visualstudio,visualstudiocode,java,maven,c++,cmake,eclipse,netbeans
 
