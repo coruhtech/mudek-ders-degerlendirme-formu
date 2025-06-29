@@ -19437,7 +19437,7 @@ function renderAvailableOutcomes(container, selectedOutcomes = []) {
     // Badge'leri oluştur
     sortedOutcomes.forEach(([code, outcomeData]) => {
         const badge = document.createElement('div');
-        badge.className = 'outcome-badge';
+        badge.className = 'outcome-item outcome-badge';
         badge.dataset.outcome = code;
         
         // Badge içeriğini oluştur
@@ -19471,7 +19471,7 @@ function renderAvailableOutcomes(container, selectedOutcomes = []) {
  * Seçili öğrenme çıktılarını textarea'ya yansıtma
  */
 function updateOutcomesTextarea() {
-    const selectedBadges = document.querySelectorAll('.outcome-badge.selected');
+    const selectedBadges = document.querySelectorAll('.outcome-item.selected');
     const selectedOutcomes = Array.from(selectedBadges).map(badge => badge.dataset.outcome);
     const outcomesTextarea = document.getElementById('outcomesTextarea');
     
@@ -19503,7 +19503,7 @@ function setupOutcomesModalEvents(nodeId) {
     
     // Tümünü seç
     newSelectAllBtn.addEventListener('click', () => {
-        document.querySelectorAll('.outcome-badge').forEach(badge => {
+        document.querySelectorAll('.outcome-item.outcome-badge').forEach(badge => {
             badge.classList.add('selected');
         });
         updateOutcomesTextarea();
@@ -19511,7 +19511,7 @@ function setupOutcomesModalEvents(nodeId) {
     
     // Temizle
     newClearAllBtn.addEventListener('click', () => {
-        document.querySelectorAll('.outcome-badge').forEach(badge => {
+        document.querySelectorAll('.outcome-item.outcome-badge').forEach(badge => {
             badge.classList.remove('selected');
         });
         updateOutcomesTextarea();
@@ -19520,11 +19520,11 @@ function setupOutcomesModalEvents(nodeId) {
     // Rastgele seç (2-3 tane)
     newRandomSelectBtn.addEventListener('click', () => {
         // Önce tümünü temizle
-        document.querySelectorAll('.outcome-badge').forEach(badge => {
+        document.querySelectorAll('.outcome-item.outcome-badge').forEach(badge => {
             badge.classList.remove('selected');
         });
         
-        const allBadges = Array.from(document.querySelectorAll('.outcome-badge'));
+        const allBadges = Array.from(document.querySelectorAll('.outcome-item.outcome-badge'));
         const randomCount = Math.floor(Math.random() * 2) + 2; // 2-3 tane
         const selectedIndices = [];
         
