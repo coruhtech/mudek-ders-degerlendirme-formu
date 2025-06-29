@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'main'
 
 permissions:
   contents: write
@@ -14,10 +16,11 @@ permissions:
   id-token: write
 
 jobs:
-  # Web Deploy için GitHub Pages
+  # Web Deploy için GitHub Pages (sadece main branch)
   web-deploy:
     name: Deploy Web App
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -42,6 +45,7 @@ jobs:
   build-windows:
     name: Build Windows App
     runs-on: windows-latest
+    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Check out Git repository
@@ -88,6 +92,7 @@ jobs:
   build-mac-intel:
     name: Build Mac Intel App
     runs-on: macos-13
+    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Check out Git repository
@@ -129,6 +134,7 @@ jobs:
   build-mac-m1:
     name: Build Mac M1/M2 App
     runs-on: macos-14
+    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Check out Git repository
@@ -170,6 +176,7 @@ jobs:
   build-linux:
     name: Build Linux App
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Check out Git repository
@@ -211,8 +218,9 @@ jobs:
   # Tagged Release
   release:
     name: Create Release
-    needs: [web-deploy, build-windows, build-mac-intel, build-mac-m1, build-linux]
+    needs: [build-windows, build-mac-intel, build-mac-m1, build-linux]
     runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
     
     steps:
     - name: Checkout
