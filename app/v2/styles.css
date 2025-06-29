@@ -30713,10 +30713,10 @@ input[type="range"].rainbow-slider.final-activity-slider,
 .outcomes-list {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
     max-height: 300px;
     overflow-y: auto;
-    padding: 2px;
+    padding: 6px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background-color: #f8f9fa;
@@ -30759,7 +30759,7 @@ input[type="range"].rainbow-slider.final-activity-slider,
 .outcome-item.selected::after {
     content: "✓";
     position: absolute;
-    right: 12px;
+    right: 15px;
     top: 50%;
     transform: translateY(-50%);
     color: white;
@@ -30767,8 +30767,8 @@ input[type="range"].rainbow-slider.final-activity-slider,
     font-size: 16px;
     background: rgba(255, 255, 255, 0.2);
     border-radius: 50%;
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -30779,11 +30779,11 @@ input[type="range"].rainbow-slider.final-activity-slider,
 .outcomes-list .outcome-item:not(.selected)::after {
     content: "";
     position: absolute;
-    right: 12px;
+    right: 15px;
     top: 50%;
     transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
+    width: 26px;
+    height: 26px;
     border: 2px solid #dee2e6;
     border-radius: 50%;
     transition: all 0.3s ease;
@@ -30799,7 +30799,7 @@ input[type="range"].rainbow-slider.final-activity-slider,
 .outcome-badge {
     display: flex !important;
     flex-direction: column !important;
-    padding: 16px 40px 16px 16px !important;
+    padding: 18px 50px 18px 18px !important;
     margin: 0 !important;
     border-radius: 8px;
     cursor: pointer;
@@ -30815,22 +30815,24 @@ input[type="range"].rainbow-slider.final-activity-slider,
 .outcome-badge .outcome-code {
     font-weight: 700;
     font-size: 16px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     width: 100%;
     text-align: left;
     margin-top: 0;
     padding: 0;
+    padding-right: 35px;
 }
 
 .outcome-badge .outcome-description {
     font-size: 14px;
     opacity: 0.8;
-    line-height: 1.3;
+    line-height: 1.4;
     width: 100%;
     text-align: left;
     word-wrap: break-word;
     margin: 0;
     padding: 0;
+    padding-right: 35px;
 }
 
 /* ÖÇ Badge seçili olmayan durumu */
