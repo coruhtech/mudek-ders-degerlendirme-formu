@@ -2735,16 +2735,31 @@
 
                 <div class="input-sections-inline">
                     <div id="totalSectionInline" class="input-section-inline active">
-                        <input type="number" id="totalPointsInline" class="form-control-inline" step="0.1" placeholder="Toplam puan (örn: 85.5)">
-                        <button type="button" class="btn-inline-action" onclick="quickApplyTotal()">⚡ Hızlı Dağıt</button>
+                        <div class="quick-input-group">
+                            <input type="number" id="totalPointsInline" class="quick-input" step="0.1" placeholder="Toplam puan (örn: 85.5)">
+                            <div class="quick-buttons">
+                                <button type="button" class="btn-quick random" onclick="safeCall('quickApplyTotalRandom')" data-function="quickApplyTotalRandom" title="MUDEK kriterlerine göre gerçekçi rastgele dağıtım">
+                                    🎲 Rastgele
+                                </button>
+                                <button type="button" class="btn-quick equal" onclick="safeCall('quickApplyTotalEqual')" data-function="quickApplyTotalEqual" title="Tüm sorulara eşit puan dağıtımı">
+                                    ⚖️ Eşit
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div id="correctWrongSectionInline" class="input-section-inline">
-                        <div class="correct-wrong-inputs-inline">
-                            <input type="number" id="correctCountInline" class="form-control-inline small" min="0" placeholder="Doğru">
-                            <span class="separator">/</span>
-                            <span id="totalQuestionsInline" class="total-questions">5</span>
-                            <button type="button" class="btn-inline-action" onclick="quickApplyCorrectWrong()">⚡ Hızlı Dağıt</button>
+                        <div class="quick-input-group">
+                            <div class="correct-wrong-input">
+                                <input type="number" id="correctCountInline" class="quick-input small" min="0" placeholder="Doğru">
+                                <span class="separator">/</span>
+                                <span id="totalQuestionsInline" class="total-questions">5</span>
+                            </div>
+                            <div class="quick-buttons single">
+                                <button type="button" class="btn-quick equal" onclick="safeCall('quickApplyCorrectWrongEqual')" data-function="quickApplyCorrectWrongEqual" title="Doğru sayısına göre eşit dağıtım">
+                                    ⚖️ Eşit Dağıt
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

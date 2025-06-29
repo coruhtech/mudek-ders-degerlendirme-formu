@@ -5235,8 +5235,10 @@ function closeActivityOptionsModal() {
         window.currentActivityNode = null;
         window.currentActivityType = null;
         
-        // ÖÇ seçimlerini temizle
-        clearAllActivityOutcomes();
+        // NOT: ÖÇ seçimlerini temizleme - kullanıcı manuel olarak temizlemeli
+        // clearAllActivityOutcomes(); // Kaldırıldı: gereksiz otomatik temizlik
+        
+        console.log('📋 Modal kapatıldı - ÖÇ seçimleri korundu (otomatik temizlik devre dışı)');
         
         // Seçili kartları temizle
         modal.querySelectorAll('.activity-option-card').forEach(card => {
@@ -6043,6 +6045,40 @@ function collapseAll() {
 }
 
 /**
+ * Üst düğümün ÖÇ'lerini alt düğümlerden toplama
+ * @param {string} parentId - Üst düğüm ID'si
+ */
+function updateParentOutcomes(parentId) {
+    try {
+        const parentNode = findNodeById(parentId);
+        if (!parentNode || !parentNode.children || parentNode.children.length === 0) {
+            return;
+        }
+        
+        // Alt düğümlerden unique ÖÇ'leri topla
+        const childOutcomes = new Set();
+        collectChildOutcomes(parentNode.children, childOutcomes);
+        
+        // Üst düğümün ÖÇ'lerini güncelle
+        if (childOutcomes.size > 0) {
+            parentNode.outcomes = Array.from(childOutcomes);
+            
+            // DOM'da üst düğümün ÖÇ input'unu güncelle
+            const parentOutcomesInput = document.querySelector(`.tree-node[data-id="${parentId}"] .nodeOutcomes`);
+            if (parentOutcomesInput) {
+                parentOutcomesInput.value = Array.isArray(parentNode.outcomes) ? parentNode.outcomes.join(',') : '';
+            }
+            
+            // Log'a bilgi ekle
+            addLogEntry('info', `"${parentNode.name}" etkinliğinin ÖÇ'leri alt bileşenlerden otomatik güncellendi: ${parentNode.outcomes.join(', ')}`);
+        }
+    } catch (error) {
+        console.error("Üst düğüm ÖÇ'leri güncellenirken hata oluştu:", error);
+        addLogEntry('error', `Üst düğüm ÖÇ'leri güncellenirken hata: ${error.message}`);
+    }
+}
+
+/**
  * Öğrenme çıktılarını güncelleme
  * @param {Object} node - Güncellenecek düğüm
  * @param {HTMLInputElement} outcomesInput - Çıktılar input elementi
@@ -6065,6 +6101,14 @@ function updateOutcomes(node, outcomesInput) {
             } else {
                 node.outcomes = outcomes;
             }
+            
+            // ALT DÜĞÜM ÖÇ'Sİ DEĞİŞTİĞİNDE ÜST DÜĞÜMÜ GÜNCELLE
+            const parentId = node.id.substring(0, node.id.lastIndexOf('.'));
+            if (parentId) {
+                setTimeout(() => {
+                    updateParentOutcomes(parentId);
+                }, 50);
+            }
         } else {
             // Ana etkinlik için birden çok ÖÇ atanabilir
             node.outcomes = inputValue.split(',').map(s => s.trim()).filter(s => s);
@@ -6075,7 +6119,7 @@ function updateOutcomes(node, outcomesInput) {
             node.outcomes = [];
         }
         
-        // Alt düğümlerin öğrenme çıktılarını ana düğüme kopyala
+        // Alt düğümlerin öğrenme çıktılarını ana düğüme kopyala (manuel güncelleme durumunda)
         if (!isSubItem && node.children && node.children.length > 0) {
             const childOutcomes = new Set();
             collectChildOutcomes(node.children, childOutcomes);
@@ -6094,6 +6138,7 @@ function updateOutcomes(node, outcomesInput) {
     } catch (error) {
         console.error("Öğrenme çıktıları güncellenirken hata oluştu:", error);
         showModernToast("Öğrenme çıktıları güncellenemedi!", "error");
+        addLogEntry('error', `ÖÇ güncelleme hatası: ${error.message}`);
         
         // Hata durumunda güvenli değer ata
         node.outcomes = [];
@@ -10624,6 +10669,11 @@ function updateStudentGrade(input) {
             autoSaveManager.updateFloatingButton('unsaved');
         }
         
+        // OTOMATIK PUAN DAĞIT BUTONLARINI GÜNCELLE
+        setTimeout(() => {
+            addAutoDistributeButtonsToTables();
+        }, 50);
+        
     } catch (error) {
         console.error("Öğrenci notu güncellenirken hata oluştu:", error);
         showModernToast("Not güncellenirken hata oluştu!", "error");
@@ -14138,6 +14188,11 @@ function updateStudentGradeFromStudentView(input) {
         // Özetleme bölümünü güncelle
         updateStudentSummary(studentId);
         
+        // OTOMATIK PUAN DAĞIT BUTONLARINI GÜNCELLE
+        setTimeout(() => {
+            addAutoDistributeButtonsToTables();
+        }, 50);
+        
     } catch (error) {
         console.error("Öğrenci notu güncellenirken hata oluştu:", error);
         showModernToast("Not güncellenirken hata oluştu!", "error");
@@ -14177,6 +14232,11 @@ function updateTestScoreFromStudentView(input) {
         
         // Özetleme bölümünü güncelle
         updateStudentSummary(studentId);
+        
+        // OTOMATIK PUAN DAĞIT BUTONLARINI GÜNCELLE
+        setTimeout(() => {
+            addAutoDistributeButtonsToTables();
+        }, 50);
         
     } catch (error) {
         console.error("Test skoru güncellenirken hata oluştu:", error);
@@ -19571,6 +19631,20 @@ function setupOutcomesModalEvents(nodeId) {
             const nodeTextarea = document.querySelector(`.tree-node[data-id="${nodeId}"] .nodeOutcomes`);
             if (nodeTextarea) {
                 nodeTextarea.value = outcomes.join(',');
+            }
+            
+            // ALT DÜĞÜM İSE, ÜST DÜĞÜMÜN ÖÇ'LERİNİ GÜNCELLE
+            const isSubItem = nodeId.includes('.');
+            if (isSubItem) {
+                const parentId = nodeId.substring(0, nodeId.lastIndexOf('.'));
+                if (parentId) {
+                    setTimeout(() => {
+                        updateParentOutcomes(parentId);
+                        // Ekranı yeniden render et
+                        renderTree();
+                        updateAssessmentView();
+                    }, 100);
+                }
             }
             
             // Değerlendirme görünümünü güncelle
@@ -35974,14 +36048,72 @@ function quickApplyTotal() {
 }
 
 /**
+ * MUDEK kriterlerine göre rastgele dağıtım
+ */
+function quickApplyTotalRandom() {
+    const form = document.getElementById('inlineDistributeForm');
+    const totalInput = document.getElementById('totalPointsInline');
+    
+    if (!form || !totalInput) return;
+    
+    const totalScore = parseFloat(totalInput.value);
+    if (!totalScore || totalScore <= 0) {
+        showInlineMessage('⚠️ Lütfen geçerli bir puan girin!', 'warning');
+        return;
+    }
+    
+    const activityId = form.dataset.activityId;
+    
+    // Rastgele dağıtım hesapla
+    const distribution = calculateRandomDistribution(activityId, totalScore);
+    if (distribution) {
+        showInlinePreview(distribution);
+    }
+}
+
+/**
+ * Eşit dağıtım
+ */
+function quickApplyTotalEqual() {
+    const form = document.getElementById('inlineDistributeForm');
+    const totalInput = document.getElementById('totalPointsInline');
+    
+    if (!form || !totalInput) return;
+    
+    const totalScore = parseFloat(totalInput.value);
+    if (!totalScore || totalScore <= 0) {
+        showInlineMessage('⚠️ Lütfen geçerli bir puan girin!', 'warning');
+        return;
+    }
+    
+    const activityId = form.dataset.activityId;
+    
+    // Eşit dağıtım hesapla
+    const distribution = calculateEqualDistribution(activityId, totalScore);
+    if (distribution) {
+        showInlinePreview(distribution);
+    }
+}
+
+// Tüm hızlı dağıtım fonksiyonlarını global scope'a ekle
+window.quickApplyTotal = quickApplyTotal;
+window.quickApplyTotalRandom = quickApplyTotalRandom;
+window.quickApplyTotalEqual = quickApplyTotalEqual;
+
+/**
  * Hızlı doğru/yanlış dağıtımı
  */
-function quickApplyCorrectWrong() {
+function quickApplyCorrectWrongEqual() {
+    console.log('🎯 quickApplyCorrectWrongEqual fonksiyonu çalıştırıldı');
+    
     const form = document.getElementById('inlineDistributeForm');
     const correctInput = document.getElementById('correctCountInline');
     const totalQuestionsSpan = document.getElementById('totalQuestionsInline');
     
-    if (!form || !correctInput || !totalQuestionsSpan) return;
+    if (!form || !correctInput || !totalQuestionsSpan) {
+        console.error('❌ Gerekli DOM elementleri bulunamadı:', {form, correctInput, totalQuestionsSpan});
+        return;
+    }
     
     const correct = parseInt(correctInput.value);
     const total = parseInt(totalQuestionsSpan.textContent);
@@ -35991,14 +36123,181 @@ function quickApplyCorrectWrong() {
         return;
     }
     
-    const totalScore = total > 0 ? (correct / total) * 100 : 0;
+    // Doğru/Yanlış eşit dağıtım
     const activityId = form.dataset.activityId;
+    const activity = findNodeById(activityId);
+    
+    if (!activity || !activity.children || activity.children.length === 0) {
+        showInlineMessage('⚠️ Bu etkinliğin alt bileşenleri bulunamadı!', 'error');
+        return;
+    }
+    
+    const components = activity.children;
+    const distribution = [];
+    
+    // İlk 'correct' sayısındaki sorulara tam puan, diğerlerine 0 puan
+    components.forEach((comp, index) => {
+        const maxPoints = comp.points || 100;
+        const score = index < correct ? maxPoints : 0;
+        
+        distribution.push({
+            id: comp.id,
+            name: comp.name || `Soru ${comp.id.split('.').pop()}`,
+            score: score,
+            maxPoints: maxPoints,
+            weight: comp.weight || 0
+        });
+    });
     
     // Önizleme göster
-    const distribution = calculateInlineDistribution(activityId, totalScore, 'correctWrong');
-    if (distribution) {
         showInlinePreview(distribution);
     }
+
+// Global scope'a fonksiyonu ekle
+window.quickApplyCorrectWrongEqual = quickApplyCorrectWrongEqual;
+
+// Debug: Fonksiyon yükleme kontrolü
+console.log('🔧 quickApplyCorrectWrongEqual fonksiyonu tanımlandı:', typeof quickApplyCorrectWrongEqual === 'function');
+console.log('🌐 Window objesi üzerinde tanımlı:', typeof window.quickApplyCorrectWrongEqual === 'function');
+
+// DOM yüklendikten sonra fonksiyon kontrolü
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM yüklendi, fonksiyon kontrolü:');
+    console.log('  - quickApplyCorrectWrongEqual:', typeof window.quickApplyCorrectWrongEqual === 'function');
+    console.log('  - quickApplyTotalRandom:', typeof window.quickApplyTotalRandom === 'function');
+    console.log('  - quickApplyTotalEqual:', typeof window.quickApplyTotalEqual === 'function');
+});
+
+/**
+ * Güvenli fonksiyon çağrısı
+ */
+function safeCall(functionName) {
+    try {
+        console.log(`🔍 Fonksiyon çağırılıyor: ${functionName}`);
+        
+        // Önce window objesi üzerinden kontrol et
+        if (typeof window[functionName] === 'function') {
+            console.log(`✅ Window objesi üzerinden çağırılıyor: ${functionName}`);
+            return window[functionName]();
+        }
+        
+        // Global scope'tan kontrol et
+        if (typeof eval(functionName) === 'function') {
+            console.log(`✅ Global scope'tan çağırılıyor: ${functionName}`);
+            return eval(functionName + '()');
+        }
+        
+        console.error(`❌ Fonksiyon bulunamadı: ${functionName}`);
+        alert(`Fonksiyon bulunamadı: ${functionName}`);
+        
+    } catch (error) {
+        console.error(`❌ Fonksiyon çağırma hatası: ${functionName}`, error);
+        alert(`Fonksiyon hatası: ${error.message}`);
+    }
+}
+
+// safeCall'ı da global scope'a ekle
+window.safeCall = safeCall;
+
+/**
+ * MUDEK kriterlerine göre rastgele dağıtım hesapla
+ */
+function calculateRandomDistribution(activityId, totalScore) {
+    const activity = findNodeById(activityId);
+    if (!activity || !activity.children || activity.children.length === 0) {
+        showInlineMessage('⚠️ Bu etkinliğin alt bileşenleri bulunamadı!', 'error');
+        return null;
+    }
+
+    const components = activity.children;
+    const distribution = [];
+    
+    // MUDEK kriterleri: %50-85 arası başarılı kabul edilir
+    // Her soru için rastgele ama gerçekçi performans üret
+    components.forEach(comp => {
+        // Her sorunun ağırlığına göre maksimum puanını hesapla
+        const maxPoints = comp.points || (comp.weight / 100 * 100);
+        
+        // MUDEK kriterlerine göre rastgele başarı oranı (45-95%)
+        const successRate = 0.45 + Math.random() * 0.50; // 45% - 95% arası
+        
+        // Toplam puanın bu soruya düşen payını hesapla
+        const totalWeight = components.reduce((sum, c) => sum + (c.weight || 0), 0);
+        const relativeWeight = (comp.weight || 0) / totalWeight;
+        const allocatedScore = totalScore * relativeWeight;
+        
+        // Başarı oranını uygula ve küçük rastgele varyasyon ekle
+        const variance = 0.9 + Math.random() * 0.2; // ±10% varyasyon
+        const score = Math.min(allocatedScore * successRate * variance, maxPoints);
+        
+        distribution.push({
+            id: comp.id,
+            name: comp.name || `Soru ${comp.id.split('.').pop()}`,
+            score: Math.max(0, score), // Negatif değerleri engelle
+            maxPoints: maxPoints,
+            weight: comp.weight || 0
+        });
+    });
+    
+    // Toplam kontrolü - eğer toplam çok farklıysa normalize et
+    const currentTotal = distribution.reduce((sum, comp) => sum + comp.score, 0);
+    if (Math.abs(currentTotal - totalScore) > totalScore * 0.15) {
+        const factor = totalScore / currentTotal;
+        distribution.forEach(comp => {
+            comp.score = Math.min(comp.score * factor, comp.maxPoints);
+        });
+    }
+    
+    return distribution;
+}
+
+/**
+ * Eşit dağıtım hesapla
+ */
+function calculateEqualDistribution(activityId, totalScore) {
+    const activity = findNodeById(activityId);
+    if (!activity || !activity.children || activity.children.length === 0) {
+        showInlineMessage('⚠️ Bu etkinliğin alt bileşenleri bulunamadı!', 'error');
+        return null;
+    }
+
+    const components = activity.children;
+    const distribution = [];
+    
+    // Toplam ağırlığı hesapla
+    const totalWeight = components.reduce((sum, comp) => sum + (comp.weight || 0), 0);
+    
+    if (totalWeight === 0) {
+        // Ağırlık yoksa eşit böl
+        const equalScore = totalScore / components.length;
+        components.forEach(comp => {
+            const maxPoints = comp.points || 100;
+            distribution.push({
+                id: comp.id,
+                name: comp.name || `Soru ${comp.id.split('.').pop()}`,
+                score: Math.min(equalScore, maxPoints),
+                maxPoints: maxPoints,
+                weight: comp.weight || 0
+            });
+        });
+    } else {
+        // Ağırlığa göre orantılı dağıt
+        components.forEach(comp => {
+            const maxPoints = comp.points || (comp.weight / 100 * 100);
+            const weight = comp.weight || 0;
+            const score = (weight / totalWeight) * totalScore;
+            
+            distribution.push({
+                id: comp.id,
+                name: comp.name || `Soru ${comp.id.split('.').pop()}`,
+                score: Math.min(score, maxPoints),
+                maxPoints: maxPoints,
+                weight: weight
+            });
+        });
+    }
+    
+    return distribution;
 }
 
 /**
