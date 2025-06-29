@@ -265,10 +265,21 @@
         
         <!-- Ana Sekme Navigasyonu -->
 		<div class="nav-tabs">
-			<button class="nav-tab active" data-tab="definition">Ders Tanımlama</button>
-			<button class="nav-tab" data-tab="students">Öğrenci Listesi</button>
-			<button class="nav-tab" data-tab="assessment">Değerlendirme Girişi</button>
-			<button class="nav-tab" data-tab="grades">Notlar</button>
+			<button class="nav-tab active" data-tab="definition">
+				<i class="fas fa-book-open"></i> Ders Tanımlama
+			</button>
+			<button class="nav-tab" data-tab="students">
+				<i class="fas fa-users"></i> Öğrenci Listesi
+			</button>
+			<button class="nav-tab" data-tab="assessment">
+				<i class="fas fa-edit"></i> Değerlendirme Girişi
+			</button>
+			<button class="nav-tab" data-tab="grades">
+				<i class="fas fa-chart-bar"></i> Notlar
+			</button>
+			<button class="nav-tab" data-tab="logs">
+				<i class="fas fa-terminal"></i> Loglar
+			</button>
 		</div>
         
         <!-- Ders Tanımlama Sekmesi -->
@@ -1448,6 +1459,68 @@
                 </div>
                 
                 <div id="chartContainer" class="chart-container"></div>
+            </div>
+        </div>
+        
+        <!-- Loglar Sekmesi -->
+        <div class="nav-content" id="logs-content">
+            <div class="action-bar">
+                <div class="action-group">
+                    <h3 class="action-title"><i class="fas fa-terminal"></i> Sistem Logları</h3>
+                    <div class="buttons">
+                        <button class="btn btn-primary" id="btnClearLogs">
+                            <i class="fas fa-trash"></i> Logları Temizle
+                        </button>
+                        <button class="btn btn-secondary" id="btnExportLogs">
+                            <i class="fas fa-download"></i> Logları Dışa Aktar
+                        </button>
+                        <button class="btn btn-info" id="btnAutoScroll" data-enabled="true">
+                            <i class="fas fa-arrow-down"></i> Otomatik Kaydırma
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">
+                    <i class="fas fa-list-alt"></i> Log Geçmişi
+                    <span class="log-count" id="logCount">(0 log)</span>
+                </h3>
+                <p class="card-description">
+                    Uygulama çalışma süreci boyunca oluşan tüm sistem mesajları burada görüntülenir.
+                    F12 Developer Console yerine bu paneli kullanabilirsiniz.
+                </p>
+                
+                <div class="log-filters">
+                    <div class="filter-group">
+                        <label>Log Seviyesi:</label>
+                        <div class="filter-buttons">
+                            <button class="btn btn-sm btn-outline log-filter active" data-level="all">
+                                <i class="fas fa-list"></i> Hepsi
+                            </button>
+                            <button class="btn btn-sm btn-outline log-filter" data-level="info">
+                                <i class="fas fa-info-circle"></i> Bilgi
+                            </button>
+                            <button class="btn btn-sm btn-outline log-filter" data-level="warn">
+                                <i class="fas fa-exclamation-triangle"></i> Uyarı
+                            </button>
+                            <button class="btn btn-sm btn-outline log-filter" data-level="error">
+                                <i class="fas fa-times-circle"></i> Hata
+                            </button>
+                            <button class="btn btn-sm btn-outline log-filter" data-level="success">
+                                <i class="fas fa-check-circle"></i> Başarılı
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="log-container" id="logContainer">
+                    <div class="log-entry log-info">
+                        <span class="log-time">[Başlatılıyor...]</span>
+                        <span class="log-level">INFO</span>
+                        <span class="log-message">Log sistemi başlatıldı. Uygulama logları burada görüntülenecek...</span>
+                    </div>
+                </div>
             </div>
         </div>
         

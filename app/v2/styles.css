@@ -30504,3 +30504,191 @@ input[type="range"].rainbow-slider.final-activity-slider,
         padding: 10px;
     }
 }
+
+/* Log sekmesi için özel stiller */
+.log-container {
+    background-color: #1a1a1a;
+    color: #ffffff;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    padding: 16px;
+    border-radius: 8px;
+    height: 500px;
+    overflow-y: auto;
+    border: 1px solid #333;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.log-entry {
+    padding: 4px 0;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.log-entry:last-child {
+    border-bottom: none;
+}
+
+.log-time {
+    color: #888;
+    font-size: 11px;
+    min-width: 80px;
+    flex-shrink: 0;
+}
+
+.log-level {
+    font-weight: bold;
+    min-width: 50px;
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    text-align: center;
+}
+
+.log-message {
+    flex: 1;
+    word-wrap: break-word;
+}
+
+.log-info .log-level {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.log-warn .log-level {
+    background-color: #ffc107;
+    color: #000;
+}
+
+.log-error .log-level {
+    background-color: #dc3545;
+    color: white;
+}
+
+.log-success .log-level {
+    background-color: #198754;
+    color: white;
+}
+
+.log-filters {
+    margin-bottom: 16px;
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.filter-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.filter-group label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0;
+}
+
+.filter-buttons {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.log-filter {
+    padding: 6px 12px;
+    font-size: 12px;
+    border: 1px solid #dee2e6;
+    background-color: #fff;
+    color: #6c757d;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.log-filter:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.log-filter.active {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: #fff;
+}
+
+.log-count {
+    color: #6c757d;
+    font-size: 14px;
+    font-weight: normal;
+}
+
+/* Tab icon'ları için stiller */
+.nav-tab i {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+/* Responsive log ekranı */
+@media (max-width: 768px) {
+    .log-container {
+        height: 400px;
+        font-size: 12px;
+    }
+    
+    .filter-buttons {
+        justify-content: flex-start;
+    }
+    
+    .log-filter {
+        font-size: 11px;
+        padding: 4px 8px;
+    }
+    
+    .nav-tab {
+        font-size: 14px;
+        padding: 12px 16px;
+    }
+    
+    .nav-tab i {
+        font-size: 14px;
+        margin-right: 6px;
+    }
+}
+
+@media (max-width: 576px) {
+    .log-container {
+        height: 300px;
+        font-size: 11px;
+    }
+    
+    .filter-group {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .nav-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .nav-tab {
+        flex: 1 0 45%;
+        text-align: center;
+        font-size: 12px;
+        padding: 10px 8px;
+    }
+    
+    .nav-tab i {
+        display: block;
+        margin-bottom: 4px;
+        margin-right: 0;
+    }
+}

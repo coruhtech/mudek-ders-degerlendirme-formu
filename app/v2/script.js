@@ -13019,6 +13019,13 @@ function switchTab(tabId) {
             }, 100);
         }
         
+        // Log sekmesi açıldığında log sistemini başlat
+        if (tabId === 'logs') {
+            setTimeout(() => {
+                initializeLogSystem();
+            }, 100);
+        }
+        
         // Öğrenci bazlı not girişi sekmesi kaldırıldı
     }
 }
@@ -36732,3 +36739,361 @@ if (document.readyState === 'loading') {
         console.log('🚀 IndexedDB otomatik kayıt sistemi hemen başlatıldı');
     }
 }
+
+// =====================================================
+// LOG SİSTEMİ
+// =====================================================
+
+/**
+ * Log sistemi durumu
+ */
+const LOG_SYSTEM = {
+    logs: [],
+    isAutoScrollEnabled: true,
+    maxLogs: 1000,
+    filters: {
+        level: 'all'
+    }
+};
+
+/**
+ * Log sistemi butonlarını başlat
+ */
+function initializeLogSystem() {
+    try {
+        console.log('🔧 Log sistemi başlatılıyor...');
+        
+        // Buton event listener'ları ekle
+        const btnClearLogs = document.getElementById('btnClearLogs');
+        const btnExportLogs = document.getElementById('btnExportLogs');
+        const btnAutoScroll = document.getElementById('btnAutoScroll');
+        const logFilters = document.querySelectorAll('.log-filter');
+        
+        if (btnClearLogs) {
+            btnClearLogs.addEventListener('click', clearLogs);
+        }
+        
+        if (btnExportLogs) {
+            btnExportLogs.addEventListener('click', exportLogs);
+        }
+        
+        if (btnAutoScroll) {
+            btnAutoScroll.addEventListener('click', toggleAutoScroll);
+        }
+        
+        logFilters.forEach(filter => {
+            filter.addEventListener('click', (e) => {
+                const level = e.target.dataset.level;
+                setLogFilter(level);
+            });
+        });
+        
+        // Mevcut console.log, console.warn, console.error'ları yakala
+        interceptConsoleLog();
+        
+        // Başlangıç log'u ekle
+        addLogEntry('Log sistemi başarıyla başlatıldı', 'success');
+        
+        // Mevcut log'ları yükle
+        loadExistingLogs();
+        
+        console.log('✅ Log sistemi başlatıldı');
+        
+    } catch (error) {
+        console.error('❌ Log sistemi başlatılırken hata:', error);
+    }
+}
+
+/**
+ * Console fonksiyonlarını yakala
+ */
+function interceptConsoleLog() {
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+    
+    console.log = function(...args) {
+        const message = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' ');
+        
+        // Sistem log'u olmayan mesajları ekle
+        if (!message.includes('🔧') && !message.includes('✅') && !message.includes('❌')) {
+            addLogEntry(message, 'info');
+        }
+        
+        return originalLog.apply(console, args);
+    };
+    
+    console.warn = function(...args) {
+        const message = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' ');
+        
+        addLogEntry(message, 'warn');
+        return originalWarn.apply(console, args);
+    };
+    
+    console.error = function(...args) {
+        const message = args.map(arg => 
+            typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+        ).join(' ');
+        
+        addLogEntry(message, 'error');
+        return originalError.apply(console, args);
+    };
+}
+
+/**
+ * Log girişi ekle
+ */
+function addLogEntry(message, level = 'info') {
+    const logEntry = {
+        id: Date.now() + Math.random(),
+        timestamp: new Date(),
+        level: level,
+        message: message
+    };
+    
+    LOG_SYSTEM.logs.push(logEntry);
+    
+    // Maksimum log sayısını kontrol et
+    if (LOG_SYSTEM.logs.length > LOG_SYSTEM.maxLogs) {
+        LOG_SYSTEM.logs = LOG_SYSTEM.logs.slice(-LOG_SYSTEM.maxLogs);
+    }
+    
+    // UI'ya ekle
+    renderLogEntry(logEntry);
+    updateLogCount();
+    
+    // Otomatik kaydırma
+    if (LOG_SYSTEM.isAutoScrollEnabled) {
+        scrollToBottom();
+    }
+}
+
+/**
+ * Log girişini UI'ya render et
+ */
+function renderLogEntry(logEntry) {
+    const logContainer = document.getElementById('logContainer');
+    if (!logContainer) return;
+    
+    // Filtre kontrolü
+    if (LOG_SYSTEM.filters.level !== 'all' && LOG_SYSTEM.filters.level !== logEntry.level) {
+        return;
+    }
+    
+    const logElement = document.createElement('div');
+    logElement.className = `log-entry log-${logEntry.level}`;
+    logElement.dataset.level = logEntry.level;
+    logElement.dataset.id = logEntry.id;
+    
+    const timeString = logEntry.timestamp.toLocaleTimeString('tr-TR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+    
+    logElement.innerHTML = `
+        <span class="log-time">[${timeString}]</span>
+        <span class="log-level">${logEntry.level.toUpperCase()}</span>
+        <span class="log-message">${escapeHtml(logEntry.message)}</span>
+    `;
+    
+    logContainer.appendChild(logElement);
+}
+
+/**
+ * Tüm log'ları yeniden render et
+ */
+function renderAllLogs() {
+    const logContainer = document.getElementById('logContainer');
+    if (!logContainer) return;
+    
+    // Container'ı temizle
+    logContainer.innerHTML = '';
+    
+    // Filtrelenmiş log'ları render et
+    LOG_SYSTEM.logs.forEach(logEntry => {
+        if (LOG_SYSTEM.filters.level === 'all' || LOG_SYSTEM.filters.level === logEntry.level) {
+            renderLogEntry(logEntry);
+        }
+    });
+    
+    // Otomatik kaydırma
+    if (LOG_SYSTEM.isAutoScrollEnabled) {
+        scrollToBottom();
+    }
+}
+
+/**
+ * Log sayısını güncelle
+ */
+function updateLogCount() {
+    const logCount = document.getElementById('logCount');
+    if (logCount) {
+        const totalLogs = LOG_SYSTEM.logs.length;
+        logCount.textContent = `(${totalLogs} log)`;
+    }
+}
+
+/**
+ * Log'ları temizle
+ */
+function clearLogs() {
+    if (confirm('Tüm log\'ları temizlemek istediğinizden emin misiniz?')) {
+        LOG_SYSTEM.logs = [];
+        
+        const logContainer = document.getElementById('logContainer');
+        if (logContainer) {
+            logContainer.innerHTML = '<div class="log-entry log-info"><span class="log-time">[' + 
+                new Date().toLocaleTimeString('tr-TR') + ']</span><span class="log-level">INFO</span>' +
+                '<span class="log-message">Log\'lar temizlendi</span></div>';
+        }
+        
+        updateLogCount();
+        showModernToast('Log\'lar temizlendi', 'success');
+    }
+}
+
+/**
+ * Log'ları dışa aktar
+ */
+function exportLogs() {
+    try {
+        const exportData = {
+            exportDate: new Date().toISOString(),
+            totalLogs: LOG_SYSTEM.logs.length,
+            filters: LOG_SYSTEM.filters,
+            logs: LOG_SYSTEM.logs.map(log => ({
+                timestamp: log.timestamp.toISOString(),
+                level: log.level,
+                message: log.message
+            }))
+        };
+        
+        const jsonData = JSON.stringify(exportData, null, 2);
+        const filename = `mudek-logs-${new Date().toISOString().split('T')[0]}.json`;
+        
+        // Dosya indirme
+        const blob = new Blob([jsonData], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showModernToast(`Log'lar dışa aktarıldı: ${filename}`, 'success');
+        
+    } catch (error) {
+        console.error('Log dışa aktarma hatası:', error);
+        showModernToast('Log dışa aktarma başarısız!', 'error');
+    }
+}
+
+/**
+ * Otomatik kaydırmayı aç/kapat
+ */
+function toggleAutoScroll() {
+    const btnAutoScroll = document.getElementById('btnAutoScroll');
+    if (!btnAutoScroll) return;
+    
+    LOG_SYSTEM.isAutoScrollEnabled = !LOG_SYSTEM.isAutoScrollEnabled;
+    
+    if (LOG_SYSTEM.isAutoScrollEnabled) {
+        btnAutoScroll.classList.add('btn-info');
+        btnAutoScroll.classList.remove('btn-secondary');
+        btnAutoScroll.innerHTML = '<i class="fas fa-arrow-down"></i> Otomatik Kaydırma';
+        scrollToBottom();
+    } else {
+        btnAutoScroll.classList.remove('btn-info');
+        btnAutoScroll.classList.add('btn-secondary');
+        btnAutoScroll.innerHTML = '<i class="fas fa-pause"></i> Otomatik Kaydırma Durduruldu';
+    }
+}
+
+/**
+ * Log filtresini ayarla
+ */
+function setLogFilter(level) {
+    LOG_SYSTEM.filters.level = level;
+    
+    // Buton stillerini güncelle
+    const logFilters = document.querySelectorAll('.log-filter');
+    logFilters.forEach(filter => {
+        if (filter.dataset.level === level) {
+            filter.classList.add('active');
+        } else {
+            filter.classList.remove('active');
+        }
+    });
+    
+    // Log'ları yeniden render et
+    renderAllLogs();
+}
+
+/**
+ * En alt kısma kaydır
+ */
+function scrollToBottom() {
+    const logContainer = document.getElementById('logContainer');
+    if (logContainer) {
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+}
+
+/**
+ * HTML'i escape et
+ */
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Mevcut log'ları yükle (console'dan)
+ */
+function loadExistingLogs() {
+    // Başlangıç log'ları ekle
+    addLogEntry('MUDEK Ders Değerlendirme Sistemi v2.0 başlatıldı', 'success');
+    addLogEntry('Uygulama başlatma zamanı: ' + new Date().toLocaleString('tr-TR'), 'info');
+    
+    // Uygulama durumu log'u
+    if (APP_STATE.courseData) {
+        addLogEntry(`Ders yüklü: ${APP_STATE.courseData.courseName || 'Bilinmeyen'}`, 'info');
+    }
+    
+    if (APP_STATE.studentData && APP_STATE.studentData.length > 0) {
+        addLogEntry(`${APP_STATE.studentData.length} öğrenci listesi yüklü`, 'info');
+    }
+    
+    // Otomatik kayıt durumu
+    if (typeof autoSaveManager !== 'undefined' && autoSaveManager) {
+        addLogEntry('Otomatik kayıt sistemi aktif', 'success');
+    }
+}
+
+// showModernToast fonksiyonunu log sistemine entegre et
+const originalShowModernToast = window.showModernToast;
+if (originalShowModernToast) {
+    window.showModernToast = function(message, type = 'info', duration = 4000) {
+        // Önce toast'ı göster
+        originalShowModernToast(message, type, duration);
+        
+        // Sonra log'a ekle
+        const logType = type === 'success' ? 'success' : 
+                       type === 'error' ? 'error' : 
+                       type === 'warning' ? 'warn' : 'info';
+        
+        addLogEntry(`Toast: ${message}`, logType);
+    };
+}
+
+// Global fonksiyonları window'a ekle
+window.initializeLogSystem = initializeLogSystem;
+window.addLogEntry = addLogEntry;
