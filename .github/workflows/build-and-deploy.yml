@@ -59,7 +59,11 @@ jobs:
         run: |
           if (Test-Path "app/v2/assets/img/app-icon.png") {
             Write-Host "App icon exists, creating ICO format..."
-            npm run create-icon 2>$null || Write-Host "Icon creation skipped"
+            try { 
+              npm run create-icon 2>$null 
+            } catch { 
+              Write-Host "Icon creation skipped" 
+            }
           } else {
             Write-Host "App icon not found, skipping icon creation"
           }
