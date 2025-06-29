@@ -30798,12 +30798,12 @@ input[type="range"].rainbow-slider.final-activity-slider,
 
 .outcome-badge .outcome-code {
     font-weight: 700;
-    font-size: 14px;
+    font-size: 16px;
     margin-bottom: 4px;
 }
 
 .outcome-badge .outcome-description {
-    font-size: 12px;
+    font-size: 14px;
     opacity: 0.8;
     line-height: 1.3;
 }

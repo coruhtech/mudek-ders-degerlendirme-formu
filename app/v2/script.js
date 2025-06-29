@@ -36649,9 +36649,9 @@ function setupWebIntegration() {
             console.log('🔄 Eski localStorage verisi IndexedDB\'ye geçiriliyor...');
             localStorage.removeItem('mudek-course-data');
         }
-    } catch (error) {
+            } catch (error) {
         console.warn('⚠️ Eski veri temizleme uyarısı:', error);
-    }
+            }
 }
 
 /**
@@ -36672,32 +36672,32 @@ if (typeof window.electronAPI !== 'undefined') {
             }
         }
         
-        // Fallback - basit bir toast sistemi
-        console.log(`[${type.toUpperCase()}] ${message}`);
-        
-        // Basit bir toast elementi oluştur
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-        toast.style.cssText = `
-            position: fixed;
+            // Fallback - basit bir toast sistemi
+            console.log(`[${type.toUpperCase()}] ${message}`);
+            
+            // Basit bir toast elementi oluştur
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
             top: 60px;
-            right: 20px;
-            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
-            color: white;
-            padding: 12px 24px;
-            border-radius: 4px;
-            z-index: 10000;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                right: 20px;
+                background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+                color: white;
+                padding: 12px 24px;
+                border-radius: 4px;
+                z-index: 10000;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
             max-width: 300px;
             word-wrap: break-word;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             font-size: 14px;
-        `;
-        
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
+            `;
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
             if (toast.parentNode) {
                 toast.style.opacity = '0';
                 toast.style.transition = 'opacity 0.3s ease';
@@ -36707,8 +36707,8 @@ if (typeof window.electronAPI !== 'undefined') {
                     }
                 }, 300);
             }
-        }, duration);
-    }
+            }, duration);
+        }
     
     // Global olarak erişilebilir kıl ama window'a atamadan
     window.electronToastFunction = createElectronToast;
